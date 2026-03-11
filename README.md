@@ -106,6 +106,24 @@ Current status: **Draft v0.1**
 
 ---
 
+## Web A.0
+
+We are entering **Web A.0** — the era where AI Agents act, transact, and make decisions on behalf of humans.
+
+In Web A.0, the critical question is no longer *"Can this AI do the task?"*  
+It is: **"Can I trust this AI Agent's track record?"**
+
+Web 1.0 gave us information.  
+Web 2.0 gave us social identity.  
+Web 3.0 gave us ownership.  
+**Web A.0 gives us Agent accountability.**
+
+ECP is the trust layer that makes Web A.0 possible.
+
+> *"At last, trust for the Agent economy."*
+
+---
+
 ## Part of ATLAST Protocol
 
 ECP is one of four sub-protocols in ATLAST:
