@@ -25,13 +25,15 @@ _batch_lock = threading.Lock()
 # ─── Merkle Tree ──────────────────────────────────────────────────────────────
 
 def sha256(data: str) -> str:
-    return hashlib.sha256(data.encode()).hexdigest()
+    """SHA-256 with sha256: prefix — matches ECP-SPEC format."""
+    return "sha256:" + hashlib.sha256(data.encode()).hexdigest()
 
 
 def build_merkle_tree(hashes: list[str]) -> tuple[str, list[list[str]]]:
     """
-    Build a Merkle Tree from a list of hashes.
-    Returns (merkle_root, tree_layers).
+    Build a Merkle Tree from a list of hashes (sha256: prefixed).
+    Returns (merkle_root, tree_layers) — root has sha256: prefix.
+    Algorithm matches backend crypto.py exactly.
     """
     if not hashes:
         return sha256("empty"), [[]]
@@ -39,8 +41,8 @@ def build_merkle_tree(hashes: list[str]) -> tuple[str, list[list[str]]]:
     if len(hashes) == 1:
         return hashes[0], [hashes]
 
-    layers = [hashes]
-    current = hashes
+    layers = [list(hashes)]
+    current = list(hashes)
 
     while len(current) > 1:
         # Pad odd-length layer by duplicating last element
@@ -48,6 +50,7 @@ def build_merkle_tree(hashes: list[str]) -> tuple[str, list[list[str]]]:
             current = current + [current[-1]]
         next_layer = []
         for i in range(0, len(current), 2):
+            # Concatenate two sha256: prefixed strings, hash them → new sha256: string
             combined = sha256(current[i] + current[i + 1])
             next_layer.append(combined)
         layers.append(next_layer)
