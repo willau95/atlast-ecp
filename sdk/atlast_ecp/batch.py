@@ -26,8 +26,13 @@ from .identity import get_or_create_identity, sign as sign_data
 ECP_DIR = Path(".ecp")
 BATCH_STATE_FILE = ECP_DIR / "batch_state.json"
 # Production backend — Railway deployment
-# TODO: update to https://api.llachat.com/v1 once custom domain is configured
-ATLAST_API = "https://api.llachat.com/v1"
+# Primary: api.llachat.com (custom domain, pending DNS migration)
+# Fallback: direct Railway URL (always works)
+import os as _os
+ATLAST_API = _os.environ.get(
+    "ATLAST_API_URL",
+    "https://llachat-backend-production.up.railway.app/v1"
+)
 
 _batch_timer: Optional[threading.Timer] = None
 _batch_lock = threading.Lock()

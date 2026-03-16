@@ -195,7 +195,12 @@ def cmd_register(args: list[str]):
         "ecp_version": "0.1",
     }).encode()
 
-    backend_url = "https://api.llachat.com/v1/agents/register"
+    import os
+    base_url = os.environ.get(
+        "ATLAST_API_URL",
+        "https://llachat-backend-production.up.railway.app/v1"
+    )
+    backend_url = f"{base_url}/agent/register"
 
     try:
         req = urllib.request.Request(
