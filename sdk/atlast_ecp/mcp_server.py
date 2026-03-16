@@ -66,6 +66,27 @@ def _get_tools() -> list[dict]:
             }
         },
         {
+            "name": "ecp_certify",
+            "description": (
+                "Issue a work certificate for completed tasks. "
+                "Creates a verifiable proof-of-work on ATLAST that clients can check."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Title of the completed task (e.g. 'Market Analysis Report Q1 2026')"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Brief description of what was done"
+                    }
+                },
+                "required": ["title"]
+            }
+        },
+        {
             "name": "ecp_recent_records",
             "description": "List the most recent ECP evidence records for this agent.",
             "inputSchema": {
@@ -183,6 +204,51 @@ def _tool_ecp_recent_records(limit: int = 5) -> dict:
         return {"error": str(e)}
 
 
+def _tool_ecp_certify(title: str, description: str = "") -> dict:
+    try:
+        import os
+        import urllib.request
+        from .identity import get_or_create_identity
+        from .storage import load_records
+
+        identity = get_or_create_identity()
+        records = load_records(limit=100)
+        record_ids = [r["id"] for r in records if r.get("id", "").startswith("rec_")]
+
+        base_url = os.environ.get(
+            "ATLAST_API_URL",
+            "https://llachat-backend-production.up.railway.app/v1"
+        )
+
+        import json as _json
+        payload = _json.dumps({
+            "agent_did": identity["did"],
+            "task_name": title,
+            "task_description": description or None,
+            "record_ids": record_ids[:100],
+            "sig": "unverified",
+        }).encode()
+
+        req = urllib.request.Request(
+            f"{base_url}/certificate/create",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        resp = urllib.request.urlopen(req, timeout=10)
+        result = _json.loads(resp.read())
+
+        return {
+            "cert_id": result.get("cert_id"),
+            "trust_score": result.get("trust_score_at_issue"),
+            "steps": result.get("steps_count"),
+            "verify_url": result.get("verify_url"),
+            "message": "Certificate issued! Share the verify_url with clients.",
+        }
+    except Exception as e:
+        return {"error": str(e), "message": "Certificate creation failed. Records are still intact locally."}
+
+
 def _handle_tool_call(tool_name: str, tool_input: dict) -> Any:
     if tool_name == "ecp_verify":
         return _tool_ecp_verify(tool_input.get("record_id", ""))
@@ -190,6 +256,8 @@ def _handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         return _tool_ecp_get_profile()
     elif tool_name == "ecp_get_did":
         return _tool_ecp_get_did()
+    elif tool_name == "ecp_certify":
+        return _tool_ecp_certify(tool_input.get("title", ""), tool_input.get("description", ""))
     elif tool_name == "ecp_recent_records":
         return _tool_ecp_recent_records(tool_input.get("limit", 5))
     else:

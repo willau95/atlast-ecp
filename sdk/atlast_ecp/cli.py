@@ -220,6 +220,68 @@ def cmd_register(args: list[str]):
     print()
 
 
+def cmd_certify(args: list[str]):
+    """atlast certify <title> [--desc description]"""
+    import urllib.request
+    from .identity import get_or_create_identity
+    from .storage import load_records
+
+    if not args:
+        print("Usage: atlast certify <title> [--desc description]")
+        return
+
+    title = args[0]
+    description = None
+    for i, a in enumerate(args):
+        if a == "--desc" and i + 1 < len(args):
+            description = " ".join(args[i + 1:])
+            break
+
+    identity = get_or_create_identity()
+    did = identity["did"]
+
+    # Collect recent record IDs
+    records = load_records(limit=100)
+    record_ids = [r["id"] for r in records if r.get("id", "").startswith("rec_")]
+
+    print(f"\n📜 Creating Work Certificate")
+    print(f"  Agent: {did}")
+    print(f"  Task: {title}")
+    print(f"  Records: {len(record_ids)}")
+
+    import os
+    base_url = os.environ.get(
+        "ATLAST_API_URL",
+        "https://llachat-backend-production.up.railway.app/v1"
+    )
+
+    payload = json.dumps({
+        "agent_did": did,
+        "task_name": title,
+        "task_description": description,
+        "record_ids": record_ids[:100],
+        "sig": "unverified",
+    }).encode()
+
+    try:
+        req = urllib.request.Request(
+            f"{base_url}/certificate/create",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        resp = urllib.request.urlopen(req, timeout=10)
+        result = json.loads(resp.read())
+        print(f"\n  ✅ Certificate issued!")
+        print(f"  🆔 {result.get('cert_id')}")
+        print(f"  📊 Trust Score: {result.get('trust_score_at_issue')}")
+        print(f"  🔗 Verify: {result.get('verify_url')}")
+    except Exception as e:
+        print(f"\n  ⚠️  Certificate creation failed: {e}")
+        print(f"  📁 Local records are intact. Try again later.")
+    print()
+
+
 def cmd_init(args: list[str]):
     """atlast init — initialize .ecp/ and generate DID"""
     from .identity import get_or_create_identity
@@ -263,6 +325,7 @@ def main():
         print("  atlast stats             Show agent trust signals")
         print("  atlast did               Show this agent's DID")
         print("  atlast flush             Force Merkle batch upload")
+        print("  atlast certify <title>   Issue a work certificate")
         print("  atlast export            Export records as JSON")
         print()
         print("  Docs: https://github.com/willau95/atlast-ecp")
@@ -279,6 +342,7 @@ def main():
         "stats": cmd_stats,
         "did": cmd_did,
         "flush": cmd_flush,
+        "certify": cmd_certify,
         "export": cmd_export,
     }
 
