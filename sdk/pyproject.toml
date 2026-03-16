@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atlast-ecp"
-version = "0.1.0"
+version = "0.2.0"
 description = "ATLAST Evidence Chain Protocol — passive trust recording for AI Agents"
 readme = "README.md"
 license = { text = "MIT" }
@@ -20,6 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries",
 ]
 requires-python = ">=3.10"
@@ -27,6 +28,8 @@ dependencies = []  # Zero required dependencies — Fail-Open by design
 
 [project.optional-dependencies]
 crypto = ["cryptography>=42.0"]   # For ed25519 signing (recommended)
+gemini = ["google-generativeai>=0.5"]  # For Google Gemini wrap() support
+litellm = ["litellm>=1.30"]  # For LiteLLM wrap() support
 otel = [
     "opentelemetry-api>=1.20",
     "opentelemetry-sdk>=1.20",

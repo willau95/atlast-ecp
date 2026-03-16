@@ -191,7 +191,8 @@ class TestClaudeCodeHooks:
         assert os.path.exists(install_path), f"Installer not found: {install_path}"
 
         # Verify it contains the expected functions
-        content = open(install_path).read()
+        with open(install_path) as f:
+            content = f.read()
         assert "def install()" in content
         assert "def uninstall()" in content
         assert "PreToolUse" in content

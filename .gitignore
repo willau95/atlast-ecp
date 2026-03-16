@@ -38,3 +38,6 @@ Thumbs.db
 
 # Node (for any JS tooling)
 node_modules/
+sdk/.ecp/
+__pycache__/
+*.pyc

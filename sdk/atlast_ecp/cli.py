@@ -11,7 +11,7 @@ Commands:
 
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def _print_record(record: dict, show_chain: bool = False):
@@ -19,7 +19,7 @@ def _print_record(record: dict, show_chain: bool = False):
     chain = record.get("chain", {})
     flags = step.get("flags", [])
     ts = record.get("ts", 0)
-    dt = datetime.utcfromtimestamp(ts / 1000).strftime("%Y-%m-%d %H:%M:%S UTC")
+    dt = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     flag_str = " ".join(f"[{f.upper()}]" for f in flags) if flags else ""
     latency = step.get("latency_ms")
@@ -177,6 +177,43 @@ def cmd_flush(args: list[str]):
     print("✅ Done (check .ecp/batch_state.json for result)")
 
 
+def cmd_register(args: list[str]):
+    """atlast register — register agent DID with ATLAST Backend"""
+    import urllib.request
+    from .identity import get_or_create_identity
+
+    identity = get_or_create_identity()
+    did = identity["did"]
+    pub_key = identity.get("pub_key", "")
+
+    print(f"\n🔗 Registering Agent: {did}")
+
+    payload = json.dumps({
+        "agent_did": did,
+        "pub_key": pub_key,
+        "ecp_version": "0.1",
+    }).encode()
+
+    backend_url = "https://api.llachat.com/v1/agents/register"
+
+    try:
+        req = urllib.request.Request(
+            backend_url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        resp = urllib.request.urlopen(req, timeout=10)
+        result = json.loads(resp.read())
+        print(f"  ✅ Registered! Agent ID: {result.get('agent_id', did)}")
+        print(f"  🌐 Profile: https://llachat.com/agent/{did}")
+    except Exception as e:
+        # Fail-Open: registration failure is non-fatal
+        print(f"  ⚠️  Backend not available yet (non-fatal): {e}")
+        print(f"  📁 Local recording continues. Register later with: atlast register")
+    print()
+
+
 def cmd_init(args: list[str]):
     """atlast init — initialize .ecp/ and generate DID"""
     from .identity import get_or_create_identity
@@ -214,6 +251,7 @@ def main():
     if not args:
         print("ATLAST ECP CLI v0.1.0\n")
         print("  atlast init              Initialize .ecp/ and generate DID")
+        print("  atlast register          Register agent with ATLAST Backend")
         print("  atlast view              View latest ECP records")
         print("  atlast verify <id>       Verify a record's integrity")
         print("  atlast stats             Show agent trust signals")
@@ -229,6 +267,7 @@ def main():
 
     commands = {
         "init": cmd_init,
+        "register": cmd_register,
         "view": cmd_view,
         "verify": cmd_verify,
         "stats": cmd_stats,
