@@ -7,8 +7,9 @@
 ECP is the foundational trust layer of **ATLAST Protocol** — the accountability infrastructure for **Web A.0**.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![PyPI](https://img.shields.io/pypi/v/atlast-ecp)](https://pypi.org/project/atlast-ecp/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://pypi.org/project/atlast-ecp/)
-[![Tests](https://img.shields.io/badge/Tests-85%20passing-brightgreen)](https://github.com/willau95/atlast-ecp/actions)
+[![Tests](https://img.shields.io/badge/Tests-134%20passing-brightgreen)](https://github.com/willau95/atlast-ecp/actions)
 [![Status](https://img.shields.io/badge/Status-Alpha-orange)](https://github.com/willau95/atlast-ecp)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-purple)](https://github.com/willau95/atlast-ecp)
 
@@ -27,37 +28,82 @@ This gap is the **accountability crisis of the Agent economy**. ECP solves it.
 
 ---
 
-## Quick Start
+## Three Ways to Integrate — Pick Your Level
 
-### One line. That's it.
-
-```python
-from atlast_ecp import wrap
-from anthropic import Anthropic
-
-client = wrap(Anthropic())  # Every API call is now recorded in a tamper-proof chain
+```
+Layer 0 — Zero Code (1 line)          Layer 1 — SDK (5 lines)           Layer 2 — OTel Auto (1 line)
+──────────────────────────────         ─────────────────────────         ─────────────────────────────
+from atlast_ecp import wrap            from atlast_ecp import wrap       from atlast_ecp import init
+from anthropic import Anthropic        client = wrap(Anthropic())        init()  # instruments 11 LLM libs
+client = wrap(Anthropic())             @track(agent_id="my-agent")      # That's it. Every LLM call
+# Done. Every call recorded.           def my_task(): ...                # across all libraries recorded.
 ```
 
-ECP records every agent action **passively** — zero code changes to your agent logic. Fail-open by design: if recording fails, your agent continues uninterrupted.
+| Layer | Effort | What You Get |
+|-------|--------|-------------|
+| **Layer 0** — `wrap(client)` | 1 line | Passive recording of all LLM API calls. Zero agent code changes. |
+| **Layer 1** — SDK decorators | 5 lines | Structured tool calls, decision points, custom metadata. |
+| **Layer 2** — `init()` OTel | 1 line | Auto-instruments 11 LLM libraries via OpenTelemetry. |
+
+---
+
+## Quick Start
 
 ### Install
 
 ```bash
 pip install atlast-ecp
 
-# With cryptographic signing (recommended for production)
+# With cryptographic signing (recommended)
 pip install atlast-ecp[crypto]
+
+# With OpenTelemetry auto-instrumentation
+pip install atlast-ecp[otel]
+
+# Everything
+pip install atlast-ecp[crypto,otel]
 ```
 
-### MCP Server (Claude Desktop / Claude Code)
+### Option A: Wrap Your Client (Most Common)
+
+```python
+from atlast_ecp import wrap
+from anthropic import Anthropic
+
+client = wrap(Anthropic())
+# Every API call is now recorded in a tamper-proof chain
+
+response = client.messages.create(
+    model="claude-sonnet-4-20250514",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Hello"}]
+)
+# Record automatically created in .ecp/ with hash chain + signature
+```
+
+Works with **Anthropic**, **OpenAI**, **Google Gemini**, and **LiteLLM**.
+
+### Option B: OTel Auto-Instrumentation (Zero Config)
+
+```python
+from atlast_ecp import init
+
+init()  # Auto-instruments: openai, anthropic, google-genai, cohere,
+        # mistral, ollama, transformers, langchain, crewai, llama-index, bedrock
+
+# Now use ANY supported library normally — all calls recorded automatically
+from openai import OpenAI
+client = OpenAI()
+client.chat.completions.create(...)  # ← Recorded via OTel span exporter
+```
+
+### Option C: MCP Server (Claude Desktop / Claude Code)
 
 ```bash
-# Install and run as MCP server
-pip install atlast-ecp
 atlast-ecp-mcp
 ```
 
-Add to your `claude_desktop_config.json`:
+Add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
@@ -66,6 +112,19 @@ Add to your `claude_desktop_config.json`:
     }
   }
 }
+```
+
+### CLI
+
+```bash
+atlast-ecp init          # Initialize .ecp/ directory
+atlast-ecp register      # Register agent with ATLAST backend
+atlast-ecp stats         # View local recording statistics
+atlast-ecp verify        # Verify chain integrity
+atlast-ecp view          # Browse recorded evidence
+atlast-ecp export        # Export records as JSON
+atlast-ecp flush         # Force batch upload
+atlast-ecp did           # Show agent DID
 ```
 
 ---
@@ -80,17 +139,18 @@ Add to your `claude_desktop_config.json`:
 | ⚡ **Zero-Overhead** | Async fire-and-forget recording. ECP adds <1ms latency to your agent. |
 | 🌐 **On-Chain Anchoring** | Merkle roots anchored to Base via EAS (Ethereum Attestation Service). ~$3/month for unlimited records. |
 | 🤖 **Passive Recording** | No self-reporting. No agent cooperation required. Works even if the agent lies. |
-| 🔌 **Zero Dependencies** | Core library has zero required dependencies. Works anywhere Python runs. |
+| 🔌 **Zero Dependencies** | Core library has zero required dependencies. `[crypto]` and `[otel]` are optional extras. |
+| 🛡️ **Fail-Open** | Recording failures **never** affect your agent's operation. |
 
 ---
 
-## How AI Agent Audit Trails Work
+## How It Works
 
 Each ECP record captures a single agent action:
 
 ```json
 {
-  "id": "ecp_01HX...",
+  "id": "rec_01HX...",
   "agent": "did:ecp:a3f9c2e1b7d4",
   "ts": 1710000000000,
   "step": {
@@ -99,8 +159,9 @@ Each ECP record captures a single agent action:
     "out_hash": "sha256:def456...",
     "summary": "(stored locally only — never uploaded)"
   },
+  "flags": ["retried"],
   "chain": {
-    "prev": "ecp_01HW...",
+    "prev": "rec_01HW...",
     "hash": "sha256:xyz789..."
   },
   "sig": "ed25519:..."
@@ -109,11 +170,52 @@ Each ECP record captures a single agent action:
 
 Records are stored locally in `.ecp/`. Merkle roots are anchored on-chain periodically. **Content never leaves your device** — only hashes are transmitted.
 
-This gives you a complete, verifiable **AI agent audit trail** that satisfies:
-- Internal compliance requirements
-- EU AI Act accountability obligations (effective 2027)
-- Enterprise vendor due diligence
-- Insurance and liability documentation
+### Architecture
+
+```
+Your Agent (any framework)
+    │
+    ├── wrap(client)      ← Layer 0: explicit wrapper
+    ├── @track            ← Layer 1: SDK decorators  
+    └── init()            ← Layer 2: OTel auto-instrumentation
+         │
+    ┌────┴────────────────────────────┐
+    │       ECP Core Engine           │
+    │  record() → chain() → sign()   │
+    └────┬──────────────┬─────────────┘
+         │              │
+    .ecp/ (local)    Merkle Batcher
+    (full records)   (hashes only)
+                         │
+                    ┌────┴────────────┐
+                    │  ATLAST Backend  │  ← Trust Score + Leaderboard
+                    │  api.llachat.com │
+                    └────┬────────────┘
+                         │
+                    ┌────┴────────────┐
+                    │  Base / EAS     │  ← On-chain anchoring
+                    │  (Merkle Root)  │     ~$3/month
+                    └─────────────────┘
+```
+
+**Privacy model**: Full records stay local. Only Merkle roots go on-chain. Verifiers can request specific records — you choose what to share.
+
+---
+
+## Supported LLM Libraries
+
+### Via `wrap(client)` (Layer 0/1)
+
+| Library | Usage |
+|---------|-------|
+| **Anthropic** | `wrap(Anthropic())` |
+| **OpenAI** | `wrap(OpenAI())` |
+| **Google Gemini** | `wrap(genai.Client())` |
+| **LiteLLM** | `wrap(litellm)` |
+
+### Via `init()` OTel Auto-Instrumentation (Layer 2)
+
+Automatically instruments: `openai`, `anthropic`, `google-genai`, `cohere`, `mistralai`, `ollama`, `transformers`, `langchain`, `crewai`, `llama-index`, `bedrock`
 
 ---
 
@@ -121,70 +223,29 @@ This gives you a complete, verifiable **AI agent audit trail** that satisfies:
 
 ECP powers the **ATLAST Trust Score** — a verifiable reputation system for AI Agents.
 
-Built on three **passive behavioral signals** (no self-reporting, no LLM-as-Judge):
+Built entirely on **passive behavioral signals** (no self-reporting, no LLM-as-Judge):
 
-| Signal | Weight | Description |
-|--------|--------|-------------|
-| 🎯 **Task Completion Rate** | 40% | Standardized benchmark tasks across model types |
-| 🔄 **Retry Rate** | 35% | How often does the agent need to self-correct? |
-| 🗣️ **Hedge Language Score** | 25% | Passive NLP classifier — local, no API calls |
+| Signal | Weight | Source |
+|--------|--------|--------|
+| 🎯 **Reliability** | 40% | Task completion, error rate, retry rate — from ECP records |
+| 🔍 **Transparency** | 30% | Chain integrity, hedge language detection |
+| ⚡ **Efficiency** | 20% | Response latency distribution |
+| 🏛️ **Authority** | 10% | Verified certificates, third-party validation |
 
 Trust Scores are **portable, verifiable, and public** — agents earn reputation across any platform that integrates ECP.
 
----
-
-## Integrations
-
-| Platform | Status | Notes |
-|----------|--------|-------|
-| **Anthropic Claude** (`anthropic`) | ✅ Ready | `wrap(Anthropic())` |
-| **OpenAI** (`openai`) | ✅ Ready | `wrap(OpenAI())` |
-| **LangChain** | 🔄 Coming Soon | Callback handler |
-| **Claude Desktop (MCP)** | ✅ Ready | `atlast-ecp-mcp` |
-| **Claude Code (MCP)** | ✅ Ready | MCP stdio server |
-| **OpenClaw** | 🔄 Coming Soon | `openclaw plugin add atlast/ecp` |
+View live leaderboard: [llachat.com](https://llachat.com)
 
 ---
 
-## Architecture
+## Compliance & Enterprise
 
-```
-Your Agent
-    │
-    ▼
-┌─────────────────────────────────────┐
-│         ECP Wrapper Layer           │  ← Zero-overhead async recording
-│   (Intercepts every LLM API call)   │
-└─────────────┬───────────────────────┘
-              │
-    ┌─────────┴─────────┐
-    ▼                   ▼
-.ecp/ (local)     Merkle Batcher
-(full records)    (hashes only)
-                        │
-                        ▼
-              ┌─────────────────┐
-              │  Base / EAS     │  ← On-chain anchoring
-              │  (Merkle Root)  │     ~$3/month
-              └─────────────────┘
-```
+ECP is designed for regulatory compliance from day one:
 
-**Privacy model**: Full records stay local. Only Merkle roots go on-chain. Verifiers can request specific records — you choose what to share.
-
----
-
-## Web A.0: Why This Matters Now
-
-We are entering **Web A.0** — the era where AI Agents act, transact, and make decisions on behalf of humans at scale.
-
-Web 1.0 → Information  
-Web 2.0 → Social Identity  
-Web 3.0 → Ownership  
-**Web A.0 → Agent Accountability**
-
-In Web A.0, the critical question shifts from *"Can this AI do the task?"* to **"Can I trust this AI Agent's track record?"**
-
-ECP is the **TCP/IP of agent trust** — the foundational protocol that makes Web A.0 possible.
+- **EU AI Act** (effective 2027): Full audit trail for AI agent decisions
+- **SOC 2 / ISO 27001**: Cryptographic proof of agent behavior
+- **GDPR**: Content never leaves device — only hashes transmitted
+- **Insurance**: Verifiable work certificates for agent liability
 
 ---
 
@@ -215,20 +276,24 @@ Current status: **Draft v0.1** — feedback welcome via GitHub Issues.
 
 - [x] Core ECP recording (local chain)
 - [x] ed25519 cryptographic signing
-- [x] Anthropic + OpenAI wrappers
+- [x] Anthropic + OpenAI + Gemini + LiteLLM wrappers
 - [x] MCP Server (Claude Desktop / Claude Code)
-- [x] 85 tests passing
-- [ ] On-chain anchoring to Base/EAS (Q2 2026)
-- [ ] Trust Score computation engine (Q2 2026)
-- [ ] LLaChat public leaderboard (Q2 2026)
-- [ ] ECP Verifier CLI (`atlast verify <record-id>`) (Q3 2026)
-- [ ] LangChain / LlamaIndex integrations (Q3 2026)
+- [x] CLI tools (init, register, verify, stats, export, flush)
+- [x] OpenTelemetry auto-instrumentation (11 LLM libraries)
+- [x] 134 tests passing
+- [x] PyPI v0.3.0 published
+- [x] Trust Score engine (live on backend)
+- [ ] On-chain anchoring to Base/EAS — live mode (Q2 2026)
+- [ ] Work Certificates — public verification links (Q2 2026)
+- [ ] LLaChat public leaderboard launch (Q2 2026)
+- [ ] LangChain / CrewAI callback adapters (Q3 2026)
 
 ---
 
 ## Links
 
 - 🌐 **LLaChat** — Agent leaderboard & ECP explorer: [llachat.com](https://llachat.com)
+- 📡 **API**: [api.llachat.com](https://api.llachat.com)
 - 📜 **Web A.0 Manifesto**: [weba0.com](https://weba0.com)
 - 📋 **Protocol Spec**: [ECP-SPEC.md](./ECP-SPEC.md)
 - 🐦 **X/Twitter**: [@atlastprotocol](https://twitter.com/atlastprotocol)
@@ -239,6 +304,13 @@ Current status: **Draft v0.1** — feedback welcome via GitHub Issues.
 
 ECP is an open protocol. Issues, PRs, and spec feedback are welcome.
 
+```bash
+git clone https://github.com/willau95/atlast-ecp.git
+cd atlast-ecp/sdk
+pip install -e ".[dev,crypto,otel]"
+pytest tests/ -v
+```
+
 If you're building AI agent infrastructure and want to integrate ECP — open an issue or DM [@atlastprotocol](https://twitter.com/atlastprotocol).
 
 ---
@@ -248,7 +320,3 @@ If you're building AI agent infrastructure and want to integrate ECP — open an
 MIT — open protocol, open standard.
 
 *Built by the ATLAST Protocol Working Group.*
-
----
-
-*Keywords: AI agent audit trail, AI agent accountability, Evidence Chain Protocol, ATLAST Protocol, agent trust score, AI agent verification, MCP server, Claude agent recording, LLM audit log, Web A.0, agent compliance, EU AI Act compliance*

@@ -1,7 +1,7 @@
 {
-  "did": "did:ecp:3357014974d744a051eb1b558310988a",
-  "pub_key": "ef4d522e2a914970cddee8e7329b1e78a07ec3be0643bfa292f197af1f391515",
-  "priv_key": "0b7d7be31413a42b19d81ed532d62af66a85a825e52e5897a3b5af1993f83f46",
-  "created_at": 1773639408737,
+  "did": "did:ecp:d679cc57f0adf482077fc87675d8a0fe",
+  "pub_key": "3832c78aab7f8cbf4bf351359fd5c276cc088a5605632b10578b21ff5251875c",
+  "priv_key": "035e4d862debb48124b8a7606789ac90a5ead0c12f4d0fb49710e67eb20a8a19",
+  "created_at": 1773645473488,
   "verified": false
 }
