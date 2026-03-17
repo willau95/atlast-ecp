@@ -29,10 +29,10 @@ BATCH_STATE_FILE = ECP_DIR / "batch_state.json"
 # Primary: api.llachat.com (custom domain, pending DNS migration)
 # Fallback: direct Railway URL (always works)
 import os as _os
-ATLAST_API = _os.environ.get(
-    "ATLAST_API_URL",
-    "https://api.llachat.com/v1"
-)
+def _get_api_url() -> str:
+    return _os.environ.get("ATLAST_API_URL", "https://api.llachat.com/v1")
+
+ATLAST_API = _get_api_url()
 
 _batch_timer: Optional[threading.Timer] = None
 _batch_lock = threading.Lock()
@@ -176,7 +176,7 @@ def _ensure_agent_registered(identity: dict) -> bool:
         }).encode("utf-8")
 
         req = urllib.request.Request(
-            f"{ATLAST_API}/agent/register",
+            f"{_get_api_url()}/agents/register",
             data=payload,
             headers={"Content-Type": "application/json"},
             method="POST",
@@ -185,6 +185,7 @@ def _ensure_agent_registered(identity: dict) -> bool:
             result = json.loads(resp.read())
             # Store claim_url for user to verify ownership
             state["agent_registered"] = True
+            state["agent_api_key"] = result.get("agent_api_key", "")
             state["claim_url"] = result.get("claim_url", "")
             state["verification_tweet"] = result.get("verification_tweet", "")
             _save_batch_state(state)
@@ -210,6 +211,7 @@ def upload_merkle_root(
     ecp_version: str = "0.1",
     record_hashes: Optional[list[dict]] = None,
     flag_counts: Optional[dict] = None,
+    agent_api_key: Optional[str] = None,
 ) -> Optional[str]:
     """
     Upload Merkle Root to ATLAST API for EAS anchoring.
@@ -246,10 +248,14 @@ def upload_merkle_root(
 
         payload = json.dumps(body).encode("utf-8")
 
+        headers = {"Content-Type": "application/json"}
+        if agent_api_key:
+            headers["X-Agent-Key"] = agent_api_key
+
         req = urllib.request.Request(
-            f"{ATLAST_API}/batch",
+            f"{_get_api_url()}/batch",
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -307,6 +313,7 @@ def run_batch(flush: bool = False):
             flag_counts = _aggregate_flag_counts(records)
 
             # Upload to ATLAST API
+            agent_api_key = state.get("agent_api_key")
             attestation_uid = upload_merkle_root(
                 merkle_root=merkle_root,
                 agent_did=agent_did,
@@ -316,6 +323,7 @@ def run_batch(flush: bool = False):
                 sig=sig,
                 record_hashes=record_hashes_payload or None,
                 flag_counts=flag_counts or None,
+                agent_api_key=agent_api_key,
             )
 
             if attestation_uid:

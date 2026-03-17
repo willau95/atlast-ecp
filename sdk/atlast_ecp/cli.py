@@ -6,7 +6,7 @@ Commands:
     atlast verify <id>       Verify a record's chain integrity
     atlast stats             Show agent trust signals
     atlast did               Show this agent's DID
-    atlast flush             Force upload Merkle batch now
+    atlast flush             Force upload Merkle batch now [--endpoint URL] [--key ak_live_xxx]
 """
 
 import json
@@ -170,8 +170,28 @@ def cmd_did(args: list[str]):
 
 
 def cmd_flush(args: list[str]):
-    """atlast flush — force Merkle batch upload now"""
-    from .batch import trigger_batch_upload
+    """atlast flush [--endpoint URL] [--key ak_live_xxx] — force Merkle batch upload now"""
+    import os
+    endpoint = None
+    key = None
+    for i, a in enumerate(args):
+        if a == "--endpoint" and i + 1 < len(args):
+            endpoint = args[i + 1]
+        if a == "--key" and i + 1 < len(args):
+            key = args[i + 1]
+
+    # Set env overrides before importing batch (which reads env at module level)
+    if endpoint:
+        os.environ["ATLAST_API_URL"] = endpoint
+
+    from .batch import trigger_batch_upload, _load_batch_state, _save_batch_state
+
+    # Inject key into batch state if provided via CLI
+    if key:
+        state = _load_batch_state()
+        state["agent_api_key"] = key
+        _save_batch_state(state)
+
     print("⏫ Triggering Merkle batch upload...")
     trigger_batch_upload(flush=True)
     import time; time.sleep(2)
@@ -200,7 +220,7 @@ def cmd_register(args: list[str]):
         "ATLAST_API_URL",
         "https://llachat-backend-production.up.railway.app/v1"
     )
-    backend_url = f"{base_url}/agent/register"
+    backend_url = f"{base_url}/agents/register"
 
     try:
         req = urllib.request.Request(
@@ -324,7 +344,7 @@ def main():
         print("  atlast verify <id>       Verify a record's integrity")
         print("  atlast stats             Show agent trust signals")
         print("  atlast did               Show this agent's DID")
-        print("  atlast flush             Force Merkle batch upload")
+        print("  atlast flush             Force Merkle batch upload [--endpoint URL] [--key KEY]")
         print("  atlast certify <title>   Issue a work certificate")
         print("  atlast export            Export records as JSON")
         print()
