@@ -1,0 +1,32 @@
+{
+  "name": "@atlast/sdk",
+  "version": "0.1.0",
+  "description": "ATLAST ECP SDK for TypeScript/Node.js — Evidence Chain Protocol for AI agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "atlast",
+    "ecp",
+    "ai-agent",
+    "trust",
+    "evidence-chain"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/willau95/atlast-sdk-ts"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.0.0"
+  }
+}
