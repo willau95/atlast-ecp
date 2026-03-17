@@ -7,7 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  test-python:
+    name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -21,3 +22,21 @@ jobs:
         run: pip install -e "./sdk[crypto,dev]"
       - name: Run tests
         run: cd sdk && python -m pytest tests/ -v --tb=short
+
+  test-typescript:
+    name: TypeScript (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ["18", "20", "22"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install dependencies
+        run: cd sdk-ts && npm ci
+      - name: Type check
+        run: cd sdk-ts && npx tsc --noEmit
+      - name: Run tests
+        run: cd sdk-ts && npm test
