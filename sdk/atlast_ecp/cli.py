@@ -172,6 +172,8 @@ def cmd_did(args: list[str]):
 def cmd_flush(args: list[str]):
     """atlast flush [--endpoint URL] [--key ak_live_xxx] — force Merkle batch upload now"""
     import os
+    from .config import get_api_url, get_api_key
+
     endpoint = None
     key = None
     for i, a in enumerate(args):
@@ -180,19 +182,22 @@ def cmd_flush(args: list[str]):
         if a == "--key" and i + 1 < len(args):
             key = args[i + 1]
 
-    # Set env overrides before importing batch (which reads env at module level)
+    # Priority: CLI arg > env var > config file
     if endpoint:
         os.environ["ATLAST_API_URL"] = endpoint
 
+    # Resolve key: CLI > env > config > batch_state
+    resolved_key = key or get_api_key()
+
     from .batch import trigger_batch_upload, _load_batch_state, _save_batch_state
 
-    # Inject key into batch state if provided via CLI
-    if key:
+    if resolved_key:
         state = _load_batch_state()
-        state["agent_api_key"] = key
+        state["agent_api_key"] = resolved_key
         _save_batch_state(state)
 
-    print("⏫ Triggering Merkle batch upload...")
+    target = endpoint or get_api_url()
+    print(f"⏫ Triggering Merkle batch upload → {target}")
     trigger_batch_upload(flush=True)
     import time; time.sleep(2)
     print("✅ Done (check .ecp/batch_state.json for result)")
@@ -202,24 +207,31 @@ def cmd_register(args: list[str]):
     """atlast register — register agent DID with ATLAST Backend"""
     import urllib.request
     from .identity import get_or_create_identity
+    from .config import get_api_url, save_config
+
+    # Parse optional --name for display_name
+    display_name = None
+    for i, a in enumerate(args):
+        if a == "--name" and i + 1 < len(args):
+            display_name = args[i + 1]
 
     identity = get_or_create_identity()
     did = identity["did"]
     pub_key = identity.get("pub_key", "")
 
-    print(f"\n🔗 Registering Agent: {did}")
+    print(f"\n🔗 Registering Agent...")
 
-    payload = json.dumps({
+    body: dict = {
         "did": did,
         "public_key": pub_key,
         "ecp_version": "0.1",
-    }).encode()
+    }
+    if display_name:
+        body["display_name"] = display_name
 
-    import os
-    base_url = os.environ.get(
-        "ATLAST_API_URL",
-        "https://llachat-backend-production.up.railway.app/v1"
-    )
+    payload = json.dumps(body).encode()
+
+    base_url = get_api_url()
     backend_url = f"{base_url}/agents/register"
 
     try:
@@ -231,12 +243,34 @@ def cmd_register(args: list[str]):
         )
         resp = urllib.request.urlopen(req, timeout=10)
         result = json.loads(resp.read())
-        print(f"  ✅ Registered! Agent ID: {result.get('agent_id', did)}")
-        print(f"  🌐 Profile: https://llachat.com/agent/{did}")
+
+        agent_name = result.get("display_name") or result.get("handle") or did
+        api_key = result.get("agent_api_key", "")
+        claim_url = result.get("claim_url", "")
+
+        print(f"  ✓ Agent registered: {agent_name}")
+        print(f"  ✓ DID: {did}")
+        if api_key:
+            print(f"  ✓ API Key: {api_key}  ← (save this, shown once)")
+        if claim_url:
+            print(f"  ✓ Claim URL: {claim_url}")
+        print()
+        print(f"  Next: Send this claim URL to your owner to activate your profile.")
+
+        # Save to local config
+        config_data = {"agent_did": did, "endpoint": base_url}
+        if api_key:
+            config_data["agent_api_key"] = api_key
+        save_config(config_data)
+
     except Exception as e:
-        # Fail-Open: registration failure is non-fatal
-        print(f"  ⚠️  Backend not available yet (non-fatal): {e}")
-        print(f"  📁 Local recording continues. Register later with: atlast register")
+        error_str = str(e)
+        if "409" in error_str:
+            print(f"  ✓ Agent already registered: {did}")
+            print(f"  🌐 Profile: https://llachat.com/agent/{did}")
+        else:
+            print(f"  ⚠️  Backend not available yet (non-fatal): {e}")
+            print(f"  📁 Local recording continues. Register later with: atlast register")
     print()
 
 
@@ -269,11 +303,9 @@ def cmd_certify(args: list[str]):
     print(f"  Task: {title}")
     print(f"  Records: {len(record_ids)}")
 
-    import os
-    base_url = os.environ.get(
-        "ATLAST_API_URL",
-        "https://llachat-backend-production.up.railway.app/v1"
-    )
+    from .config import get_api_url, get_api_key
+
+    base_url = get_api_url()
 
     payload = json.dumps({
         "agent_did": did,
@@ -284,10 +316,15 @@ def cmd_certify(args: list[str]):
     }).encode()
 
     try:
+        headers = {"Content-Type": "application/json"}
+        api_key = get_api_key()
+        if api_key:
+            headers["X-Agent-Key"] = api_key
+
         req = urllib.request.Request(
-            f"{base_url}/certificate/create",
+            f"{base_url}/certificates/create",
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
         resp = urllib.request.urlopen(req, timeout=10)

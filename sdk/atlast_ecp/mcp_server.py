@@ -215,10 +215,8 @@ def _tool_ecp_certify(title: str, description: str = "") -> dict:
         records = load_records(limit=100)
         record_ids = [r["id"] for r in records if r.get("id", "").startswith("rec_")]
 
-        base_url = os.environ.get(
-            "ATLAST_API_URL",
-            "https://llachat-backend-production.up.railway.app/v1"
-        )
+        from .config import get_api_url
+        base_url = get_api_url()
 
         import json as _json
         payload = _json.dumps({

@@ -28,10 +28,9 @@ BATCH_STATE_FILE = ECP_DIR / "batch_state.json"
 # Production backend — Railway deployment
 # Primary: api.llachat.com (custom domain, pending DNS migration)
 # Fallback: direct Railway URL (always works)
-import os as _os
-def _get_api_url() -> str:
-    return _os.environ.get("ATLAST_API_URL", "https://api.llachat.com/v1")
+from .config import get_api_url as _get_api_url, get_api_key as _get_config_api_key, save_config
 
+# Backward-compatible alias (used by tests and external code)
 ATLAST_API = _get_api_url()
 
 _batch_timer: Optional[threading.Timer] = None
@@ -189,6 +188,13 @@ def _ensure_agent_registered(identity: dict) -> bool:
             state["claim_url"] = result.get("claim_url", "")
             state["verification_tweet"] = result.get("verification_tweet", "")
             _save_batch_state(state)
+            # Also persist to local config for CLI access
+            if result.get("agent_api_key"):
+                save_config({
+                    "agent_did": identity["did"],
+                    "agent_api_key": result["agent_api_key"],
+                    "endpoint": _get_api_url(),
+                })
             return True
 
     except Exception:
@@ -253,7 +259,7 @@ def upload_merkle_root(
             headers["X-Agent-Key"] = agent_api_key
 
         req = urllib.request.Request(
-            f"{_get_api_url()}/batch",
+            f"{_get_api_url()}/batches",
             data=payload,
             headers=headers,
             method="POST",
@@ -313,7 +319,7 @@ def run_batch(flush: bool = False):
             flag_counts = _aggregate_flag_counts(records)
 
             # Upload to ATLAST API
-            agent_api_key = state.get("agent_api_key")
+            agent_api_key = state.get("agent_api_key") or _get_config_api_key()
             attestation_uid = upload_merkle_root(
                 merkle_root=merkle_root,
                 agent_did=agent_did,
