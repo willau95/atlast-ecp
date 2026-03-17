@@ -151,6 +151,25 @@ class TestVerifyRecord:
             assert result["signature_ok"] is True
 
 
+class TestVerifyRecordEdgeCases:
+    def test_empty_dict(self):
+        from atlast_ecp.verify import verify_record
+        result = verify_record({})
+        assert result["valid"] is False
+        assert "Missing" in result["errors"][0]
+
+    def test_not_a_dict(self):
+        from atlast_ecp.verify import verify_record
+        result = verify_record("not a dict")  # type: ignore
+        assert result["valid"] is False
+
+    def test_missing_chain_hash(self):
+        from atlast_ecp.verify import verify_record
+        result = verify_record({"id": "rec_test", "chain": {}})
+        assert result["valid"] is False
+        assert "Missing chain.hash" in result["errors"][0]
+
+
 class TestConfig:
     def test_default_api_url(self):
         from atlast_ecp.config import get_api_url, DEFAULT_ENDPOINT

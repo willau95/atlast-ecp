@@ -8,7 +8,7 @@ Upload flow:
   2. Build Merkle tree (sha256: prefixed — matches backend crypto.py exactly)
   3. Sign merkle_root with agent's ed25519 private key
   4. Auto-register agent if first upload (fire-and-forget, non-blocking)
-  5. POST to ATLAST_API /v1/batch with all required fields
+  5. POST to ATLAST_API /v1/batches with all required fields
   6. Queue on failure for hourly retry
 """
 

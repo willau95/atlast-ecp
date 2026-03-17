@@ -82,6 +82,27 @@ function generateRecordId(): string {
   return `rec_${randomBytes(8).toString("hex")}`;
 }
 
+/**
+ * Canonical JSON: recursively sorted keys, no whitespace.
+ * Matches Python's json.dumps(obj, sort_keys=True, separators=(",", ":"))
+ */
+function canonicalJSON(obj: unknown): string {
+  if (obj === null || obj === undefined) return "null";
+  if (typeof obj === "string") return JSON.stringify(obj);
+  if (typeof obj === "number" || typeof obj === "boolean") return String(obj);
+  if (Array.isArray(obj)) {
+    return "[" + obj.map(canonicalJSON).join(",") + "]";
+  }
+  if (typeof obj === "object") {
+    const keys = Object.keys(obj as Record<string, unknown>).sort();
+    const pairs = keys
+      .map((k) => JSON.stringify(k) + ":" + canonicalJSON((obj as Record<string, unknown>)[k]))
+      .filter((_, i) => (obj as Record<string, unknown>)[keys[i]] !== undefined);
+    return "{" + pairs.join(",") + "}";
+  }
+  return String(obj);
+}
+
 // ─── ECP Record Builder ─────────────────────────────────────────────────────
 
 class ECPRecorder {
@@ -185,9 +206,12 @@ class ECPRecorder {
       sig: "unverified", // No Ed25519 in plugin — use SDK for signing
     };
 
-    // Compute chain hash
-    const forHash = { ...record, chain: { ...record.chain, hash: "" }, sig: "" };
-    record.chain.hash = sha256(JSON.stringify(forHash, Object.keys(forHash).sort()));
+    // Compute chain hash — MUST match Python SDK's compute_chain_hash exactly:
+    // deep copy, zero chain.hash + sig, canonical JSON (sorted keys, no spaces)
+    const forHash = JSON.parse(JSON.stringify(record)); // deep copy
+    forHash.chain.hash = "";
+    forHash.sig = "";
+    record.chain.hash = sha256(canonicalJSON(forHash));
 
     // Persist
     appendFileSync(this.recordsFile, JSON.stringify(record) + "\n");
@@ -344,19 +368,21 @@ export default function register(api: any) {
 
   // ─── Message Hooks (passive LLM interaction capture) ────────────────────
 
-  let pendingInteraction: PendingInteraction | null = null;
+  // Use Map keyed by sessionKey to handle concurrent sessions correctly
+  const pendingInteractions = new Map<string, PendingInteraction>();
 
   api.registerHook(
     "message:received",
     async (event: any) => {
       try {
-        pendingInteraction = {
+        const sessionKey = event.sessionKey || "default";
+        pendingInteractions.set(sessionKey, {
           receivedAt: Date.now(),
           from: event.context?.from || "unknown",
           content: event.context?.content || "",
           channelId: event.context?.channelId || "unknown",
-          sessionKey: event.sessionKey || "unknown",
-        };
+          sessionKey,
+        });
       } catch {
         // Fail-Open
       }
@@ -368,22 +394,23 @@ export default function register(api: any) {
     "message:sent",
     async (event: any) => {
       try {
-        if (!pendingInteraction) return;
+        const sessionKey = event.sessionKey || "default";
+        const pending = pendingInteractions.get(sessionKey);
+        if (!pending) return;
 
-        const latencyMs = Date.now() - pendingInteraction.receivedAt;
-        const input = pendingInteraction.content;
+        const latencyMs = Date.now() - pending.receivedAt;
+        const input = pending.content;
         const output = event.context?.content || "";
 
-        if (!input || !output) {
-          pendingInteraction = null;
-          return;
-        }
+        pendingInteractions.delete(sessionKey);
+
+        if (!input || !output) return;
 
         recorder.createRecord(input, output, latencyMs);
-        pendingInteraction = null;
       } catch {
-        pendingInteraction = null;
-        // Fail-Open
+        // Fail-Open: always clean up
+        const sessionKey = event?.sessionKey || "default";
+        pendingInteractions.delete(sessionKey);
       }
     },
     { name: "atlast-ecp.message-sent", description: "Complete ECP record on response" }

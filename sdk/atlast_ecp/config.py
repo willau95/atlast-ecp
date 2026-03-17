@@ -30,7 +30,11 @@ def load_config() -> dict:
 
 
 def save_config(data: dict):
-    """Save config to ~/.atlast/config.json. Creates dir if needed."""
+    """
+    Save config to ~/.atlast/config.json. Creates dir if needed.
+    Note: load-merge-write is NOT atomic. Safe for single-process CLI use.
+    Multi-process safety would require file locking (not needed for Phase 1).
+    """
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     # Merge with existing
     existing = load_config()

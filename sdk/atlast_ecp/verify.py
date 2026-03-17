@@ -157,6 +157,14 @@ def verify_record(record_dict: dict) -> dict:
 
     errors = []
 
+    # 0. Required field check
+    if not isinstance(record_dict, dict):
+        return {"valid": False, "chain_hash_ok": False, "signature_ok": None, "errors": ["Input is not a dict"]}
+    if "chain" not in record_dict or "hash" not in record_dict.get("chain", {}):
+        return {"valid": False, "chain_hash_ok": False, "signature_ok": None, "errors": ["Missing chain.hash field"]}
+    if "id" not in record_dict:
+        return {"valid": False, "chain_hash_ok": False, "signature_ok": None, "errors": ["Missing id field"]}
+
     # 1. Chain hash integrity
     expected_hash = compute_chain_hash(record_dict)
     actual_hash = record_dict.get("chain", {}).get("hash", "")
