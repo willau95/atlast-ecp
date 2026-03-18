@@ -37,6 +37,8 @@ otel = [
     "opentelemetry-instrumentation-anthropic>=0.20",
 ]
 proxy = ["aiohttp>=3.9"]          # For atlast proxy / atlast run
+langchain = ["langchain-core>=0.1"]   # For LangChain adapter
+crewai = ["crewai>=0.28"]            # For CrewAI adapter
 all = [
     "atlast-ecp[crypto,proxy,otel]",
 ]
