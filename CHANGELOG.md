@@ -2,6 +2,42 @@
 
 All notable changes to ATLAST ECP are documented in this file.
 
+## [0.6.0] - 2026-03-18
+
+### Added
+- **ECP v1.0 Specification** — progressive 5-level format (Core → Metadata → Chain → Identity → Anchor)
+- **Minimal Records** (`create_minimal_record()`) — v1.0 flat format with only 6+1 required fields
+- **`record_minimal()` / `record_minimal_async()`** — simplified recording without DID/chain/signature
+- **ATLAST Transparent Proxy** (`atlast proxy`) — zero-code ECP recording for any language/framework
+  - Auto-detects provider from request path (OpenAI, Anthropic, Gemini, Qwen, Kimi, DeepSeek, MiniMax, etc.)
+  - SSE streaming support with response reconstruction
+  - Fail-open: proxy errors never block API calls
+  - Only needs 2 parsers (OpenAI-compat + Anthropic) to cover ~90% of market
+- **`atlast run`** — wraps any command with transparent proxy (`atlast run python my_agent.py`)
+- **CLI expansion**: `init`, `record` (stdin/flags), `log`, `push`, `proxy`, `run` commands
+- **`[proxy]` optional dependency** — `pip install atlast-ecp[proxy]` (aiohttp>=3.9)
+
+### Changed
+- **ECP format v1.0**: flat structure (`action`, `in_hash`, `out_hash`) replaces v0.1 nested format (`step.type`, `step.in_hash`)
+- Both v0.1 and v1.0 records are valid; readers should accept both (check `ecp` field)
+- `atlast init` now generates DID by default; use `--minimal` to skip
+- Version bumped to 0.6.0
+
+### Fixed
+- MCP Server `certify` tool now uses correct plural route (`/v1/certificates/create`)
+
+## [0.5.1] - 2026-03-17
+
+### Added
+- **Verification API** (`atlast_ecp.verify`) — `verify_signature()`, `verify_record()`, `verify_record_with_key()`, `build_merkle_proof()`, `verify_merkle_proof()`
+- **MCP Server enhanced** — 8 tools total (`ecp_record`, `ecp_flush`, `ecp_stats` added)
+- **OpenClaw Plugin** — real-time ECP recording via message hooks + batch uploader + `ecp_status` tool
+- **GitHub Actions CI** — Python 3.10-3.13 + TypeScript Node 18/20/22
+
+### Fixed
+- `canonicalJSON()` recursive sort for cross-SDK hash consistency
+- Plugin batch uploader error handling
+
 ## [0.5.0] - 2026-03-17
 
 ### Added
