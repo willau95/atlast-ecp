@@ -13,7 +13,7 @@ import time
 from typing import Any, Optional
 
 from .identity import get_or_create_identity, sign
-from .record import create_record, record_to_dict, hash_content, ECPRecord
+from .record import create_record, create_minimal_record, record_to_dict, hash_content, ECPRecord
 from .storage import save_record
 from .signals import detect_flags
 
@@ -155,6 +155,75 @@ def get_identity() -> dict:
 def reset():
     """Reset ECP state (for testing only)."""
     _state.reset()
+
+
+def record_minimal(
+    input_content: Any,
+    output_content: Any,
+    agent: str = "default",
+    action: str = "llm_call",
+    model: Optional[str] = None,
+    latency_ms: int = 0,
+    tokens_in: Optional[int] = None,
+    tokens_out: Optional[int] = None,
+) -> Optional[str]:
+    """
+    Minimal ECP recording. No identity, no chain, no signature.
+    Just hash + detect flags + save locally.
+
+    The simplest possible ECP record. Use this when you don't need
+    cryptographic identity or chain integrity — just evidence logging.
+
+    Returns record_id (or None on failure — Fail-Open).
+    """
+    try:
+        out_text = _extract_text(output_content)
+        flags = detect_flags(out_text, latency_ms=latency_ms)
+
+        meta = {}
+        if model:
+            meta["model"] = model
+        if latency_ms:
+            meta["latency_ms"] = latency_ms
+        if tokens_in is not None:
+            meta["tokens_in"] = tokens_in
+        if tokens_out is not None:
+            meta["tokens_out"] = tokens_out
+        if flags:
+            meta["flags"] = flags
+
+        rec = create_minimal_record(
+            agent=agent,
+            action=action,
+            in_content=input_content,
+            out_content=output_content,
+            meta=meta if meta else None,
+        )
+        save_record(rec)
+        return rec["id"]
+    except Exception:
+        return None
+
+
+def record_minimal_async(
+    input_content: Any,
+    output_content: Any,
+    **kwargs,
+) -> None:
+    """Fire-and-forget version of record_minimal()."""
+    t = threading.Thread(
+        target=record_minimal,
+        args=(input_content, output_content),
+        kwargs=kwargs,
+        daemon=True,
+    )
+    t.start()
+
+
+def _is_anonymous() -> bool:
+    """Check if anonymous mode is enabled (no identity auto-creation)."""
+    import os
+    return os.environ.get("ATLAST_ANONYMOUS", "").strip() in ("1", "true", "yes")
 
 
 def _extract_text(content: Any) -> str:

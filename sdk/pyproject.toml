@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atlast-ecp"
-version = "0.5.1"
-description = "ATLAST Evidence Chain Protocol — passive trust recording for AI Agents"
+version = "0.6.0"
+description = "ATLAST Evidence Chain Protocol — trust infrastructure for AI Agents"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
@@ -36,8 +36,9 @@ otel = [
     "opentelemetry-instrumentation-openai>=0.20",
     "opentelemetry-instrumentation-anthropic>=0.20",
 ]
+proxy = ["aiohttp>=3.9"]          # For atlast proxy / atlast run
 all = [
-    "atlast-ecp[crypto,otel]",
+    "atlast-ecp[crypto,proxy,otel]",
 ]
 dev = [
     "pytest>=8.0",

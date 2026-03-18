@@ -2,11 +2,21 @@
 ECP CLI — atlast command line interface
 
 Commands:
-    atlast view              View latest ECP records
+    atlast init              Initialize ~/.ecp/ directory
+    atlast init --identity   Initialize + generate Ed25519 DID
+    atlast record            Record an ECP entry (stdin or flags)
+    atlast log               View latest ECP records
     atlast verify <id>       Verify a record's chain integrity
     atlast stats             Show agent trust signals
     atlast did               Show this agent's DID
-    atlast flush             Force upload Merkle batch now [--endpoint URL] [--key ak_live_xxx]
+    atlast push              Upload records to ECP server (opt-in)
+    atlast flush             Alias for push
+    atlast proxy             Start local transparent proxy
+    atlast run <cmd>         Run command with proxy auto-injected
+    atlast register          Register agent with ATLAST Backend
+    atlast certify <title>   Issue a work certificate
+    atlast export            Export records as JSON
+    atlast view              Alias for log
 """
 
 import json
@@ -15,6 +25,26 @@ from datetime import datetime, timezone
 
 
 def _print_record(record: dict, show_chain: bool = False):
+    """Print a record, handling both v0.1 (nested step) and v1.0 (flat) formats."""
+    # v1.0 flat format
+    if record.get("ecp") == "1.0":
+        meta = record.get("meta", {})
+        flags = meta.get("flags", [])
+        ts = record.get("ts", 0)
+        dt = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        flag_str = " ".join(f"[{f.upper()}]" for f in flags) if flags else ""
+        latency = meta.get("latency_ms")
+        latency_str = f"  {latency}ms" if latency else ""
+
+        print(f"  {record['id']}")
+        print(f"  {dt}{latency_str}  {flag_str}")
+        print(f"  Action: {record.get('action', '?')} | Model: {meta.get('model') or '—'}")
+        if meta.get("tokens_in"):
+            print(f"  Tokens: {meta['tokens_in']} in / {meta.get('tokens_out', '?')} out")
+        print()
+        return
+
+    # v0.1 nested format (backward compat)
     step = record.get("step", {})
     chain = record.get("chain", {})
     flags = step.get("flags", [])
@@ -340,17 +370,134 @@ def cmd_certify(args: list[str]):
 
 
 def cmd_init(args: list[str]):
-    """atlast init — initialize .ecp/ and generate DID"""
-    from .identity import get_or_create_identity
+    """atlast init [--minimal] — initialize ~/.ecp/ directory + generate DID"""
     from .storage import init_storage
     init_storage()
-    identity = get_or_create_identity()
+
+    skip_identity = "--minimal" in args or "--no-identity" in args
+
     print(f"\n🔗 ATLAST ECP initialized")
-    print(f"  Agent DID: {identity['did']}")
-    print(f"  Storage: .ecp/ (local, private)")
-    print(f"  Key type: {'ed25519' if identity.get('verified') else 'fallback'}")
-    print(f"\n  Next: Register at https://llachat.com")
+    print(f"  Storage: ~/.ecp/records/ (local, private)")
+
+    if not skip_identity:
+        from .identity import get_or_create_identity
+        identity = get_or_create_identity()
+        print(f"  Agent DID: {identity['did']}")
+        print(f"  Key type: {'ed25519' if identity.get('verified') else 'fallback'}")
+        print(f"\n  Next: atlast register (optional — publish to LLaChat)")
+    else:
+        print(f"  Identity: skipped (run 'atlast init' to create DID)")
+        print(f"\n  Next: echo '{{\"in\":\"prompt\",\"out\":\"response\"}}' | atlast record")
     print()
+
+
+def cmd_record(args: list[str]):
+    """atlast record — create an ECP record from stdin or flags"""
+    from .record import create_minimal_record, create_record, hash_content
+    from .storage import save_record
+    import os
+
+    agent = "default"
+    action = "llm_call"
+    in_content = None
+    out_content = None
+    full_mode = "--full" in args
+
+    # Parse flags
+    for i, a in enumerate(args):
+        if a == "--agent" and i + 1 < len(args):
+            agent = args[i + 1]
+        if a == "--action" and i + 1 < len(args):
+            action = args[i + 1]
+        if a == "--in" and i + 1 < len(args):
+            in_content = args[i + 1]
+        if a == "--out" and i + 1 < len(args):
+            out_content = args[i + 1]
+
+    # If no --in/--out, read from stdin
+    if in_content is None and out_content is None:
+        if not sys.stdin.isatty():
+            raw = sys.stdin.read().strip()
+            if raw:
+                try:
+                    data = json.loads(raw)
+                    in_content = data.get("in", data.get("input", ""))
+                    out_content = data.get("out", data.get("output", ""))
+                    agent = data.get("agent", agent)
+                    action = data.get("action", action)
+                except json.JSONDecodeError:
+                    print("Error: stdin must be valid JSON with 'in' and 'out' fields")
+                    sys.exit(1)
+        else:
+            print("Usage: atlast record --in 'prompt' --out 'response'")
+            print("   or: echo '{\"in\":\"...\",\"out\":\"...\"}' | atlast record")
+            sys.exit(1)
+
+    if in_content is None or out_content is None:
+        print("Error: both 'in' and 'out' content required")
+        sys.exit(1)
+
+    if full_mode:
+        # Full v0.1 record with chain + signature
+        from .identity import get_or_create_identity
+        identity = get_or_create_identity()
+        rec_obj = create_record(
+            agent_did=identity["did"],
+            step_type=action,
+            in_content=in_content,
+            out_content=out_content,
+            identity=identity,
+        )
+        from .record import record_to_dict
+        rec = record_to_dict(rec_obj)
+    else:
+        # Minimal v1.0 record
+        rec = create_minimal_record(agent, action, in_content, out_content)
+
+    save_record(rec)
+    print(f"✅ {rec['id']}")
+
+
+def cmd_log(args: list[str]):
+    """atlast log [--limit N] [--date YYYY-MM-DD] — view ECP records (alias: view)"""
+    cmd_view(args)
+
+
+def cmd_push(args: list[str]):
+    """atlast push [--endpoint URL] [--key KEY] — upload records to ECP server"""
+    cmd_flush(args)
+
+
+def cmd_proxy(args: list[str]):
+    """atlast proxy [--port PORT] — start local transparent proxy"""
+    port = 8340
+    agent = "proxy"
+    for i, a in enumerate(args):
+        if a == "--port" and i + 1 < len(args):
+            port = int(args[i + 1])
+        if a == "--agent" and i + 1 < len(args):
+            agent = args[i + 1]
+
+    try:
+        from .proxy import run_proxy
+        run_proxy(port=port, agent=agent)
+    except ImportError:
+        print("Proxy requires aiohttp. Install with: pip install atlast-ecp[proxy]")
+        sys.exit(1)
+
+
+def cmd_run(args: list[str]):
+    """atlast run <command> — run command with proxy auto-injected"""
+    if not args:
+        print("Usage: atlast run python my_agent.py")
+        sys.exit(1)
+
+    try:
+        from .proxy import run_with_proxy
+        run_with_proxy(args)
+    except ImportError:
+        print("Proxy requires aiohttp. Install with: pip install atlast-ecp[proxy]")
+        sys.exit(1)
 
 
 def cmd_export(args: list[str]):
@@ -374,16 +521,26 @@ def cmd_export(args: list[str]):
 def main():
     args = sys.argv[1:]
     if not args:
-        print("ATLAST ECP CLI v0.1.0\n")
-        print("  atlast init              Initialize .ecp/ and generate DID")
-        print("  atlast register          Register agent with ATLAST Backend")
-        print("  atlast view              View latest ECP records")
-        print("  atlast verify <id>       Verify a record's integrity")
-        print("  atlast stats             Show agent trust signals")
-        print("  atlast did               Show this agent's DID")
-        print("  atlast flush             Force Merkle batch upload [--endpoint URL] [--key KEY]")
-        print("  atlast certify <title>   Issue a work certificate")
-        print("  atlast export            Export records as JSON")
+        print("ATLAST ECP — Evidence Chain Protocol v0.6.0\n")
+        print("  Getting started:")
+        print("    atlast init              Initialize ~/.ecp/ (add --identity for DID)")
+        print("    atlast record            Create ECP record (stdin or --in/--out)")
+        print("    atlast log               View latest records")
+        print()
+        print("  Zero-code integration:")
+        print("    atlast proxy             Start local transparent proxy")
+        print("    atlast run <cmd>         Run command with proxy auto-injected")
+        print()
+        print("  Analysis:")
+        print("    atlast verify <id>       Verify record integrity")
+        print("    atlast stats             Show trust signals")
+        print("    atlast did               Show agent DID")
+        print()
+        print("  Publishing (opt-in):")
+        print("    atlast register          Register agent with ATLAST Backend")
+        print("    atlast push              Upload records to ECP server")
+        print("    atlast certify <title>   Issue a work certificate")
+        print("    atlast export            Export records as JSON")
         print()
         print("  Docs: https://github.com/willau95/atlast-ecp")
         return
@@ -393,12 +550,17 @@ def main():
 
     commands = {
         "init": cmd_init,
-        "register": cmd_register,
-        "view": cmd_view,
+        "record": cmd_record,
+        "log": cmd_log,
+        "view": cmd_view,      # backward compat alias
         "verify": cmd_verify,
         "stats": cmd_stats,
         "did": cmd_did,
-        "flush": cmd_flush,
+        "push": cmd_push,
+        "flush": cmd_flush,    # backward compat alias
+        "proxy": cmd_proxy,
+        "run": cmd_run,
+        "register": cmd_register,
         "certify": cmd_certify,
         "export": cmd_export,
     }

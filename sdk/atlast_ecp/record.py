@@ -1,8 +1,11 @@
 """
 ECP Record — data structure, chaining, and hashing.
-Strictly follows ECP-SPEC.md v0.1.
 
-Key conventions (from spec):
+Supports two formats:
+  - v1.0 Minimal (flat): 6 required fields, no chain/sig needed
+  - v0.1 Full (nested):  chain + signature + DID (backward compat)
+
+Key conventions:
   - id format:          rec_{uuid_hex}
   - in_hash/out_hash:   sha256:{hex}
   - chain.prev:         "genesis" for first record (NOT None)
@@ -232,3 +235,45 @@ def record_to_dict(record: ECPRecord) -> dict:
             d["anchor"]["ts"] = anchor.ts
 
     return d
+
+
+# ─── Minimal v1.0 Records ─────────────────────────────────────────────────────
+
+def create_minimal_record(
+    agent: str,
+    action: str,
+    in_content,
+    out_content,
+    meta: Optional[dict] = None,
+) -> dict:
+    """
+    Create a minimal ECP v1.0 record.
+
+    No chain, no signature, no DID required.
+    This is the simplest valid ECP record — 6 required fields.
+    Anyone in any language can produce this format.
+
+    Args:
+        agent: Any string identifier (e.g. "my-agent", not necessarily a DID)
+        action: Record type — "llm_call", "tool_call", "message", "a2a_call"
+        in_content: Input content (will be SHA-256 hashed; content stays local)
+        out_content: Output content (will be SHA-256 hashed; content stays local)
+        meta: Optional metadata dict with keys like:
+              model, tokens_in, tokens_out, latency_ms, flags, cost_usd
+
+    Returns:
+        dict: A valid ECP v1.0 record ready for storage.
+    """
+    record = {
+        "ecp": "1.0",
+        "id": f"rec_{uuid.uuid4().hex[:16]}",
+        "ts": int(time.time() * 1000),
+        "agent": agent,
+        "action": action,
+        "in_hash": hash_content(in_content),
+        "out_hash": hash_content(out_content),
+    }
+    if meta:
+        # Only include non-None values
+        record["meta"] = {k: v for k, v in meta.items() if v is not None}
+    return record
