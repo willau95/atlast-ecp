@@ -38,6 +38,44 @@ All notable changes to ATLAST ECP are documented in this file.
 - `canonicalJSON()` recursive sort for cross-SDK hash consistency
 - Plugin batch uploader error handling
 
+## [0.6.0] - 2026-03-18
+
+### Added
+- **ECP v1.0 Progressive Specification** — 5-level layered format (Core → Metadata → Chain → Identity → Anchor)
+- **Minimal Records** — `create_minimal_record()` with just 6 required fields (`ecp`, `id`, `ts`, `agent`, `action`, `in_hash`, `out_hash`)
+- **`record_minimal()` / `record_minimal_async()`** — fire-and-forget recording, no DID or chain required
+- **ATLAST Transparent Proxy** (`atlast_ecp.proxy`) — zero-code ECP recording via HTTP reverse proxy
+  - Supports OpenAI, Anthropic, Gemini, Qwen, Kimi, DeepSeek, MiniMax, Yi, and all OpenAI-compatible providers
+  - SSE streaming pass-through with response reconstruction
+  - Fail-open: proxy errors never block the upstream response
+  - `pip install atlast-ecp[proxy]` (aiohttp dependency)
+- **CLI Expansion** — 6 new commands:
+  - `atlast init` — initialize ECP directory (DID by default, `--minimal` to skip)
+  - `atlast record` — create ECP record from stdin or flags
+  - `atlast log` — view local ECP records
+  - `atlast push` — upload records to an ECP server (opt-in)
+  - `atlast proxy` — start transparent recording proxy
+  - `atlast run <cmd>` — wrap any command with automatic ECP proxy (`OPENAI_BASE_URL` override)
+- **Dual format support** — readers accept both v0.1 (nested `step`) and v1.0 (flat) record formats
+- 43 new tests (16 minimal + 27 proxy)
+
+### Changed
+- **README.md** — complete rewrite: "5 minutes to first record", three paths (proxy/CLI/SDK)
+- **ECP-SPEC.md** — rewritten as v1.0 progressive specification (3 pages)
+- Version bumped to 0.6.0
+
+## [0.5.1] - 2026-03-17
+
+### Added
+- **MCP Server** enhanced — 8 tools total (`ecp_record`, `ecp_flush`, `ecp_stats` added; fixed certify route)
+- **OpenClaw Plugin** — real-time ECP recording via message hooks + batch uploader + `ecp_status` tool
+- **GitHub Actions CI** — Python 3.10–3.13 + TypeScript Node 18/20/22
+- **PyPI trusted publishing** workflow
+
+### Fixed
+- `canonicalJSON()` recursive sort for cross-SDK hash consistency (critical for Plugin ↔ Python SDK interop)
+- 6 additional issues from global audit
+
 ## [0.5.0] - 2026-03-17
 
 ### Added
