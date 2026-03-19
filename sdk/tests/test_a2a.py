@@ -58,6 +58,29 @@ class TestVerifyHandoff:
         assert h.source_agent == "agent-a"
         assert h.target_agent == "agent-b"
 
+    def test_handoff_batch_id_propagation(self):
+        """batch_id from records should propagate to Handoff for Dashboard drill-down."""
+        shared = "data payload"
+        r_a = _make_record("agent-a", "llm_call", "q", shared, ts=1000, record_id="rec_a1")
+        r_a["batch_id"] = "batch_aaa"
+        r_b = _make_record("agent-b", "llm_call", shared, "out", ts=2000, record_id="rec_b1")
+        r_b["batch_id"] = "batch_bbb"
+
+        h = verify_handoff(r_a, r_b)
+        assert h.valid is True
+        assert h.source_batch_id == "batch_aaa"
+        assert h.target_batch_id == "batch_bbb"
+
+    def test_handoff_batch_id_none_when_absent(self):
+        """batch_id should be None when not present in records."""
+        shared = "data"
+        r_a = _make_record("agent-a", "llm_call", "q", shared, ts=1000, record_id="rec_a1")
+        r_b = _make_record("agent-b", "llm_call", shared, "out", ts=2000, record_id="rec_b1")
+
+        h = verify_handoff(r_a, r_b)
+        assert h.source_batch_id is None
+        assert h.target_batch_id is None
+
     def test_invalid_handoff_hash_mismatch(self):
         r_a = _make_record("agent-a", "llm_call", "query", "result-a", ts=1000, record_id="rec_a1")
         r_b = _make_record("agent-b", "llm_call", "different-input", "result-b", ts=2000, record_id="rec_b1")

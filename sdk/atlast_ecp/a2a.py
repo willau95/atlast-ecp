@@ -39,6 +39,8 @@ class Handoff:
     target_ts: int
     valid: bool = True  # hash match
     causal_valid: bool = True  # source_ts <= target_ts
+    source_batch_id: Optional[str] = None  # ECP batch ID for drill-down
+    target_batch_id: Optional[str] = None
 
 
 @dataclass
@@ -131,6 +133,8 @@ def verify_handoff(record_a: dict, record_b: dict) -> Handoff:
         target_ts=ts_b,
         valid=hash_match,
         causal_valid=ts_a <= ts_b if (ts_a and ts_b) else True,
+        source_batch_id=record_a.get("batch_id"),
+        target_batch_id=record_b.get("batch_id"),
     )
 
 
