@@ -22,6 +22,7 @@ Commands:
 import json
 import sys
 from datetime import datetime, timezone
+from atlast_ecp import __version__
 
 
 def _print_record(record: dict, show_chain: bool = False):
@@ -527,7 +528,7 @@ def cmd_export(args: list[str]):
 def main():
     args = sys.argv[1:]
     if not args:
-        print("ATLAST ECP — Evidence Chain Protocol v0.6.0\n")
+        print(f"ATLAST ECP — Evidence Chain Protocol v{__version__}\n")
         print("  Getting started:")
         print("    atlast init              Initialize ~/.ecp/ (add --identity for DID)")
         print("    atlast record            Create ECP record (stdin or --in/--out)")
