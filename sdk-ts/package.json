@@ -1,5 +1,5 @@
 {
-  "name": "@atlast/sdk",
+  "name": "atlast-ecp-ts",
   "version": "0.1.0",
   "description": "ATLAST ECP SDK for TypeScript/Node.js — Evidence Chain Protocol for AI agents",
   "main": "dist/index.js",
