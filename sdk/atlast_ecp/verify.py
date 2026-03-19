@@ -185,8 +185,9 @@ def verify_record(record_dict: dict) -> dict:
             identity = get_or_create_identity()
             agent_did = record_dict.get("agent", "")
             local_did = identity.get("did", "")
-            if agent_did == local_did and identity.get("pub_key"):
-                signature_ok = verify_signature(identity["pub_key"], sig, actual_hash)
+            pub_key = identity.get("crypto_pub_key") or identity.get("pub_key")
+            if agent_did == local_did and pub_key:
+                signature_ok = verify_signature(pub_key, sig, actual_hash)
                 if not signature_ok:
                     errors.append("Signature verification failed against local identity")
         except Exception:
