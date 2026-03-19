@@ -49,7 +49,22 @@ def _get_ts(rec: dict) -> Optional[int]:
 
 def _get_meta(rec: dict) -> dict:
     """Extract meta/step data from v0.1 or v1.0 record."""
-    return rec.get("meta", {})
+    meta = rec.get("meta", {})
+    if meta:
+        return meta
+    # v0.1 fallback: extract from execution array
+    execution = rec.get("execution", [])
+    if execution and isinstance(execution, list) and len(execution) > 0:
+        step = execution[0]
+        result = {}
+        if step.get("duration_ms"):
+            result["duration_ms"] = step["duration_ms"]
+        if step.get("model"):
+            result["model"] = step["model"]
+        if step.get("action"):
+            result["tool"] = step["action"]
+        return result
+    return {}
 
 
 def _get_action(rec: dict) -> str:
