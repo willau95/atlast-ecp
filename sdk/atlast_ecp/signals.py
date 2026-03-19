@@ -126,6 +126,17 @@ def detect_flags(
     if is_a2a or _match_any(_A2A, text):
         flags.append("a2a_delegated")
 
+    # Speed anomaly: output too long for the latency
+    # Heuristic: >500 chars output in <100ms is suspicious
+    if latency_ms is not None and latency_ms < 100 and len(text) > 500:
+        flags.append("speed_anomaly")
+
+    # Latency outlier: latency < 10% of median (suspiciously fast for median-context)
+    if latency_ms is not None and median_latency_ms and median_latency_ms > 0:
+        if latency_ms < median_latency_ms * 0.1:
+            if "speed_anomaly" not in flags:
+                flags.append("speed_anomaly")
+
     return sorted(flags)
 
 
@@ -181,34 +192,49 @@ def compute_trust_signals(records: list[dict]) -> dict:
 
 def _check_chain_integrity(records: list[dict]) -> bool:
     """
-    Verify chain.prev links form a valid chain.
-    Uses the prev→id graph instead of timestamp sorting (timestamps can collide).
+    Verify chain.prev links form valid chain(s).
+    Supports multiple independent chains (different agents/sessions).
+    Returns True if ALL chains are internally consistent.
+
+    A record without a chain field (v1.0 minimal) is always valid.
     """
     if len(records) <= 1:
         return True
 
-    # Build id→record and find genesis
-    by_id = {r["id"]: r for r in records}
-    genesis = [r for r in records if r.get("chain", {}).get("prev") == "genesis"]
+    # Separate chained records from chainless (v1.0 minimal)
+    chained = [r for r in records if r.get("chain", {}).get("hash")]
+    if not chained:
+        return True  # All minimal records — no chain to verify
 
-    if len(genesis) != 1:
-        return False  # Must have exactly one genesis
+    # Build id→record lookup
+    by_id = {r["id"]: r for r in chained}
 
-    # Walk the chain forward via reverse lookup: prev→next
-    prev_to_record = {}
-    for r in records:
+    # Find genesis records (can be multiple for multiple agents/sessions)
+    genesis = [r for r in chained if r.get("chain", {}).get("prev") == "genesis"]
+
+    if not genesis:
+        return False  # No genesis in any chain
+
+    # Walk each chain forward via reverse lookup: prev→next
+    prev_to_records: dict[str, list] = {}
+    for r in chained:
         prev = r.get("chain", {}).get("prev")
         if prev and prev != "genesis":
-            prev_to_record[prev] = r
+            prev_to_records.setdefault(prev, []).append(r)
 
-    # Walk from genesis
-    current = genesis[0]
-    visited = {current["id"]}
-    while current["id"] in prev_to_record:
-        current = prev_to_record[current["id"]]
-        if current["id"] in visited:
-            return False  # Cycle detected
+    visited = set()
+    for g in genesis:
+        # Walk from this genesis
+        current = g
         visited.add(current["id"])
+        while current["id"] in prev_to_records:
+            nexts = prev_to_records[current["id"]]
+            if len(nexts) > 1:
+                return False  # Fork detected
+            current = nexts[0]
+            if current["id"] in visited:
+                return False  # Cycle detected
+            visited.add(current["id"])
 
-    # All records should be visited
-    return len(visited) == len(records)
+    # All chained records should be visited
+    return len(visited) == len(chained)

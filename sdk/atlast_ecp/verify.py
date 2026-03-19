@@ -172,9 +172,25 @@ def verify_record(record_dict: dict) -> dict:
     if not chain_hash_ok:
         errors.append(f"Chain hash mismatch: expected {expected_hash[:20]}..., got {actual_hash[:20]}...")
 
-    # 2. Signature (if we can verify)
+    # 2. Signature verification
     sig = record_dict.get("sig", "unverified")
     signature_ok = None  # unknown unless we have pubkey
+
+    if sig == "unverified":
+        signature_ok = None  # Cannot verify — no signature present
+    elif sig.startswith("ed25519:"):
+        # Try to load local identity to verify
+        try:
+            from .identity import get_or_create_identity
+            identity = get_or_create_identity()
+            agent_did = record_dict.get("agent", "")
+            local_did = identity.get("did", "")
+            if agent_did == local_did and identity.get("pub_key"):
+                signature_ok = verify_signature(identity["pub_key"], sig, actual_hash)
+                if not signature_ok:
+                    errors.append("Signature verification failed against local identity")
+        except Exception:
+            pass  # Can't load identity — leave as None
 
     return {
         "valid": chain_hash_ok and (signature_ok is not False),

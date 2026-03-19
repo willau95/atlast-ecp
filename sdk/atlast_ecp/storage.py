@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 import os
-ECP_DIR = Path(os.environ.get("ATLAST_ECP_DIR", os.path.expanduser("~/.ecp")))
+ECP_DIR = Path(os.environ.get("ATLAST_ECP_DIR", os.environ.get("ECP_DIR", os.path.expanduser("~/.ecp"))))
 RECORDS_DIR = ECP_DIR / "records"
 LOCAL_DIR = ECP_DIR / "local"       # summaries, never uploaded
 INDEX_FILE = ECP_DIR / "index.json" # record_id → file + line mapping
@@ -63,6 +63,9 @@ def save_record(record_dict: dict, local_summary: Optional[str] = None) -> str:
 def load_records(
     limit: int = 10,
     date: Optional[str] = None,
+    # ── Aliases for DX consistency ──
+    agent_id: Optional[str] = None,
+    ecp_dir: Optional[str] = None,
 ) -> list[dict]:
     """Load ECP records from local storage (newest first)."""
     init_storage()
@@ -87,6 +90,10 @@ def load_records(
                 break
         if len(records) >= limit:
             break
+
+    # ── Filter by agent_id if provided ──
+    if agent_id:
+        records = [r for r in records if r.get("agent") == agent_id]
 
     return records[:limit]
 

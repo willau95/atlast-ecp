@@ -744,11 +744,22 @@ def main():
         "discover": _cmd_discover,
     }
 
+    if cmd in ("--help", "-h", "help"):
+        main.__wrapped__ = True  # prevent recursion
+        # Re-run with no args to show help
+        sys.argv = [sys.argv[0]]
+        main()
+        return
+
+    if cmd in ("--version", "-V"):
+        print(f"atlast-ecp {__version__}")
+        return
+
     if cmd in commands:
         commands[cmd](rest)
     else:
         print(f"Unknown command: {cmd}")
-        print("Run 'atlast' for help.")
+        print("Run 'atlast' or 'atlast --help' for usage.")
         sys.exit(1)
 
 

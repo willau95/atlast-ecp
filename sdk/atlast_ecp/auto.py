@@ -39,7 +39,7 @@ _INSTRUMENTORS = {
 }
 
 
-def init(agent_id: Optional[str] = None) -> dict:
+def init(agent_id: Optional[str] = None, agent_name: Optional[str] = None, ecp_dir: Optional[str] = None) -> dict:
     """
     Initialize ECP auto-instrumentation.
 
@@ -67,6 +67,9 @@ def init(agent_id: Optional[str] = None) -> dict:
                 "status": "already_initialized",
                 "agent_did": get_identity()["did"],
             }
+
+        # Resolve alias
+        agent_id = agent_id or agent_name
 
         result = {
             "status": "ok",

@@ -287,7 +287,7 @@ def run_batch(flush: bool = False):
             # Collect records
             records, hashes = collect_batch(since_ts=since_ts)
             if not hashes:
-                return  # Nothing to batch
+                return {"status": "empty", "record_count": 0}  # Nothing to batch
 
             # Build Merkle tree (sha256: prefixed root)
             merkle_root, _ = build_merkle_tree(hashes)
@@ -330,8 +330,20 @@ def run_batch(flush: bool = False):
                 agent_api_key=agent_api_key,
             )
 
+            batch_result = {
+                "status": "ok",
+                "merkle_root": merkle_root,
+                "agent_did": agent_did,
+                "record_count": len(hashes),
+                "avg_latency_ms": avg_latency,
+                "batch_ts": batch_ts,
+                "sig": sig,
+            }
+
             if attestation_uid:
                 # Success — update state
+                batch_result["attestation_uid"] = attestation_uid
+                batch_result["uploaded"] = True
                 _save_batch_state({
                     **state,
                     "last_batch_ts": batch_ts,
@@ -341,6 +353,8 @@ def run_batch(flush: bool = False):
                 })
             else:
                 # Failure — queue for next run (include all required fields)
+                batch_result["uploaded"] = False
+                batch_result["queued"] = True
                 enqueue_for_upload({
                     "merkle_root": merkle_root,
                     "agent_did": agent_did,
@@ -354,8 +368,10 @@ def run_batch(flush: bool = False):
                     "queued_at": int(time.time() * 1000),
                 })
 
+            return batch_result
+
         except Exception:
-            pass  # Fail-Open: batch failure NEVER crashes the agent
+            return {"status": "error"}  # Fail-Open: batch failure NEVER crashes the agent
 
 
 def _retry_queued():

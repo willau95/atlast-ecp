@@ -108,11 +108,11 @@ def compute_chain_hash(record_dict: dict) -> str:
 # ─── Record Creation ──────────────────────────────────────────────────────────
 
 def create_record(
-    agent_did: str,
-    step_type: str,
-    in_content,
-    out_content,
-    identity: dict,
+    agent_did: str = "",
+    step_type: str = "llm_call",
+    in_content=None,
+    out_content=None,
+    identity: Optional[dict] = None,
     prev_record: Optional["ECPRecord"] = None,
     model: Optional[str] = None,
     tokens_in: Optional[int] = None,
@@ -120,11 +120,47 @@ def create_record(
     latency_ms: int = 0,
     flags: Optional[list] = None,
     parent_agent: Optional[str] = None,
+    # ── Aliases for DX consistency ──
+    agent_id: Optional[str] = None,
+    agent: Optional[str] = None,
+    action: Optional[str] = None,
+    input_data: Optional[dict] = None,
+    output_data=None,
+    reasoning: Optional[dict] = None,
+    execution: Optional[list] = None,
+    duration_ms: Optional[int] = None,
+    ecp_dir: Optional[str] = None,  # accepted but unused (config via ECP_DIR env)
+    parent_hash: Optional[str] = None,
+    confidence: Optional[dict] = None,
 ) -> ECPRecord:
     """
     Create a new ECP record, correctly chained to prev_record.
     Follows ECP-SPEC.md v0.1 field conventions.
+
+    Accepts multiple naming conventions for DX convenience:
+      - agent_did / agent_id / agent  → agent DID string
+      - step_type / action            → step type label
+      - in_content / input_data       → input payload (hashed)
+      - out_content / output_data     → output payload (hashed)
+      - latency_ms / duration_ms      → step latency
     """
+    # ── Resolve aliases ──
+    agent_did = agent_did or agent_id or agent or ""
+    step_type = action or step_type
+    in_content = in_content if in_content is not None else (
+        input_data if input_data is not None else ""
+    )
+    out_content = out_content if out_content is not None else (
+        output_data if output_data is not None else ""
+    )
+    if duration_ms is not None and latency_ms == 0:
+        latency_ms = duration_ms
+
+    # If no identity provided, try to get/create one
+    if identity is None:
+        from .identity import get_or_create_identity
+        identity = get_or_create_identity()
+
     record_id = f"rec_{uuid.uuid4().hex[:16]}"
     ts = int(time.time() * 1000)
 
@@ -240,11 +276,18 @@ def record_to_dict(record: ECPRecord) -> dict:
 # ─── Minimal v1.0 Records ─────────────────────────────────────────────────────
 
 def create_minimal_record(
-    agent: str,
-    action: str,
-    in_content,
-    out_content,
+    agent: str = "",
+    action: str = "llm_call",
+    in_content=None,
+    out_content=None,
     meta: Optional[dict] = None,
+    # ── Aliases for DX consistency ──
+    agent_id: Optional[str] = None,
+    agent_did: Optional[str] = None,
+    input_text: Optional[str] = None,
+    output_text: Optional[str] = None,
+    step_type: Optional[str] = None,
+    ecp_dir: Optional[str] = None,  # accepted but unused
 ) -> dict:
     """
     Create a minimal ECP v1.0 record.
@@ -264,6 +307,12 @@ def create_minimal_record(
     Returns:
         dict: A valid ECP v1.0 record ready for storage.
     """
+    # ── Resolve aliases ──
+    agent = agent or agent_id or agent_did or ""
+    action = step_type or action
+    in_content = in_content if in_content is not None else (input_text if input_text is not None else "")
+    out_content = out_content if out_content is not None else (output_text if output_text is not None else "")
+
     record = {
         "ecp": "1.0",
         "id": f"rec_{uuid.uuid4().hex[:16]}",
