@@ -89,10 +89,15 @@ def cmd_view(args: list[str]):
 
 
 def cmd_verify(args: list[str]):
-    """atlast verify <record_id>"""
+    """atlast verify <record_id> OR atlast verify --a2a file1.jsonl file2.jsonl ..."""
     if not args:
         print("Usage: atlast verify <record_id>")
+        print("       atlast verify --a2a file1.jsonl file2.jsonl [--json]")
         sys.exit(1)
+
+    if args[0] == "--a2a":
+        return _cmd_verify_a2a(args[1:])
+    
 
     record_id = args[0]
     from .storage import load_record_by_id
@@ -151,6 +156,54 @@ def cmd_verify(args: list[str]):
         print(f"  🔴 INTEGRITY ISSUE — Chain may be broken")
 
     print(f"\n  View public proof: https://llachat.com/verify/{record_id}\n")
+
+
+def _cmd_verify_a2a(args: list[str]):
+    """atlast verify --a2a file1.jsonl file2.jsonl [--json]"""
+    import json as json_mod
+    from .a2a import build_a2a_chain, verify_a2a_chain, format_a2a_report
+
+    output_json = "--json" in args
+    files = [a for a in args if a != "--json"]
+
+    if not files:
+        print("Usage: atlast verify --a2a file1.jsonl file2.jsonl [--json]")
+        sys.exit(1)
+
+    all_records = []
+    for f in files:
+        if not os.path.exists(f):
+            print(f"❌ File not found: {f}")
+            sys.exit(1)
+        with open(f) as fh:
+            for line in fh:
+                line = line.strip()
+                if line:
+                    all_records.append(json_mod.loads(line))
+
+    if not all_records:
+        print("❌ No records found in input files")
+        sys.exit(1)
+
+    chain = build_a2a_chain(all_records)
+    report = verify_a2a_chain(chain)
+
+    if output_json:
+        result = {
+            "valid": report.valid,
+            "agents": report.agents,
+            "total_handoffs": report.total_handoffs,
+            "valid_handoffs": report.valid_handoffs,
+            "invalid_handoffs": report.invalid_handoffs,
+            "causal_violations": report.causal_violations,
+            "orphan_count": report.orphan_count,
+            "blame_trace": report.blame_trace,
+        }
+        print(json_mod.dumps(result, indent=2))
+    else:
+        print(format_a2a_report(report))
+
+    sys.exit(0 if report.valid else 1)
 
 
 def cmd_stats(args: list[str]):
