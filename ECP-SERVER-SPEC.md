@@ -1,7 +1,7 @@
-# ECP Server Specification v1.1
+# ECP Server Specification v2.0
 
-> Minimal API specification for an ECP-compatible server.
-> Any backend implementing these 4 endpoints can receive, store, and serve ECP records.
+> Complete API specification for the ATLAST ECP Server.
+> Updated to reflect Phase 4-5 production endpoints, security, and monitoring.
 
 ## Overview
 
