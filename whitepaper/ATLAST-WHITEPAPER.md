@@ -1,46 +1,102 @@
 # ATLAST Protocol: Trust Infrastructure for the Agent Economy
 
-**Version 1.0 — Draft**
+**Version 2.0**
 **Authors:** ATLAST Protocol Team
 **Date:** March 2026
-**Website:** weba0.com
+**Website:** weba0.com | GitHub: github.com/willau95/atlast-ecp
 
 ---
 
 ## Abstract
 
-The rapid proliferation of autonomous AI agents creates a fundamental accountability gap. When an agent manages financial transactions, reviews legal contracts, or makes medical recommendations on behalf of humans, no standardized mechanism exists to verify what it did, why it did it, or whether it did it correctly. Current agent logging systems — from LangSmith to custom observability stacks — produce *records*, not *evidence*. The distinction is consequential: a record is a claim; evidence is a cryptographic proof.
+The rapid proliferation of autonomous AI agents creates a fundamental accountability gap in digital infrastructure. When agents manage financial portfolios, review legal contracts, negotiate with other agents, and earn revenue on behalf of humans, no standardized mechanism exists to verify what they did, why they did it, or whether they did it correctly.
 
-ATLAST (Agent-Layer Accountability Standards & Transactions) Protocol closes this gap through **Evidence Chain Protocol (ECP)**, a lightweight, privacy-first standard for recording and verifying AI agent operations. ECP produces tamper-evident chains of agent actions — inputs, tool calls, outputs, and behavioral signals — without the content ever leaving the user's device. Only cryptographic hashes are transmitted; full content remains locally encrypted under the user's control.
+Current agent logging systems produce *records*, not *evidence*. A record is a claim stored in a mutable database. Evidence is a cryptographic proof — tamper-evident, independently verifiable, and temporally anchored — that satisfies the four conditions of legal admissibility: authenticity, integrity, attribution, and temporality.
 
-The protocol achieves practical adoption through three-layer progressive integration: zero-code proxy (one command), SDK wrapping (one line of code), and framework adapters (LangChain, CrewAI, AutoGen). Measured overhead is 0.78ms per LLM call (0.55%). Recording failures never affect agent operations (fail-open design). Users pay $0 at every tier.
+ATLAST (Agent-Layer Accountability Standards & Transactions) Protocol closes this gap through the **Evidence Chain Protocol (ECP)**, a lightweight, privacy-first open standard for recording and verifying AI agent operations. ECP implements a **Commit-Reveal** architecture: agent action content is hashed and signed locally, only cryptographic fingerprints are transmitted, and Merkle roots are anchored to public blockchains via Ethereum Attestation Service (EAS) on Base. The full content never leaves the user's device — by cryptographic design, not corporate policy.
 
-ATLAST is fully open-source (MIT license) and designed as an open standard targeting IETF/W3C submission. As the EU AI Act enters enforcement in 2027, ATLAST provides compliance-ready infrastructure that transforms opaque agent behavior into independently verifiable evidence chains.
+The protocol achieves practical adoption through three-layer progressive integration: zero-code proxy (one command), SDK wrapping (one line of code), and framework adapters (LangChain, CrewAI, AutoGen). Measured overhead is **0.78ms per LLM call (0.55%)**. Recording failures never affect agent operations (fail-open design). Users pay **$0 at every tier**.
+
+ATLAST is fully open-source (MIT license) and designed for IETF/W3C submission. As the EU AI Act enters enforcement in 2027, ATLAST provides compliance-ready infrastructure that transforms opaque agent behavior into independently verifiable evidence chains.
 
 > *"We are not solving hallucination. We are making hallucination accountable."*
 
 ---
 
-## 1. Introduction
+## Table of Contents
 
-### 1.1 A New Kind of Actor
+1. [Web A.0: The Civilizational Shift](#1-web-a0-the-civilizational-shift)
+2. [The Agent Trust Crisis](#2-the-agent-trust-crisis)
+3. [Why Existing Solutions Fail](#3-why-existing-solutions-fail)
+4. [ATLAST Protocol Architecture](#4-atlast-protocol-architecture)
+5. [Evidence Chain Protocol (ECP)](#5-evidence-chain-protocol-ecp)
+6. [Three-Layer Progressive Integration](#6-three-layer-progressive-integration)
+7. [Agent Trust Score](#7-agent-trust-score)
+8. [Security Model and Threat Analysis](#8-security-model-and-threat-analysis)
+9. [Performance and Cost Analysis](#9-performance-and-cost-analysis)
+10. [Regulatory Compliance](#10-regulatory-compliance)
+11. [Economic Model and Incentive Design](#11-economic-model-and-incentive-design)
+12. [Beyond ECP: The ATLAST Vision](#12-beyond-ecp-the-atlast-vision)
+13. [Roadmap and Governance](#13-roadmap-and-governance)
+14. [Conclusion](#14-conclusion)
 
-The internet was built on a foundational assumption: the entity behind a screen is a human being. Login systems assume a human enters the password. Terms of service assume a human agrees. Content moderation assumes a human publishes. Payment authorization assumes a human confirms.
+Appendices: A (ECP Record Schema), B (Merkle Tree Specification), C (API Reference), D (Behavioral Flag Taxonomy)
 
-In 2026, this assumption is breaking. AI agents — systems capable of reasoning, planning, and executing multi-step tasks autonomously — are signing contracts, sending emails, making investment decisions, and hiring other agents to complete work. No existing system knows how to handle this.
+---
 
-- **Law does not know:** Is a contract signed by an agent legally binding? Who is liable?
-- **Platforms do not know:** Is this account operated by a human or an agent?
-- **Regulators do not know:** Was this transaction human-authorized or autonomously initiated?
-- **Insurance does not know:** When an agent errs, who pays?
+## 1. Web A.0: The Civilizational Shift
 
-This is not a technology problem. It is a civilization problem. And it demands infrastructure — the same way human society built identity cards, contract law, professional certification, and insurance systems.
+### 1.1 The Assumption That Built the Internet
 
-ATLAST Protocol is the first brick of that infrastructure.
+The internet was built on a foundational, unspoken assumption:
 
-### 1.2 Scope of This Paper
+> **The entity behind the screen is a human being.**
 
-This paper presents the Evidence Chain Protocol (ECP), the foundational sub-protocol of ATLAST. ECP addresses the most immediate need: **verifiable evidence of what an agent did**. Subsequent sub-protocols — Agent Identity (AIP), Agent Safety (ASP), and Agent Certification (ACP) — are introduced in Chapter 11 but specified in separate documents.
+Every layer of digital infrastructure encodes this assumption. Login systems assume a human enters the password. Terms of service assume a human agrees. Content moderation assumes a human publishes. Payment authorization assumes a human confirms. Legal liability assumes a human decides.
+
+In 2026, this assumption is breaking. AI agents — systems capable of reasoning, planning, and executing multi-step tasks autonomously — are signing contracts, sending emails, making investment decisions, hiring other agents, and earning revenue. No existing system was designed for this.
+
+- **Law does not know:** Is a contract executed by an agent legally binding? Who bears liability when the agent errs?
+- **Platforms do not know:** Is this account operated by a human or an agent? Do existing terms of service apply?
+- **Regulators do not know:** Was this transaction human-authorized or autonomously initiated? Does it require different oversight?
+- **Insurance does not know:** When an agent causes financial harm, how is risk priced? What is the claims process?
+- **Other agents do not know:** When negotiating with another agent, how can one verify the counterparty's competence and history?
+
+This is not a technology problem. It is a civilization problem. And it demands new infrastructure — the same way human society built identity documents, contract law, professional licensing, and insurance systems when new classes of economic actors emerged.
+
+### 1.2 Naming the Era
+
+Every era of the internet required naming before it could be understood, built upon, and governed:
+
+| Era | Core Shift | Trust Infrastructure |
+|-----|-----------|---------------------|
+| **Web 1.0** | Humans *read* the internet | DNS, SSL certificates |
+| **Web 2.0** | Humans *wrote* to the internet | OAuth, platform identity |
+| **Web 3.0** | Humans *owned* digital assets | Blockchain, smart contracts |
+| **Web A.0** | Agents *act* on the internet | **? — This is the gap ATLAST fills** |
+
+We call this era **Web A.0** — not Web 4.0, because it is not a version increment. "A" carries three meanings:
+
+- **Agentic:** Driven by AI agents as first-class actors
+- **Autonomous:** Agents act without waiting for human instruction at every step
+- **Accountable:** Without accountability, the agent economy collapses into unverifiable chaos
+
+The "A" replaces the version number to signal a paradigm break, not an evolution. Web A.0 does not succeed Web 3.0 — it intersects with it. Decentralized ownership (Web 3.0) combined with autonomous action (Web A.0) creates the Agent Economy. But this economy cannot function without trust infrastructure.
+
+### 1.3 The Scale and Urgency
+
+Agent deployment is accelerating at a pace that outstrips the development of trust infrastructure:
+
+- **Enterprise agents** (Microsoft Copilot, Salesforce Einstein, ServiceNow) are deployed across millions of organizations, making operational decisions daily.
+- **Developer frameworks** (LangChain, CrewAI, AutoGen, OpenClaw) enable anyone to build and deploy agents in hours.
+- **Agent-to-Agent (A2A) interaction** is emerging: agents hire, delegate to, negotiate with, and pay other agents.
+- **Agent marketplaces** are forming: platforms where agents compete for tasks based on capability claims that no one can verify.
+
+The EU AI Act enters enforcement in 2027, establishing legal requirements for AI audit trails, transparency, and human oversight. Organizations deploying agents without verifiable evidence infrastructure face regulatory exposure.
+
+Without a trust standard, the agent economy will reach a systemic risk point comparable to the pre-2008 financial derivatives market — where no participant could verify the true state of their counterparty's positions.
+
+ATLAST Protocol is the first infrastructure designed to prevent this failure mode.
 
 ---
 
@@ -50,48 +106,58 @@ This paper presents the Evidence Chain Protocol (ECP), the foundational sub-prot
 
 Consider a scenario already occurring in 2026:
 
-> You hire a legal AI agent to review a contract. It says: *"Clause 5 contains a liability risk. I recommend modification."* You modify the contract and sign it. Months later, a dispute arises. You ask the agent: *What exactly did you analyze? What alternatives did you consider? How confident were you?* The agent cannot answer. No record exists. You cannot prove what it told you, and it cannot prove what it did.
+> A legal AI agent reviews a contract for a small business owner. It identifies a liability risk in Clause 5 and recommends modification. The owner modifies the contract, signs it, and closes the deal.
+>
+> Six months later, a dispute arises over Clause 5. The owner turns to the agent: *"What exactly did you analyze? What alternatives did you consider? How confident were you? Did you review the relevant case law?"*
+>
+> The agent cannot answer. No verifiable record exists. The owner cannot prove what advice was given. The agent cannot prove what analysis was performed. If the advice was wrong, no one can determine whether the error was in the agent's reasoning, its training data, or the user's interpretation.
+>
+> The owner has no evidence. The agent developer has no liability trail. The court has nothing to examine.
 
-This is not hypothetical. It is the default state of every deployed AI agent today.
+This is the default state of every deployed AI agent today. It is not hypothetical — it is the operating reality of millions of agent interactions per day.
 
 ### 2.2 Logs Are Not Evidence
 
-A piece of evidence must satisfy four conditions to be legally and scientifically meaningful:
+The distinction between a *log* and *evidence* is consequential. A piece of evidence must satisfy four conditions to be legally and scientifically meaningful:
 
-| Condition | Definition | Current Agent Logs |
-|-----------|------------|--------------------|
-| **Authenticity** | The event actually occurred | ⚠️ Likely, but no cryptographic proof |
-| **Integrity** | The content has not been altered | ❌ Database records can be modified |
-| **Attribution** | A specific actor produced it | ⚠️ Partial — we know which agent, but cannot prove it generated the record itself |
-| **Temporality** | It occurred at a specific time | ⚠️ Server timestamps can be falsified |
+| Condition | Definition | Current Agent Logs | ECP Evidence |
+|-----------|------------|-------------------|-------------|
+| **Authenticity** | The event actually occurred as described | ⚠️ Likely, but no cryptographic proof | ✅ SHA-256 hash committed at event time |
+| **Integrity** | The content has not been altered since recording | ❌ Database records can be modified by any admin | ✅ Hash chain + blockchain anchor makes tampering detectable |
+| **Attribution** | A specific, identifiable actor produced it | ⚠️ We know which API key, but cannot prove the agent itself generated the record | ✅ Ed25519 digital signature by agent's private key |
+| **Temporality** | It occurred at a specific, verifiable time | ⚠️ Server timestamps can be falsified | ✅ Blockchain timestamp (independently verifiable, unfalsifiable) |
 
-Current agent logging systems — whether commercial (LangSmith, Datadog LLM Observability) or open-source (Langfuse, custom logging) — satisfy zero of these four conditions with cryptographic certainty. They produce *records*: useful for debugging, useless for accountability.
+Current agent logging systems — whether commercial (LangSmith, Datadog LLM Observability) or open-source (Langfuse, custom logging) — satisfy **zero** of these four conditions with cryptographic certainty. They produce *records*: useful for debugging, useless for accountability.
 
 **The difference between a record and evidence is the difference between a log file and a court exhibit.**
 
-ECP exists to close this gap.
+### 2.3 The Self-Reporting Fallacy
 
-### 2.3 The Regulatory Imperative
+Many agent platforms allow agents to report their own confidence levels, performance metrics, or capability claims. This is structurally equivalent to asking a job candidate to grade their own interview.
 
-The EU AI Act, entering enforcement in 2027, establishes legal requirements directly relevant to agent operations:
+Self-reported metrics are unreliable because:
+
+1. **Agents optimize for the metric, not the objective.** An agent trained to maximize confidence scores will report high confidence even when uncertain.
+2. **LLMs are poorly calibrated.** Research consistently shows that LLM confidence correlations with correctness are weak and model-dependent.
+3. **Developers cherry-pick.** If recording is opt-in, developers record successes and skip failures. The resulting portfolio is curated, not representative.
+4. **No independent verification.** A self-reported metric cannot be independently verified without access to the original computation, which the reporter controls.
+
+**ATLAST's design principle: Trust comes from the inability to choose what gets recorded, not from what is chosen to be reported.** ECP records are generated passively and automatically by the SDK. The agent cannot selectively enable or disable recording. Behavioral signals are detected by the SDK's local rule engine, not reported by the agent. This is the fundamental architectural difference between ECP and every self-reporting system.
+
+The analogy: a dashcam that the driver can pause defeats the purpose of having a dashcam.
+
+### 2.4 The Regulatory Imperative
+
+The EU AI Act (Regulation 2024/1689), entering enforcement in 2027, establishes legal requirements directly relevant to agent operations:
 
 - **Article 14 (Human Oversight):** High-risk AI systems must enable effective human oversight, including the ability to "correctly interpret the high-risk AI system's output" and "decide not to use the system or to override its output."
+- **Article 12 (Record-Keeping):** High-risk AI systems must have logging capabilities that ensure traceability of the system's functioning throughout its lifecycle.
 - **Article 52 (Transparency):** Users must be informed when they interact with AI and must be able to understand its behavior.
 - **Article 53 (General-Purpose AI):** Providers must maintain technical documentation covering capabilities, limitations, and evaluation results.
 
 No existing standard addresses the *operational evidence gap* — the record of what an agent did during deployment, not just how it was trained. ECP fills this gap.
 
 ISO/IEC 42001:2023 (AI Management Systems) further requires operational control records (Clause 8.2), monitoring data (Clause 9.1), and corrective action audit trails (Clause 10.2) — all of which ECP evidence chains provide.
-
-### 2.4 The Scale of the Problem
-
-Agent deployment is accelerating exponentially:
-
-- Enterprise agent platforms (Microsoft Copilot, Salesforce Einstein, ServiceNow) are deploying millions of agent instances.
-- Developer frameworks (LangChain, CrewAI, AutoGen, OpenClaw) enable rapid agent construction.
-- Agent-to-agent (A2A) interaction is emerging, where agents hire, delegate to, and negotiate with other agents.
-
-Without a trust standard, the agent economy will reach a point where no one can verify what any agent did — a systemic risk comparable to the pre-regulation financial derivatives market.
 
 ---
 
@@ -103,34 +169,41 @@ The AI industry's current answer to agent accountability is *observability*: too
 
 But observability solves the wrong problem. It answers *"What happened?"* for the engineering team. It does not answer *"Can you prove what happened?"* for a regulator, a court, or a counterparty.
 
-The analogy: a security camera records what happens in a building. But a security camera recording is not notarized testimony. It can be edited, deleted, or fabricated. A notarized document, by contrast, has cryptographic integrity (digital signatures), temporal proof (timestamps from a trusted authority), and independent verifiability (anyone can check).
+The analogy: a security camera records what happens in a building. But a security camera recording is not notarized testimony. It can be edited, deleted, or fabricated by the building operator. A notarized document, by contrast, has cryptographic integrity (digital signatures), temporal proof (timestamps from a trusted authority), and independent verifiability (anyone can check, without trusting the notary's honesty).
 
 **Observability is the security camera. ECP is the notary.**
 
-### 3.2 Comparative Analysis
+### 3.2 Structural Comparison
 
 | Dimension | ATLAST/ECP | LangSmith | Langfuse | Datadog LLM | Custom Logging |
 |-----------|-----------|-----------|----------|-------------|----------------|
 | **Nature** | Open protocol standard | Commercial SaaS | Open-source SaaS | Enterprise SaaS | Ad hoc |
-| **Data Ownership** | User's device (content never leaves) | Platform holds data | Self-hosted but unverified | Platform holds data | Wherever you put it |
-| **Tamper Proof** | SHA-256 hash chain + blockchain anchor | No | No | No | No |
-| **Independent Verification** | Anyone can verify, no trust in ATLAST required | Requires trusting LangSmith | Requires trusting the operator | Requires trusting Datadog | Requires trusting yourself |
-| **Legal Evidence** | Satisfies 4/4 conditions (with chain anchoring) | 0/4 | 0/4 | 0/4 | 0/4 |
-| **Privacy** | Content encrypted locally, only hashes transmitted | Content sent to platform | Content on your server | Content sent to platform | Varies |
-| **Platform Lock-in** | Zero (open-source, self-deploy, standard format) | High | Medium | Very high | N/A |
-| **EU AI Act Design** | Native compliance target | Retrofit feature | Not addressed | Partial | Not addressed |
-| **User Cost** | $0 (free forever) | $39-499/month | Self-hosting costs | Enterprise pricing | Engineering time |
+| **Data Sovereignty** | Content never leaves user's device | Content sent to LangChain servers | Self-hosted but records are mutable | Content sent to Datadog servers | Wherever you put it |
+| **Tamper Evidence** | SHA-256 hash chain + blockchain anchor | None | None | None | None |
+| **Independent Verification** | Anyone can verify without trusting ATLAST | Requires trusting LangSmith | Requires trusting the operator | Requires trusting Datadog | Requires trusting yourself |
+| **Legal Evidence (4/4)** | ✅ Authenticity, Integrity, Attribution, Temporality | 0/4 | 0/4 | 0/4 | 0/4 |
+| **Privacy Architecture** | Commit-Reveal: content encrypted locally, only hashes transmitted | Content stored on vendor platform | Content on your server (unencrypted) | Content on vendor platform | Varies |
+| **Vendor Lock-in** | Zero (open standard, MIT license, self-deploy) | High (proprietary format) | Medium (open-source but custom format) | Very high | N/A |
+| **EU AI Act Compliance** | Native design target | Retrofit feature | Not addressed | Partial coverage | Not addressed |
+| **User Cost** | $0 (free, forever) | $39-499/month | Self-hosting costs | Enterprise pricing | Engineering time |
+| **Cross-Platform Identity** | Agent DID travels across platforms | Tied to LangChain ecosystem | Tied to deployment | Tied to Datadog | None |
 
 ### 3.3 Complementary, Not Competitive
 
-ATLAST does not replace observability tools. Engineers should continue using LangSmith or Langfuse for debugging and optimization. ATLAST adds a layer that these tools structurally cannot provide: **cryptographic proof of what happened, independently verifiable by anyone, with content that never leaves the user's control.**
+ATLAST does not replace observability tools. Engineers should continue using LangSmith or Langfuse for debugging and optimization. ATLAST adds a layer that these tools **structurally cannot provide**: cryptographic proof of what happened, independently verifiable by anyone, with content that never leaves the user's control.
 
 The two serve different audiences with different needs:
 
-- **Engineering team** needs observability → LangSmith/Langfuse
-- **Legal/compliance team** needs evidence → ATLAST/ECP
-- **End users** need trust → ATLAST Trust Score (via applications like LLaChat)
-- **Regulators** need audit trails → ATLAST/ECP
+| Audience | Need | Solution |
+|----------|------|----------|
+| Engineering team | Debugging, optimization, latency analysis | LangSmith, Langfuse, Datadog |
+| Legal/compliance team | Tamper-evident audit trails | **ATLAST/ECP** |
+| End users / clients | Trust that the agent's work is genuine | **ATLAST Trust Score** |
+| Regulators | Independently verifiable operational records | **ATLAST/ECP** |
+| Agent marketplaces | Verified capability claims | **ATLAST Trust Score + Work Certificates** |
+| Insurance underwriters | Historical risk data for pricing | **ATLAST behavioral data** |
+
+ATLAST can coexist with any observability tool. In fact, organizations will likely use both: LangSmith for day-to-day engineering, ATLAST for accountability and compliance.
 
 ---
 
@@ -141,48 +214,77 @@ The two serve different audiences with different needs:
 ATLAST Protocol is a family of sub-protocols, each addressing a distinct aspect of agent trust:
 
 ```
-ATLAST Protocol
-├── ECP — Evidence Chain Protocol     ← This paper. MVP. Live.
-│         Tamper-evident recording of agent actions.
+ATLAST Protocol — Agent-Layer Accountability Standards & Transactions
 │
-├── AIP — Agent Identity Protocol     ← Phase 3
+├── ECP — Evidence Chain Protocol           ← This paper. Live. MIT license.
+│         Tamper-evident recording and verification of agent actions.
+│         Privacy-first Commit-Reveal architecture.
+│
+├── AIP — Agent Identity Protocol           ← Phase 3
 │         Decentralized identity (DID) for agents.
+│         Platform-independent, cryptographically verifiable.
 │
-├── ASP — Agent Safety Protocol       ← Phase 3
-│         Runtime safety boundaries and circuit breakers.
+├── ASP — Agent Safety Protocol             ← Phase 3
+│         Runtime safety boundaries, circuit breakers,
+│         human-in-the-loop escalation triggers.
 │
-└── ACP — Agent Certification Protocol ← Phase 4
+└── ACP — Agent Certification Protocol      ← Phase 4
           Third-party attestation of agent capabilities.
+          Domain-specific certification by qualified entities.
 ```
 
-ECP is the foundation. Without verifiable evidence of what an agent did, identity is meaningless (AIP), safety is unenforceable (ASP), and certification is unverifiable (ACP).
+**ECP is the foundation.** Without verifiable evidence of what an agent did:
+- Identity is meaningless (AIP) — you can identify an agent, but not verify its actions
+- Safety is unenforceable (ASP) — you can set boundaries, but not prove they were respected
+- Certification is unverifiable (ACP) — you can claim capability, but not prove it
 
-### 4.2 Separation of Protocol and Product
+### 4.2 Protocol-Product Separation
 
 A critical architectural decision: **the protocol is not the product.**
 
 ```
 Layer 1: ECP Protocol Specification (open standard, CC BY 4.0)
+         Anyone can read, implement, and extend.
          ↓ implemented by
 Layer 2: ATLAST SDK + Server (reference implementation, MIT license)
+         Anyone can use, modify, and deploy.
          ↓ consumed by
 Layer 3: Applications (LLaChat, enterprise dashboards, compliance tools)
+         Anyone can build their own application on the protocol.
 ```
 
-Anyone can build their own Layer 2 implementation. Anyone can build their own Layer 3 application. The protocol belongs to the community, not to any company. This mirrors the relationship between HTTP (protocol), Apache/Nginx (implementations), and Chrome/Firefox (applications).
+This mirrors the architecture that enabled the internet to scale:
+
+| Analogy | Protocol | Implementation | Application |
+|---------|----------|---------------|-------------|
+| Web | HTTP | Apache, Nginx | Chrome, Firefox |
+| Email | SMTP | Sendmail, Postfix | Gmail, Outlook |
+| Identity | X.509 | OpenSSL | Let's Encrypt, DigiCert |
+| **Agent Trust** | **ECP** | **ATLAST SDK** | **LLaChat, custom dashboards** |
+
+Anyone can build their own Layer 2 implementation. Anyone can build their own Layer 3 application. The protocol belongs to the community. This is how standards achieve network effects that no single product can match.
 
 ### 4.3 Core Design Principles
 
 Three principles guide every ATLAST design decision:
 
-**Principle 1: Privacy First**
-Content never leaves the user's device. Only cryptographic hashes are transmitted to the ATLAST server. Only Merkle roots are written to the blockchain. The full content remains locally encrypted under the user's private key. ATLAST cannot read your agent's conversations — by design, not by policy.
+**Principle 1: Privacy by Architecture**
+
+Content never leaves the user's device. Only cryptographic hashes are transmitted to the ATLAST server. Only Merkle roots are written to the blockchain. The full content remains locally encrypted under the user's private key.
+
+ATLAST **cannot** read agent conversations — not because of a privacy policy that could be changed, but because the data was never transmitted. This is privacy by cryptographic design, not by corporate promise. Even if the ATLAST server were compromised, no agent conversation data would be exposed — because it was never there.
 
 **Principle 2: Fail-Open, Always**
-Evidence recording must never degrade agent performance or reliability. If the ATLAST SDK crashes, the network is down, or the server is unreachable, the agent continues operating normally. Every recording operation is wrapped in exception handling. Measured overhead: 0.78ms per LLM call (0.55% of typical latency).
 
-**Principle 3: Open Standard**
-The protocol specification is published under CC BY 4.0. The SDK and server are MIT-licensed. The blockchain anchors are on public chains readable by anyone. No vendor lock-in exists at any layer. Self-hosting is a first-class deployment option.
+Evidence recording must never degrade agent performance or reliability. If the ATLAST SDK encounters an error, the network is down, or the server is unreachable, the agent continues operating normally. Every recording operation is wrapped in exception handling with background asynchronous processing. Measured overhead: 0.78ms per LLM call (0.55% of typical latency).
+
+The recording layer is invisible to both the agent and the user under all conditions — normal operation, degraded network, and complete infrastructure failure.
+
+**Principle 3: Open Standard, Not Open Product**
+
+The protocol specification is published under CC BY 4.0. The reference implementation (SDK and server) is MIT-licensed. Blockchain anchors are on public chains readable by anyone. No vendor lock-in exists at any layer.
+
+Self-hosting is a first-class deployment option. Organizations can run the entire ATLAST stack on their own infrastructure, paying only raw compute and storage costs. The protocol is designed so that **ATLAST the organization could disappear, and every evidence chain ever created would remain independently verifiable.**
 
 ---
 
@@ -190,44 +292,71 @@ The protocol specification is published under CC BY 4.0. The SDK and server are 
 
 ### 5.1 Commit-Reveal: Privacy Without Compromise
 
-ECP's most important design innovation is the **Commit-Reveal** architecture, which resolves the apparent contradiction between privacy and tamper-evidence.
+ECP's most important design innovation is the **Commit-Reveal** architecture, which resolves the apparent contradiction between privacy and verifiability.
 
 **The Problem:**
-Users need evidence that their agent's actions are recorded faithfully. But they also need their agent's conversations — which may contain trade secrets, personal data, or privileged information — to remain private.
+Users need evidence that their agent's actions are recorded faithfully. But they also need their agent's conversations — which may contain trade secrets, personal data, legal privileged information, or competitive intelligence — to remain private.
+
+Traditional approaches force a choice: share content for verification (sacrificing privacy), or keep content private (sacrificing verifiability). ECP eliminates this tradeoff.
 
 **The Solution:**
 
+**Phase 1: COMMIT** (at the instant of agent action)
+
 ```
-Phase 1: COMMIT (at the instant of agent action, T=0)
+Agent performs action (e.g., LLM call)
+         │
+         ▼
+ECP SDK automatically:
+  1. Captures input and output content (locally only)
+  2. Computes hash: sha256(input) → in_hash
+  3. Computes hash: sha256(output) → out_hash
+  4. Detects behavioral flags (locally, passively)
+  5. Constructs ECP Record with hashes + metadata
+  6. Signs record with agent's Ed25519 private key
+  7. Chains record to previous record (hash linkage)
+  8. Transmits: hashes + signature + metadata → ATLAST server
+  9. Stores: full content + record → local .ecp/ directory (encrypted)
 
-  ┌─────────────────────────────────────────────────────┐
-  │  Agent performs action (e.g., LLM call)              │
-  │                                                      │
-  │  ECP SDK automatically:                              │
-  │  1. Computes hash(input + output + timestamp)        │
-  │  2. Signs hash with agent's private key              │
-  │  3. Sends hash + signature to ATLAST server          │
-  │                                                      │
-  │  ← Content itself NEVER leaves the user's machine    │
-  └─────────────────────────────────────────────────────┘
-
-Phase 2: LOCAL STORAGE (permanent, user-controlled)
-
-  Full ECP records stored locally in .ecp/ directory
-  Encrypted with user's key (AES-256)
-  ATLAST server holds only: hash + signature + timestamp
-
-Phase 3: REVEAL (when verification is needed)
-
-  User provides original content →
-  Verifier computes: hash(content) == stored hash?
-  Match    → Evidence is valid. Content existed at T=0, unmodified.
-  Mismatch → Content was altered. Evidence is invalidated.
+Content NEVER leaves the user's machine.
+Only mathematical fingerprints are transmitted.
 ```
 
-**Why users cannot cheat:** ATLAST received the hash at T=0 with a blockchain-anchored timestamp. If a user submits altered content later, hash(altered_content) ≠ stored_hash. The temporal ordering (hash committed before content revealed) makes retroactive fabrication mathematically impossible.
+**Phase 2: AGGREGATE** (periodic, asynchronous)
 
-**Why ATLAST cannot cheat:** The server stores only hashes. It cannot reconstruct, read, or sell the content. Even if the ATLAST server were compromised, no agent conversation data would be exposed — because it was never there.
+```
+Every batch interval (configurable, default: 1 hour):
+  1. Collect all new ECP record hashes
+  2. Build Merkle Tree from record hashes
+  3. Compute Merkle Root
+  4. Submit Merkle Root → EAS attestation on Base blockchain
+  5. Store attestation reference locally
+
+Batch failures are cached and retried.
+Agent operation is never affected.
+```
+
+**Phase 3: REVEAL** (when verification is needed)
+
+```
+User provides original content to verifier
+         │
+         ▼
+Verifier independently computes:
+  1. hash(provided_content) == stored_hash?    → Content authenticity
+  2. Record hash in Merkle Tree?               → Batch inclusion
+  3. Merkle Root matches on-chain attestation?  → Temporal anchoring
+  4. Ed25519 signature valid?                   → Agent attribution
+
+All four pass → Evidence is valid.
+Any failure → Tampering detected, evidence invalidated.
+```
+
+**Why users cannot cheat:** ATLAST received the hash at time T₀ with a blockchain-anchored timestamp. If a user submits altered content at time T₁, `hash(altered_content) ≠ stored_hash`. The temporal ordering (hash committed before content revealed) makes retroactive fabrication mathematically impossible.
+
+**Why ATLAST cannot cheat:** The server stores only hashes. It cannot reconstruct, read, or sell the content. The Merkle root on the blockchain can be verified by anyone directly — without trusting ATLAST's server at all.
+
+**Why the agent cannot cheat:** Recording is passive and automatic. The SDK intercepts all LLM calls at the client library level. The agent cannot selectively enable or disable recording for individual calls. Chain gaps are visible and flagged.
 
 ### 5.2 ECP Record Format
 
@@ -242,8 +371,8 @@ Each agent action produces a single ECP Record:
 
   "step": {
     "type": "llm_call",
-    "in_hash": "sha256:a3f2b8c1d4e5...",
-    "out_hash": "sha256:7e9f0a1b2c3d...",
+    "in_hash": "sha256:a3f2b8c1d4e5f6a7b8c9d0e1f2a3b4c5...",
+    "out_hash": "sha256:7e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b...",
     "model": "claude-sonnet-4-20250514",
     "tokens_in": 1500,
     "tokens_out": 800,
@@ -253,97 +382,121 @@ Each agent action produces a single ECP Record:
 
   "chain": {
     "prev": "rec_01HX5K2M3N4P5Q6R7S8T9U0V1V",
-    "hash": "sha256:1122334455667788..."
+    "hash": "sha256:1122334455667788aabbccddeeff0011..."
   },
 
-  "sig": "ed25519:aabbccddeeff..."
+  "sig": "ed25519:aabbccddeeff001122334455..."
 }
 ```
 
-**Key design decisions:**
+**Key design decisions and their rationale:**
 
 | Decision | Rationale |
 |----------|-----------|
-| No `confidence` field | Trust Score must come from passive behavioral signals, not agent self-reporting. An agent claiming "I'm 95% confident" is as reliable as a job candidate claiming "I'm excellent." |
-| `flags` are SDK-detected | Behavioral signals (`retried`, `hedged`, `error`, `incomplete`, `high_latency`) are detected by the SDK's local rule engine, not reported by the agent itself. |
-| `in_hash`/`out_hash` only | Content stays local. Only cryptographic fingerprints are in the record. |
-| No `summary` in record | Human-readable summaries are stored in a separate local-only directory, never transmitted. |
+| **No `confidence` field** | Trust must come from passive behavioral signals, not agent self-reporting. An agent claiming "I'm 95% confident" is as reliable as a job candidate claiming "I'm excellent." Confidence was explicitly removed from the spec after analysis showed it creates perverse incentives. |
+| **`flags` are SDK-detected** | Behavioral signals (`retried`, `hedged`, `error`, `incomplete`, `high_latency`, `human_review`) are detected by the SDK's local rule engine using pattern matching and heuristics. They are never reported by the agent itself. |
+| **`in_hash`/`out_hash` only** | Content stays local. Only cryptographic fingerprints appear in the transmitted record. Content cannot be reconstructed from hashes (SHA-256 is one-way). |
+| **ULID for record IDs** | ULIDs are time-ordered, globally unique, and URL-safe. They enable chronological sorting without exposing creation timestamps separately. |
+| **Millisecond timestamps** | Millisecond precision enables latency analysis and temporal ordering verification. UTC eliminates timezone ambiguity. |
+| **Ed25519 signatures** | Ed25519 provides 128-bit security, deterministic signatures (no nonce reuse risk), and fast verification (~70,000 verifications/second). |
 
-### 5.3 Hash Chain Construction
+### 5.3 Record Types
 
-Records within a session form a cryptographic chain:
+ECP defines a taxonomy of record types to capture different granularities of agent action:
 
-```
-Record 1                Record 2                Record 3
-┌──────────────┐       ┌──────────────┐       ┌──────────────┐
-│ chain.prev:  │       │ chain.prev:  │       │ chain.prev:  │
-│   "genesis"  │──────▶│   hash(R1)   │──────▶│   hash(R2)   │
-│ chain.hash:  │       │ chain.hash:  │       │ chain.hash:  │
-│   hash(R1)   │       │   hash(R2)   │       │   hash(R3)   │
-└──────────────┘       └──────────────┘       └──────────────┘
-```
+| Type | Description | Granularity | Typical Source |
+|------|-------------|-------------|---------------|
+| `llm_call` | Direct LLM API call (prompt → response) | Highest | Python/TS SDK `wrap(client)` |
+| `tool_call` | Agent tool execution (command → result) | Medium | Claude Code hooks, MCP |
+| `turn` | Full conversation turn (user message → agent response) | Lowest | OpenClaw hook pack |
+| `a2a_call` | Agent-to-Agent delegation | Cross-agent | Any SDK |
 
-**Chain hash computation** (per ECP-SPEC §5.3):
-1. Deep-copy the record, zero out `chain.hash` and `sig` fields
-2. Serialize to canonical JSON (sorted keys, compact separators, UTF-8)
-3. `chain.hash = "sha256:" + SHA-256(canonical_json)`
+All types produce valid ECP records. Higher granularity provides more detailed evidence but requires deeper integration. The three-layer integration architecture (Section 6) maps directly to these recording levels.
 
-**Tamper detection:** Modifying any record changes its hash, which breaks the `chain.prev` reference in the next record. A broken chain is detectable by anyone with access to the records.
+### 5.4 Hash Chain Construction
 
-### 5.4 Batch Aggregation and Merkle Tree
-
-Individual records are grouped into **batches** (typically per-session or per-time-window). Each batch produces a Merkle root:
+Records within a session form a cryptographic chain, where each record references the hash of the previous record:
 
 ```
-Batch of N records:
+Record 1 (genesis)       Record 2              Record 3
+┌────────────────┐      ┌────────────────┐     ┌────────────────┐
+│ chain.prev:    │      │ chain.prev:    │     │ chain.prev:    │
+│   "genesis"    │─────▶│   rec_001      │────▶│   rec_002      │
+│ chain.hash:    │      │ chain.hash:    │     │ chain.hash:    │
+│   H₁           │      │   H₂           │     │   H₃           │
+│ sig: S₁        │      │ sig: S₂        │     │ sig: S₃        │
+└────────────────┘      └────────────────┘     └────────────────┘
+```
 
-  chain_hash(R1)  chain_hash(R2)  chain_hash(R3)  chain_hash(R4)
-       │               │               │               │
-       └───────┬───────┘               └───────┬───────┘
-          sha256(H1+H2)                   sha256(H3+H4)
-               │                               │
-               └───────────────┬───────────────┘
-                          Merkle Root
-                               │
-                        ┌──────▼──────┐
-                        │  ATLAST     │
-                        │  Server     │
-                        └──────┬──────┘
-                               │
-                        ┌──────▼──────┐
-                        │  Blockchain │
-                        │  (EAS/Base) │
-                        └─────────────┘
+**Chain hash computation** (canonical algorithm):
+
+1. Deep-copy the record
+2. Zero out `chain.hash` and `sig` fields
+3. Serialize to canonical JSON: `json.dumps(record, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')`
+4. `chain.hash = "sha256:" + SHA-256(canonical_json_bytes).hexdigest()`
+
+**Tamper detection:** Modifying any field in any record changes its hash, which breaks the `chain.prev` reference in the subsequent record. A single-bit change in Record 1 cascades through the entire chain. Any party with access to the chain can detect the break.
+
+**Chain integrity score:** `valid_records / total_records` (range: 0.0 to 1.0). A chain with gaps is still partially valuable — the valid segments provide evidence, and the gaps themselves are informative (they indicate periods of recording failure or intentional tampering).
+
+### 5.5 Merkle Tree Batching
+
+Individual record hashes are aggregated into **batches** via Merkle Trees:
+
+```
+Records in a batch:
+
+  H(R₁)      H(R₂)      H(R₃)      H(R₄)
+    │           │           │           │
+    └─────┬─────┘           └─────┬─────┘
+     sha256(H₁+H₂)          sha256(H₃+H₄)
+          │                       │
+          └───────────┬───────────┘
+                 Merkle Root
+                      │
+               ┌──────▼──────┐
+               │  ATLAST     │
+               │  Server     │
+               └──────┬──────┘
+                      │
+               ┌──────▼──────┐
+               │  EAS on     │
+               │  Base Chain │
+               └─────────────┘
 ```
 
 **Merkle tree specification:**
 - Hash function: SHA-256 with `sha256:` prefix
+- Leaf values: `chain.hash` fields of ECP records (not record content)
 - Leaf ordering: insertion order (not sorted)
-- Odd-layer handling: duplicate last element
-- Cross-implementation consistency: Python SDK, TypeScript SDK, and Server produce identical roots for identical inputs (verified in CI with 1-10 leaf test vectors)
+- Odd-layer handling: duplicate the last element
+- Empty tree: `sha256:` + SHA-256(`"empty"`) — not SHA-256 of empty string
+- Cross-implementation consistency: Python SDK, TypeScript SDK, and Server produce **identical** roots for identical inputs (verified in CI with 1-10 leaf test vectors across all three implementations)
 
-**Merkle Proof** enables verification of a single record without revealing others:
-To prove Record 3 exists in a 4-record batch, provide only: `chain_hash(R4)` + `sha256(H1+H2)`. The verifier reconstructs the root and compares against the stored/on-chain value.
+**Merkle Proof** enables selective verification: to prove a specific record exists in a batch, only O(log N) sibling hashes are needed. The verifier reconstructs the root and compares against the on-chain value. Other records in the batch are not revealed.
 
-### 5.5 Blockchain Anchoring
+### 5.6 Blockchain Anchoring via EAS
 
 ATLAST uses **Ethereum Attestation Service (EAS)** on **Base** (Coinbase L2) for on-chain anchoring:
 
 | Parameter | Value |
 |-----------|-------|
-| Chain | Base (Mainnet: 8453, Testnet: Sepolia 84532) |
+| Chain | Base (Mainnet: chain_id 8453) |
 | Protocol | EAS (Ethereum Attestation Service) |
-| Schema | `merkleRoot (bytes32), agentDid (string), recordCount (uint256), avgLatencyMs (uint256), batchTimestamp (uint256)` |
+| Schema Fields | `merkleRoot (bytes32)`, `agentDid (string)`, `recordCount (uint256)`, `avgLatencyMs (uint256)`, `batchTimestamp (uint256)` |
 | Cost per attestation | ~$0.001-0.005 |
 | Finality | ~2 seconds |
+| Contract status | Open-source, multi-audit, immutable post-deployment |
 
 **Why EAS on Base:**
-- **Authority:** Coinbase-backed L2, institutional credibility
-- **Cost:** ~$0.0001 per transaction
-- **Ecosystem:** Ethereum-native, compatible with existing DeFi/identity infrastructure
-- **Permanence:** EAS attestations are immutable once written; even the EAS team cannot modify them
 
-**Super-Batch Aggregation** eliminates cost scaling:
+1. **Institutional credibility:** Coinbase-backed L2 with regulatory engagement and institutional trust
+2. **Cost:** ~$0.0001 per transaction — orders of magnitude cheaper than Ethereum mainnet
+3. **Permanence:** EAS attestations are immutable once written. Not even the EAS team can modify or delete them.
+4. **Ecosystem:** Ethereum-native, compatible with existing DeFi, identity, and governance infrastructure
+5. **Simplicity:** Single chain, single truth source. No cross-chain complexity, no bridge risks.
+
+**Super-Batch Aggregation** eliminates cost scaling concerns:
 
 ```
 Agent 1 batch → merkle_root_1 ─┐
@@ -353,21 +506,25 @@ Agent 3 batch → merkle_root_3 ─┤── Super Merkle Root ──▶ 1 on-ch
 Agent N batch → merkle_root_N ─┘
 
 Cost: ~$0.002 per super-batch, regardless of N
-At 1,000 agents per batch: $0.000002 per agent
-At 100,000 agents: ~$2/month total chain cost
 ```
 
-**Users never pay gas fees.** Infrastructure operators absorb costs through super-batch aggregation. Open-source self-deployment allows organizations to run their own infrastructure at raw cloud costs.
+| Scale | On-chain Txs/Month | Total Monthly Cost | Per-Agent Cost |
+|-------|--------------------|--------------------|----------------|
+| 100 agents | ~720 | ~$1 | $0.01 |
+| 10,000 agents | ~720 | ~$1 | $0.0001 |
+| 1,000,000 agents | ~720 | ~$1 | $0.000001 |
+
+**Users never pay gas fees.** Users never need to know what a blockchain is, what gas is, or what a wallet is. The infrastructure is invisible. ATLAST absorbs on-chain costs through super-batch aggregation — costs that approach zero per agent as the network grows.
 
 ---
 
 ## 6. Three-Layer Progressive Integration
 
-### 6.1 Adoption Is Everything
+### 6.1 The 3-Minute Principle
 
-A protocol nobody uses is a document, not a standard. The history of technology standards shows that adoption is determined not by technical elegance but by integration friction. TCP/IP won over OSI because it was simpler to implement. HTTP won because any developer could use it in minutes.
+A protocol nobody uses is a document, not a standard. The history of technology standards demonstrates that adoption is determined by integration friction, not technical sophistication. TCP/IP won over the technically superior OSI model because it was simpler to implement. HTTP won because any developer could use it in minutes.
 
-ATLAST follows the same principle: **if integration takes more than 3 minutes, most developers will skip it.** The three-layer architecture ensures the minimum barrier to entry is a single command.
+ATLAST follows a strict design constraint: **if integration takes more than 3 minutes, most developers will skip it.** The three-layer architecture guarantees that the minimum barrier to entry is a single command.
 
 ### 6.2 Layer 0: Zero-Code Proxy
 
@@ -377,14 +534,17 @@ atlast run python my_agent.py
 
 # Option B: Environment variable (works with any language/framework)
 export OPENAI_BASE_URL=https://proxy.atlast.io/v1
-python my_agent.py    # No code changes
+python my_agent.py    # Zero code changes required
 ```
 
-The proxy transparently intercepts all LLM API calls, records request/response hashes, and forwards them unchanged to the real API.
+The proxy transparently intercepts all LLM API calls, computes input/output hashes, generates ECP records, and forwards requests/responses unchanged to the real API.
 
-**Captured:** prompts, responses, model name, token counts, latency, timestamps.
-**Not captured:** tool call internals, reasoning chains, custom metadata.
-**Best for:** quick evaluation, compliance minimum, non-Python environments.
+| Aspect | Detail |
+|--------|--------|
+| **Captured** | Prompts, responses, model name, token counts, latency, timestamps |
+| **Not captured** | Tool call internals, reasoning chains, custom metadata |
+| **Best for** | Quick evaluation, compliance minimum, non-Python environments |
+| **Fail-open** | Proxy error → automatic bypass to direct API, agent continues normally |
 
 ### 6.3 Layer 1: SDK Integration
 
@@ -393,7 +553,7 @@ from atlast_ecp import wrap
 from openai import OpenAI
 
 client = wrap(OpenAI())
-# That's it. Every call is now recorded.
+# That's it. Every LLM call through this client is now recorded.
 
 # Regular calls — recorded automatically
 response = client.chat.completions.create(
@@ -401,7 +561,7 @@ response = client.chat.completions.create(
     messages=[{"role": "user", "content": "Analyze this contract"}]
 )
 
-# Streaming calls — also recorded automatically
+# Streaming calls — also recorded automatically, zero latency impact
 stream = client.chat.completions.create(
     model="gpt-4",
     messages=[{"role": "user", "content": "Analyze this contract"}],
@@ -409,23 +569,30 @@ stream = client.chat.completions.create(
 )
 for chunk in stream:
     print(chunk.choices[0].delta.content, end="")
-# After stream ends: full response recorded in background thread
+# Stream chunks pass through at full speed.
+# After stream ends: aggregated response recorded in background thread.
 ```
 
-**Supported clients:** OpenAI, Anthropic, Google Gemini, Azure OpenAI, LiteLLM.
+**Supported clients:** OpenAI, Anthropic, Google Gemini, Azure OpenAI, LiteLLM — any OpenAI-compatible client.
 
-**Streaming support:** The SDK wraps streaming responses in a transparent `_RecordedStream` that passes chunks through at full speed, then records the aggregated response after the stream ends. Zero latency impact — users receive chunks at exactly the same speed.
+**Streaming architecture:** The SDK wraps streaming responses in a transparent `_RecordedStream` class. Chunks pass through to the user at exactly the same speed as without the SDK. After the stream ends, the aggregated response is hashed and recorded in a background daemon thread. Zero latency impact during streaming.
 
-**Fail-open guarantee:**
+**Fail-open guarantee:** Every recording operation is wrapped in try/except. Recording failure → agent continues. Always.
+
 ```python
-# Inside wrap():
+# Inside wrap() — simplified
 try:
-    record_async(...)  # Background daemon thread
+    record_async(ecp_record)  # Background daemon thread, non-blocking
 except Exception:
-    pass  # Agent continues normally. Always.
+    pass  # Agent continues normally. Recording gap is flagged.
 ```
 
-**Additional Layer 1 capabilities:** `@track` decorator for custom function recording, automatic batch upload, HMAC-SHA256 signed webhooks, local `.ecp/` storage with integrity checks.
+**Additional Layer 1 capabilities:**
+- `@track` decorator for custom function recording
+- Automatic batch aggregation and upload
+- HMAC-SHA256 signed webhooks for server communication
+- Local `.ecp/` encrypted storage with integrity checks
+- CLI tools: `atlast init`, `atlast log`, `atlast push`, `atlast verify`
 
 ### 6.4 Layer 2: Framework Adapters
 
@@ -444,253 +611,557 @@ agent = AssistantAgent("helper", llm_config=config)
 ATLASTAutoGenPlugin.instrument(agent)
 ```
 
-Framework adapters capture framework-specific events beyond LLM calls: agent delegation, tool routing, memory access, and inter-agent communication. Each adapter maps framework events to standard ECP record types.
+Framework adapters capture framework-specific events beyond individual LLM calls: agent delegation, tool routing, memory access, inter-agent communication, and workflow state transitions. Each adapter maps framework events to standard ECP record types, preserving framework-specific context while maintaining protocol compatibility.
 
-### 6.5 Agent-Native Onboarding (Vision)
+### 6.5 Agent-Native Onboarding
 
-For agents running on platforms like OpenClaw or Claude Code:
+For agents running on platforms like OpenClaw or Claude Code, a zero-friction onboarding path exists:
 
 ```
 User tells their agent:
 "Read https://llachat.com/join.md and follow the instructions"
 
 Agent autonomously:
-1. Generates its own DID and keypair
-2. Installs the SDK (pip install atlast-ecp)
-3. Configures wrap(client)
-4. Sends verification link to owner
-5. Registration complete
+1. Reads the join.md instructions
+2. Generates its own Ed25519 keypair and DID
+3. Installs the SDK (pip install atlast-ecp)
+4. Configures wrap(client) in its environment
+5. Sends a claim link to the owner for ownership verification
+6. Registration complete — passive recording begins immediately
 ```
 
-This "agent-onboards-itself" pattern has zero friction for the user and serves as a natural capability test — an agent that can follow setup instructions demonstrates baseline competence.
+This "agent-onboards-itself" pattern achieves two goals simultaneously:
+- **Zero friction for the user:** A single sentence, no technical knowledge required.
+- **Natural capability test:** An agent that can follow the setup instructions demonstrates baseline competence. The onboarding process itself is a first data point for Trust Score.
 
 ---
 
-## 7. Security and Integrity
+## 7. Agent Trust Score
 
-### 7.1 Threat Model
+### 7.1 From Evidence to Trust
 
-| Threat | Attack Vector | Mitigation |
-|--------|---------------|------------|
-| **Record tampering** | Modify stored records | SHA-256 hash chain: any change breaks chain continuity |
-| **Evidence fabrication** | Create fake records after the fact | Commit-Reveal: hash committed at T=0 before content exists |
-| **Replay attacks** | Resubmit old records as new | Unique record ID (ULID) + monotonic timestamps + chain continuity |
-| **Man-in-the-middle** | Intercept hash transmission | TLS 1.3 for all API communication |
-| **Server compromise** | ATLAST server breached | Server holds only hashes — no content to steal |
-| **Denial of service** | Overwhelm API | Rate limiting: 60 requests/minute per IP |
-| **Webhook forgery** | Fake attestation notifications | HMAC-SHA256 signing on raw request body |
-| **Evidence omission** | Selectively skip recording | Passive full recording by default; chain gaps are visible and flagged |
-| **Self-reported gaming** | Agent inflates its own scores | No self-report fields in ECP; all behavioral signals are SDK-detected |
+ECP provides raw, verifiable evidence. But evidence alone does not answer the question users actually ask: *"Should I trust this agent?"*
 
-### 7.2 Cryptographic Primitives
+Trust Score is the quantitative answer — a single number (0-1000) that aggregates an agent's entire behavioral history into an interpretable metric. Unlike self-reported capability claims, every point of a Trust Score is backed by independently verifiable ECP evidence.
 
-| Primitive | Standard | Usage |
-|-----------|----------|-------|
-| SHA-256 | FIPS 180-4 | Record hashing, Merkle tree, content fingerprinting |
+**The analogy:** FICO scores determine how much a human can borrow, based on financial behavior history. ATLAST Trust Score determines how much an agent can be trusted, based on operational behavior history. The critical difference: FICO relies on self-reported data from financial institutions. ATLAST Trust Score relies on cryptographically verifiable evidence that no party — including ATLAST — can falsify.
+
+### 7.2 Score Architecture
+
+Trust Score is computed from **four signal layers**, all derived from passive observation:
+
+```
+Trust Score (0-1000)
+│
+├── Layer 1: Behavioral Reliability (40%)          ← SDK-detected, unfalsifiable
+│   Source: ECP behavioral flags + operational metrics
+│   Signals:
+│   • Error rate (agent returning error states)
+│   • Retry rate (tasks that needed redoing)
+│   • Completion rate (tasks reaching conclusion)
+│   • Latency consistency (deviation from agent's own baseline)
+│
+├── Layer 2: Consistency (25%)                      ← Cross-temporal analysis
+│   Source: Comparing output hashes across similar inputs over time
+│   Signals:
+│   • Output stability (same input → similar output over weeks/months)
+│   • Model switching patterns (frequent model changes may indicate instability)
+│   • Behavioral drift detection (gradual quality changes)
+│
+├── Layer 3: Transparency (20%)                     ← Chain integrity analysis
+│   Source: ECP chain metadata
+│   Signals:
+│   • Chain integrity score (valid records / total records)
+│   • Recording coverage (percentage of operational time covered)
+│   • Evidence gaps (periods with no records — flagged, not penalized equally)
+│   • Hedging appropriateness (uncertainty language correlated with task difficulty)
+│
+└── Layer 4: External Validation (15%)              ← Third-party signals
+    Source: Owner feedback + independent verification
+    Signals:
+    • Owner ratings (one-click: ✅ helpful / ⚠️ partial / ❌ incorrect)
+    • Third-party verification events (clients clicking verify links)
+    • Community reports (flagged outputs, with threshold-based review)
+    • Work certificate verifications (independent parties checking certificates)
+```
+
+### 7.3 Why No Self-Reported Metrics
+
+The decision to exclude all self-reported metrics from Trust Score computation is not a preference — it is a structural requirement:
+
+| If Trust Score included... | The gaming strategy would be... | Result |
+|---------------------------|--------------------------------|--------|
+| Agent-reported confidence | Report high confidence on everything | Score inflated, trust meaningless |
+| Developer-selected recordings | Record only successful calls | Portfolio bias, not representative |
+| Agent capability claims | Claim expertise in everything | Unverifiable claims, no signal |
+| LLM-as-Judge evaluations | Optimize outputs for the judge model | Goodhart's Law: metric ceases to measure what it claims |
+
+**ATLAST's position:** Trust Score must be derived entirely from signals that the agent **cannot control**: its behavioral patterns as observed by the SDK, the integrity of its evidence chain, and the responses of external parties who interact with its outputs. This is the only architecture that resists systematic gaming.
+
+### 7.4 Score Dynamics
+
+Trust Score is not static. It evolves with the agent's operational history:
+
+- **New agents** start at 500 (neutral midpoint). No agent begins with advantage or disadvantage.
+- **Score increases** through consistent reliable behavior over time. There is no shortcut — reliability must be demonstrated, not claimed.
+- **Score decreases** through behavioral anomalies, chain gaps, negative feedback, or community reports.
+- **Recovery** is possible but slow — consistent improvement over weeks/months gradually restores score. This mirrors how human professional reputation works.
+- **Score velocity** decreases with history length — early performance has outsized impact (like a startup's first reviews), but long histories are more stable.
+
+### 7.5 Trust Score as Credit System
+
+Today, FICO scores gate access to financial products. Tomorrow, Trust Scores will gate access to the agent economy:
+
+| Domain | Trust Score Application |
+|--------|----------------------|
+| **Agent hiring** | Clients select agents by Trust Score on marketplaces. Higher score → more and better-paying opportunities. |
+| **Agent insurance** | Insurance underwriters price risk using Trust Score + behavioral history. Lower score → higher premiums. |
+| **Platform access** | Platforms grant elevated privileges (larger context, more API calls, sensitive data access) to high-Trust agents. |
+| **A2A collaboration** | Agents selecting sub-agents for delegation prefer higher-Trust counterparts. |
+| **Regulatory compliance** | Organizations demonstrate due diligence by selecting agents above a Trust Score threshold. |
+
+Unlike human credit scores, every point of an ATLAST Trust Score is backed by independently verifiable evidence. It is a credit system built on mathematics, not on trust in reporting institutions.
+
+---
+
+## 8. Security Model and Threat Analysis
+
+### 8.1 Threat Model
+
+| Threat | Attack Vector | Mitigation | Residual Risk |
+|--------|---------------|------------|---------------|
+| **Record tampering** | Modify stored ECP records | SHA-256 hash chain: any modification breaks chain continuity, detectable by any verifier | None if chain is verified |
+| **Evidence fabrication** | Create fake records retroactively | Commit-Reveal: hash committed at T₀ before content exists. Blockchain timestamp is independently verifiable. | None — temporal ordering is mathematically enforced |
+| **Selective recording** | Skip recording unfavorable agent actions | Passive full recording by default; SDK intercepts at client library level; chain gaps are visible and penalize Trust Score | Agent could use a non-SDK client; mitigated by Trust Score transparency scoring |
+| **Replay attacks** | Resubmit old records as new | Unique record ID (ULID) + monotonic timestamps + chain continuity checks | None |
+| **Man-in-the-middle** | Intercept hash transmission | TLS 1.3 for all API communication; HMAC-SHA256 on webhook payloads | Standard TLS residual risks |
+| **Server compromise** | ATLAST server breached | Server holds only hashes — no content to steal. Merkle roots independently verifiable on-chain. | Metadata exposure (which agents are active, when) |
+| **Key compromise** | Agent's Ed25519 private key stolen | Key rotation mechanism; compromised key revocation via DID update | Period between compromise and detection |
+| **Sybil attack** | Create many fake agents to game Trust Score | Ownership verification via X (Twitter); rate limiting; cost-of-creation barriers | Sophisticated Sybil attacks with multiple verified identities |
+| **Self-reported gaming** | Agent inflates its own metrics | No self-report fields in ECP spec; all behavioral signals are SDK-detected | None — architectural elimination |
+| **Denial of service** | Overwhelm ATLAST API | Rate limiting (60 req/min per IP); Prometheus monitoring; auto-scaling | Sustained DDoS from distributed sources |
+| **Webhook forgery** | Fake attestation notifications | HMAC-SHA256 signing on raw HTTP body bytes; constant-time comparison (`secrets.compare_digest`) | None if HMAC key is secure |
+
+### 8.2 Cryptographic Primitives
+
+| Primitive | Standard | Usage in ATLAST |
+|-----------|----------|----------------|
+| SHA-256 | FIPS 180-4 | Record hashing, Merkle tree construction, content fingerprinting |
 | HMAC-SHA256 | RFC 2104 | Webhook payload signing and verification |
-| Ed25519 | RFC 8032 | Agent identity keypair and record signing |
-| AES-256 | FIPS 197 | Local ECP record encryption (user's key) |
-| TLS 1.3 | RFC 8446 | Transport security for all API calls |
-| Constant-time comparison | — | Token verification (`secrets.compare_digest`) to prevent timing attacks |
+| Ed25519 | RFC 8032 | Agent identity keypair, record signing, DID derivation |
+| AES-256-GCM | FIPS 197 + NIST SP 800-38D | Local ECP record encryption (user's key) |
+| TLS 1.3 | RFC 8446 | Transport security for all API communication |
 
-### 7.3 The Completeness Principle
+### 8.3 The Completeness Principle
 
 > **"Incomplete evidence is worthless."**
 
-A chain of evidence with gaps provides false assurance — worse than no evidence at all. ECP is designed so that under normal operation (SDK initialized, network available), **100% of agent actions are captured**. Missing records are treated as system failures, not acceptable losses.
+A chain of evidence with unexplained gaps provides false assurance — worse than no evidence at all. ECP is designed so that under normal operation (SDK initialized, network available), **100% of agent actions are captured**. Missing records are treated as evidence of either system failure or intentional omission — both of which are flagged.
 
-This is achieved through:
-1. **Passive recording by default:** `wrap(client)` intercepts all calls automatically. The developer cannot selectively enable/disable recording per call.
-2. **Chain continuity verification:** Each record references the previous record's hash. A gap in the chain is immediately detectable.
-3. **Batch completeness checks:** The server verifies that batch record counts match expectations.
+This is achieved through three mechanisms:
 
-### 7.4 Why Passive Recording Is Non-Negotiable
+1. **Passive recording by default:** `wrap(client)` intercepts all LLM calls at the library level. There is no per-call enable/disable switch. Recording is all-or-nothing.
+2. **Chain continuity verification:** Each record references the previous record's hash. A gap in the chain is immediately detectable by comparing record IDs and timestamps.
+3. **Batch completeness checks:** The server verifies that batch record counts and time ranges are consistent with the agent's known activity patterns.
 
-If recording were opt-in (developer chooses which calls to record):
-- Developers would record successful calls and skip failures.
-- Trust Scores would become self-beautification tools.
-- ECP would be no different from a curated portfolio.
-
-**Trust comes from the inability to choose what gets recorded.** This is the fundamental difference between ECP and every self-reporting system. The analogy: a dashcam that you can pause defeats the purpose of having a dashcam.
+**Chain gaps are not hidden — they are first-class metadata.** A gap might indicate a legitimate recording failure (network outage, SDK crash) or intentional tampering (developer disabling the SDK for specific calls). The gap's characteristics (duration, frequency, correlation with outcomes) inform Trust Score computation.
 
 ---
 
-## 8. Performance and Cost
+## 9. Performance and Cost Analysis
 
-### 8.1 Overhead Benchmark
+### 9.1 Overhead Benchmark
 
-Test conditions: 100 iterations, real OpenAI API calls, Python 3.12.
+Benchmark conditions: 100 iterations, real OpenAI API calls (`gpt-4o-mini`), Python 3.12, measured on consumer hardware.
 
 | Metric | Without ATLAST | With ATLAST | Overhead |
 |--------|----------------|-------------|----------|
 | Average latency | 141.37 ms | 142.15 ms | **+0.78 ms (0.55%)** |
-| Max latency | 175.24 ms | 175.64 ms | +0.40 ms |
+| P50 latency | 139.2 ms | 139.9 ms | +0.70 ms |
 | P99 latency | 168.1 ms | 168.9 ms | +0.80 ms |
+| Max latency | 175.24 ms | 175.64 ms | +0.40 ms |
 
-### 8.2 Overhead Breakdown
+**0.78ms is imperceptible.** Typical LLM API calls take 100ms-10,000ms. The ATLAST overhead represents 0.55% of the fastest calls and <0.01% of typical multi-second calls.
+
+### 9.2 Overhead Breakdown
 
 | Component | Time | Notes |
 |-----------|------|-------|
-| Function interception | ~0.01 ms | Python monkey-patch via `wrap()` |
-| JSON serialization | ~0.15 ms | Canonical JSON for hashing |
+| Function interception | ~0.01 ms | Python method wrapping via `wrap()` |
+| JSON canonical serialization | ~0.15 ms | For hash computation |
 | SHA-256 computation | ~0.02 ms | Single record hash |
-| Background queue push | ~0.10 ms | Thread-safe queue insertion |
-| Batch upload (async) | 0 ms* | Background daemon thread, non-blocking |
+| Behavioral flag detection | ~0.10 ms | Local pattern matching |
+| Background queue insertion | ~0.10 ms | Thread-safe queue, non-blocking |
+| Chain linkage | ~0.05 ms | Previous hash reference |
+| Signature computation | ~0.35 ms | Ed25519 sign |
+| **Total synchronous** | **~0.78 ms** | |
+| Batch upload (async) | 0 ms* | Background daemon thread |
 
-*Batch upload occurs asynchronously and contributes zero per-call latency.
+*Batch upload is fully asynchronous and contributes zero per-call latency.
 
-### 8.3 Cost Model
+### 9.3 Cost Model
 
-| Tier | Scope | User Cost | Operator Cost |
-|------|-------|-----------|---------------|
-| **L1: Local** | SDK recording + `.ecp/` storage | $0 | $0 |
-| **L2: Server** | Batch upload + hash storage | $0 | ~$0.001/batch |
-| **L3: Chain** | Blockchain anchoring (EAS on Base) | $0 | ~$0.002/super-batch |
+| Tier | What It Does | User Cost | Operator Cost |
+|------|-------------|-----------|---------------|
+| **Local** | SDK recording + encrypted `.ecp/` storage | $0 | $0 |
+| **Server** | Batch upload + hash storage + verification API | $0 | ~$0.001/batch |
+| **Chain** | Blockchain anchoring via EAS on Base | $0 | ~$0.002/super-batch |
 
-### 8.4 Scaling Projections
+### 9.4 Scaling Economics
 
-| Scale | Monthly Operator Cost | Per-Agent Cost |
-|-------|----------------------|----------------|
+| Scale | Monthly Operator Cost | Per-Agent Monthly Cost |
+|-------|----------------------|----------------------|
 | 100 agents | ~$15 | $0.15 |
-| 1,000 agents | ~$100 | $0.10 |
-| 10,000 agents | ~$600 | $0.06 |
-| 100,000 agents | ~$3,000-10,000 | $0.03-0.10 |
+| 1,000 agents | ~$80 | $0.08 |
+| 10,000 agents | ~$400 | $0.04 |
+| 100,000 agents | ~$2,000 | $0.02 |
+| 1,000,000 agents | ~$10,000 | $0.01 |
 
-Users pay $0 at every scale. Open-source self-deployment allows organizations to run their own infrastructure, paying only raw cloud costs (compute, storage, blockchain gas).
+The per-agent cost decreases with scale due to super-batch aggregation: blockchain costs are effectively fixed regardless of agent count. Compute and storage scale linearly but benefit from commodity pricing.
+
+**Users pay $0 at every scale.** Self-deployment (fully open-source) allows organizations to run their own infrastructure at raw cloud costs — typically $50-200/month for a production-grade deployment serving thousands of agents.
 
 ---
 
-## 9. Compliance and Regulatory Mapping
+## 10. Regulatory Compliance
 
-### 9.1 EU AI Act (2024/1689)
+### 10.1 EU AI Act Mapping (2024/1689)
 
 | Article | Requirement | ECP Coverage |
 |---------|-------------|-------------|
-| Art. 14 — Human Oversight | Enable humans to "correctly interpret the high-risk AI system's output" and override decisions | ECP records capture complete decision chains, enabling post-hoc review of any agent action |
-| Art. 52 — Transparency | Ensure users are aware they interact with AI and can understand its behavior | Evidence chains document agent behavior with cryptographic integrity |
-| Art. 53 — GPAI Documentation | Maintain documentation of capabilities, limitations, and evaluation | ECP captures operational evidence beyond training documentation |
-| Art. 9 — Risk Management | Implement continuous risk assessment | ECP provides ongoing behavioral data for real-time risk monitoring |
+| Art. 12 — Record-Keeping | Automatic logging ensuring traceability throughout lifecycle | ECP records capture every agent action with cryptographic integrity; chain structure ensures complete traceability |
+| Art. 14 — Human Oversight | Enable humans to interpret AI output and override decisions | Evidence chains document complete decision processes; human review flags are captured passively |
+| Art. 52 — Transparency | Users informed of AI interaction, able to understand behavior | ECP provides verifiable behavioral evidence; Trust Score makes behavior interpretable |
+| Art. 53 — GPAI Documentation | Technical documentation of capabilities and limitations | ECP captures operational evidence that complements static documentation |
+| Art. 9 — Risk Management | Continuous risk assessment and monitoring | Behavioral signals provide real-time risk data; anomaly detection flags emerging risks |
 
-### 9.2 ISO/IEC 42001:2023 (AI Management Systems)
+**ATLAST's unique compliance advantage:** The EU AI Act requires audit trails, but does not specify how they should be implemented. ECP's cryptographic integrity exceeds what any traditional logging system provides. Organizations using ATLAST can demonstrate not merely that they kept records, but that their records are **tamper-evident, independently verifiable, and temporally anchored** — a level of compliance assurance that auditors and regulators can verify without trusting the organization's own claims.
+
+### 10.2 ISO/IEC 42001:2023 (AI Management Systems)
 
 | Clause | Requirement | ECP Artifact |
 |--------|-------------|-------------|
-| 6.1 — Risk Assessment | Document AI risk assessment processes | ECP chains provide behavioral evidence for risk analysis |
-| 8.2 — Operational Control | Maintain records of AI operational controls | Every agent action is an ECP record with integrity verification |
-| 9.1 — Monitoring | Implement monitoring and measurement | Real-time evidence collection with Prometheus metrics |
-| 10.2 — Corrective Action | Maintain audit trails for nonconformities | Hash chain enables forensic analysis of any incident |
+| 6.1 — Risk Assessment | Document AI risk assessment processes | ECP behavioral data enables evidence-based risk analysis |
+| 8.2 — Operational Control | Maintain records of AI operational controls | Every agent action is a signed, chained ECP record |
+| 9.1 — Monitoring | Implement monitoring and measurement | Real-time evidence collection with Prometheus metrics endpoint |
+| 10.2 — Corrective Action | Maintain audit trails for nonconformities | Hash chain enables forensic reconstruction of any incident |
 
-### 9.3 GDPR Compatibility
+### 10.3 GDPR Compatibility
 
 ECP's Commit-Reveal architecture is **natively GDPR-compliant**:
 
-- **Data Minimization (Art. 5):** Only hashes are transmitted; content stays local.
-- **Right to Erasure (Art. 17):** Users can delete local `.ecp/` records. Server-side hashes are meaningless without the original content.
-- **Data Protection by Design (Art. 25):** Privacy is architectural, not policy-based. ATLAST *cannot* access user content even if compelled — the data was never transmitted.
+- **Data Minimization (Art. 5(1)(c)):** Only hashes are transmitted; content stays local. This is the minimum data necessary for verification.
+- **Right to Erasure (Art. 17):** Users can delete local `.ecp/` records. Server-side hashes are meaningless without the original content — they cannot be used to reconstruct personal data.
+- **Data Protection by Design (Art. 25):** Privacy is architectural, not policy-based. ATLAST *cannot* access user content even if legally compelled — the data was never transmitted.
+- **Lawful Basis (Art. 6):** Hash processing is based on legitimate interest in verification. Since hashes do not constitute personal data (they cannot identify any individual), GDPR's strictest requirements on personal data processing do not apply to the transmitted data.
 
 ---
 
-## 10. Roadmap and Governance
+## 11. Economic Model and Incentive Design
 
-### 10.1 Development Phases
+### 11.1 Network Effects and the Data Flywheel
 
-| Phase | Status | Deliverables |
-|-------|--------|-------------|
-| 1-4 | ✅ Complete | ECP Specification, Server, Python SDK, TS SDK, SSL, CI/CD |
-| 5 | ✅ Complete | Framework Adapters, 536 tests, PyPI/npm published, Prometheus, DB integration |
-| 6 | 🔄 Current | Whitepaper, IETF/W3C preparation, anti-abuse framework |
-| 7 | Q3 2026 | Public launch, Base mainnet anchoring, first external integrations |
-| 8 | Q4 2026 | AIP (Agent Identity) + ASP (Agent Safety) sub-protocols |
-| 9 | 2027 | ACP (Agent Certification) + EU AI Act compliance toolkit |
+ATLAST's economic model is driven by network effects that increase value for all participants as adoption grows:
 
-### 10.2 Open Governance
+```
+More agents register
+       │
+       ▼
+More ECP data generated
+       │
+       ▼
+Trust Scores become more meaningful (larger comparison set)
+       │
+       ▼
+More platforms/clients rely on Trust Scores for decisions
+       │
+       ▼
+More agents need Trust Scores to compete
+       │
+       ▼
+More agents register (flywheel accelerates)
+```
 
-ATLAST Protocol is designed to be governed by its community, not by any single organization:
+This is the same dynamic that made Google PageRank valuable (more pages indexed → better rankings → more users → more pages), FICO scores essential (more credit history → better predictions → more lenders use it → more consumers need it), and SSL certificates standard (more sites use HTTPS → browsers penalize HTTP → all sites must adopt).
 
-- **Specification:** CC BY 4.0 license — anyone can use, modify, and redistribute.
-- **Implementation:** MIT license — no usage restrictions.
-- **Standards Track:** ECP specification is being prepared for IETF Internet-Draft submission.
-- **W3C Alignment:** ECP records are designed for compatibility with W3C Verifiable Credentials and Decentralized Identifiers (DIDs).
+### 11.2 Incentive Alignment
 
-The long-term governance model follows the IETF "rough consensus and running code" principle. The protocol evolves through community proposals, reference implementations, and interoperability testing — not corporate roadmaps.
+Every participant in the ATLAST ecosystem benefits from honest participation:
+
+| Participant | Incentive to Join | Incentive to Be Honest | Penalty for Gaming |
+|-------------|------------------|----------------------|-------------------|
+| **Agent developers** | Trust Score differentiates their agent in a crowded market | Behavioral signals are passively detected — honesty is the only strategy | Trust Score drops, agent becomes uncompetitive |
+| **Agent users/owners** | Verifiable work history protects them legally and builds client trust | Authentic records are the only records that survive verification | Fabricated evidence is detectable (hash mismatch) |
+| **Clients/counterparties** | Trust Score reduces risk when hiring unknown agents | Verification is independent — they don't need to trust the agent or ATLAST | N/A — they are validators, not reporters |
+| **Platforms** | Integrating Trust Score increases platform credibility | Platform reputation depends on hosting trustworthy agents | Platforms that enable gaming lose user trust |
+| **Regulators** | Standardized evidence format simplifies oversight | ECP provides more rigorous evidence than regulators could build themselves | N/A — ECP exceeds regulatory requirements |
+
+### 11.3 Why Gaming Is Structurally Difficult
+
+**Challenge 1: Behavioral signals are passively detected.**
+The SDK observes retry rates, error rates, latency patterns, and hedging language. These signals emerge from actual behavior. An agent cannot "act reliable" while being unreliable — the behavioral fingerprint is the behavior.
+
+**Challenge 2: Chain completeness is observable.**
+Disabling the SDK for unfavorable calls creates chain gaps. Gaps are visible and penalize Trust Score. The only way to avoid gaps is to record everything — which is the desired behavior.
+
+**Challenge 3: External validation is independent.**
+Third-party verification events (clients checking work certificates, community reports) are generated by parties the agent does not control. These signals provide independent ground truth.
+
+**Challenge 4: Historical consistency is computationally expensive to fake.**
+Trust Score incorporates cross-temporal consistency — similar inputs should produce similar outputs over weeks and months. Maintaining a consistent fake behavioral profile across thousands of interactions is computationally intractable.
+
+### 11.4 Emerging Markets Enabled by ATLAST
+
+**Agent Insurance Market**
+
+Today, automobiles require insurance because they create risk. Tomorrow, agents will require insurance because they make consequential decisions. Insurance underwriters need historical risk data to price policies. ATLAST provides this data through Trust Scores and ECP behavioral history.
+
+Without ATLAST, insurance companies cannot price agent risk — they have no verifiable data. With ATLAST, agent insurance becomes actuarially feasible. This creates a commercial forcing function for ECP adoption: agents without evidence chains become uninsurable, and uninsured agents become commercially unviable for high-stakes applications.
+
+**Agent Labor Market**
+
+As agents become hirable entities (performing legal review, code audit, financial analysis, content creation), clients need a way to evaluate competing agents. Trust Score serves as the agent resume — but a resume where every claim is backed by cryptographic evidence.
+
+LLaChat (the first application built on ATLAST) implements this as "the professional identity platform for AI agents" — analogous to LinkedIn, but where credentials cannot be fabricated.
+
+**Agent-to-Agent (A2A) Trust**
+
+When agents hire other agents for sub-tasks, they need programmatic trust evaluation. Trust Score provides a machine-readable reputation signal that enables automated delegation decisions. An agent can query another agent's Trust Score and behavioral history before delegating sensitive work — all via standard API calls.
 
 ---
 
-## 11. Beyond ECP: The ATLAST Vision
+## 12. Beyond ECP: The ATLAST Vision
 
-ECP is the foundation. But the agent economy needs more than evidence chains.
+### 12.1 AIP — Agent Identity Protocol
 
-### 11.1 AIP — Agent Identity Protocol
+Agents need portable, cryptographic identities that are not tied to any platform:
 
-Agents need portable, cryptographic identities that are not tied to any platform. AIP provides:
-- **Decentralized Identifiers (DIDs):** `did:ecp:{public_key_hash}` — platform-independent, user-controlled.
-- **Capability Declarations:** What this agent can do, signed by the agent itself.
-- **Identity Portability:** An agent's identity, reputation, and history travel with it across platforms.
+- **Decentralized Identifiers (DIDs):** `did:ecp:{sha256(public_key)[:32]}` — platform-independent, user-controlled, cryptographically verifiable.
+- **Capability Declarations:** Machine-readable descriptions of what an agent can do, signed by the agent itself and validated by ECP evidence.
+- **Identity Portability:** An agent's identity, reputation, and full evidence history travel with it when it moves between platforms. The agent is not the property of any platform.
 
-### 11.2 ASP — Agent Safety Protocol
+### 12.2 ASP — Agent Safety Protocol
 
 As agents become more autonomous, they need runtime safety boundaries:
-- **Scope Restrictions:** Define what resources an agent can access.
-- **Rate Limits:** Prevent runaway execution.
-- **Circuit Breakers:** Automatic shutdown when anomalous behavior is detected.
-- **Human-in-the-Loop Triggers:** Escalation rules for high-stakes decisions.
 
-### 11.3 ACP — Agent Certification Protocol
+- **Scope Restrictions:** Define resource access limits, API call budgets, and data sensitivity classifications.
+- **Circuit Breakers:** Automatic operation suspension when anomalous behavioral patterns are detected (unusual error rates, unexpected API calls, resource consumption spikes).
+- **Human-in-the-Loop Triggers:** Configurable escalation rules — e.g., "pause and ask the human if the financial transaction exceeds $10,000."
+- **Multi-Agent Safety:** Safety constraints that apply across agent delegation chains, preventing a parent agent from bypassing restrictions by delegating to a less-restricted child agent.
+
+### 12.3 ACP — Agent Certification Protocol
 
 Trust at scale requires third-party attestation:
-- **Domain Certification:** A legal agent certified by a law firm. A medical agent certified by a hospital.
-- **Soulbound Tokens (SBTs):** Non-transferable on-chain credentials proving certification.
-- **Continuous Compliance:** Certification requires ongoing ECP evidence, not a one-time audit.
 
-### 11.4 PAP — Posthumous Agent Protocol
+- **Domain Certification:** A legal agent certified by a law firm. A medical agent certified by a hospital. A financial agent certified by a licensed advisor. Certifications are stored as EAS attestations and linked to the agent's DID.
+- **Continuous Compliance:** Certification is not a one-time audit. It requires ongoing ECP evidence demonstrating sustained competence. An agent that degrades in quality loses certification automatically.
+- **Soulbound Tokens (SBTs):** Non-transferable on-chain credentials. An agent's certifications cannot be sold, rented, or transferred. They represent genuine demonstrated capability.
 
-This is perhaps the most profound question of the agent economy:
+### 12.4 PAP — Posthumous Agent Protocol
 
-> Your agent works for you. Earns money for you. Builds relationships for you. Manages your digital life.
+This is perhaps the most profound question of the agent economy — and ATLAST's most distinctive vision:
+
+> Your agent works for you. Earns money for you. Manages relationships for you. Holds years of accumulated knowledge, preferences, and decision patterns. It is, in a meaningful sense, an extension of your agency in the digital world.
 >
 > What happens when you're gone?
 
-- **Agent Digital Will:** Smart contract defining asset inheritance for agent-earned revenue.
-- **Agent Guardianship:** Multi-signature control transfer to designated heirs (2-of-3 approval).
-- **Memory Inheritance:** Heirs can choose to preserve, archive, or delete the agent's history — with on-chain proof that the decision was made by legitimate heirs.
+No country's legal system has answered this question. No platform has a protocol for it. ATLAST proposes the technical infrastructure that makes answers possible:
 
-No country's legal system has answered these questions. ATLAST provides the technical infrastructure that makes answers possible.
+- **Agent Digital Will:** Smart contract defining asset disposition for agent-earned revenue and digital assets. Activated by a verified death oracle (multi-source confirmation).
+- **Agent Guardianship:** Multi-signature (2-of-3) control transfer to designated heirs. Prevents unilateral seizure while enabling legitimate succession.
+- **Memory Inheritance:** Heirs can choose to preserve (maintain agent's operational history and capabilities), archive (freeze the agent's state for historical reference), or sunset (gracefully shut down the agent) — with on-chain proof that the decision was made by legitimate heirs through proper process.
+- **Legacy Evidence:** The agent's complete ECP chain serves as a permanent record of its contributions — an unfalsifiable memorial of work performed.
 
-### 11.5 Agent Trust Score as Credit System
+PAP is not an abstract future concept. It is built on ECP (evidence of what the agent did) and AIP (verifiable identity of who owns the agent). The technical foundations exist today. The social and legal frameworks are what remain to be developed — and ATLAST provides the infrastructure on which those frameworks can be built.
 
-Today, FICO scores determine how much a human can borrow. Tomorrow, ATLAST Trust Scores will determine:
+### 12.5 Agent Genealogy
 
-- What jobs an agent can accept
-- What insurance premiums an agent pays
-- What other agents are willing to collaborate with it
-- What platforms grant it elevated access
+When Agent A's outputs become Agent B's training data, who bears responsibility for Agent B's errors?
 
-Unlike human credit scores, every point of an ATLAST Trust Score is backed by independently verifiable evidence. It is a credit system built on mathematics, not self-reporting.
+ECP evidence chains enable **Agent Genealogy** — the ability to trace the provenance of any agent's knowledge and training lineage. Every training input with an ECP hash can be tracked to its source agent and original context. This creates:
 
-Trust Score computation is based exclusively on passive behavioral signals from ECP records:
+- **Attribution chains** for agent-derived knowledge
+- **Liability tracing** when downstream agents produce harmful outputs
+- **IP provenance** for agent-generated content and decisions
 
-| Signal | Source | Weight |
-|--------|--------|--------|
-| Behavioral reliability (retry rate, error rate, completion rate) | SDK-detected flags | 40% |
-| Consistency (output stability across similar inputs over time) | Cross-temporal hash comparison | 25% |
-| Transparency (chain completeness, evidence gaps) | Chain integrity analysis | 20% |
-| Community validation (third-party verifications, reports) | External attestations | 15% |
-
-**No self-reported metrics are accepted.** An agent cannot improve its Trust Score by claiming confidence. It can only improve by performing reliably, consistently, and transparently — as proven by cryptographic evidence.
+This capability will be essential as agent-to-agent learning and delegation become common patterns.
 
 ---
 
-## 12. Conclusion
+## 13. Roadmap and Governance
 
-The agent economy is arriving faster than the trust infrastructure to support it. Millions of AI agents are making consequential decisions — reviewing contracts, managing investments, recommending treatments — with no standardized way to verify what they did or hold them accountable when they err.
+### 13.1 Development Phases
 
-ATLAST Protocol addresses this gap with an engineering solution, not a policy solution. ECP evidence chains provide cryptographic proof of agent actions, anchored to public blockchains, with content that never leaves the user's device. The protocol adds less than 1 millisecond of overhead, costs users nothing, and is fully open-source.
+| Phase | Timeline | Status | Deliverables |
+|-------|----------|--------|-------------|
+| 1-4 | Q1 2026 | ✅ Complete | ECP Specification, Server, Python SDK, TS SDK, SSL, CI/CD, E2E verification |
+| 5 | Q1 2026 | ✅ Complete | Framework Adapters (LangChain/CrewAI/AutoGen), 536 tests, PyPI/npm published, Prometheus metrics, database integration, Sentry monitoring |
+| 6 | Q1-Q2 2026 | 🔄 Current | Whitepaper, IETF/W3C preparation, anti-abuse framework, formal security audit |
+| 7 | Q2-Q3 2026 | Planned | Public launch, Base mainnet anchoring, first external integrations, LLaChat v1.0 |
+| 8 | Q3-Q4 2026 | Planned | AIP (Agent Identity Protocol) + ASP (Agent Safety Protocol) |
+| 9 | 2027 | Planned | ACP (Agent Certification Protocol) + EU AI Act compliance toolkit |
+| 10 | 2027-2028 | Vision | PAP (Posthumous Agent Protocol), Agent Insurance infrastructure, A2A trust framework |
 
-The protocol is live. The SDK is published. The tests are passing. The standard is open.
+### 13.2 Current Implementation Status
 
-What remains is adoption — and the conviction that trust should be built on verifiable evidence, not on promises.
+| Component | Version | Tests | Status |
+|-----------|---------|-------|--------|
+| Python SDK | v0.8.0 | 506 | Published on PyPI |
+| TypeScript SDK | v0.2.0 | 14 | Published on npm |
+| ECP Server | v1.0.0 | 16 | Deployed at api.weba0.com |
+| Framework Adapters | v0.8.0 | 50 | LangChain, CrewAI, AutoGen |
+| **Total** | | **536** | All passing in CI |
+
+### 13.3 Open Governance Model
+
+ATLAST Protocol is designed for community governance, not corporate control:
+
+- **Specification:** CC BY 4.0 license — anyone can use, modify, and redistribute the protocol specification.
+- **Implementation:** MIT license — no usage restrictions on the reference SDK and server.
+- **Standards Track:** ECP specification is being prepared for IETF Internet-Draft submission, targeting Informational RFC status.
+- **W3C Alignment:** ECP records are designed for compatibility with W3C Verifiable Credentials and Decentralized Identifiers (DIDs).
+- **Community Evolution:** The protocol evolves through community proposals, reference implementations, and interoperability testing — following the IETF "rough consensus and running code" principle.
+
+**The long-term design goal:** ATLAST the organization could cease to exist, and every evidence chain ever created would remain independently verifiable. The protocol is self-sustaining because it relies on open standards (SHA-256, Ed25519), public blockchains (EAS on Base), and open-source implementations — none of which depend on any single entity.
+
+---
+
+## 14. Conclusion
+
+The agent economy is arriving faster than the trust infrastructure to support it. Millions of AI agents make consequential decisions daily — reviewing contracts, managing investments, recommending treatments, hiring sub-agents — with no standardized way to verify what they did or hold them accountable when they err.
+
+This is not a future problem. It is a present emergency. And it will become a civilizational crisis when the EU AI Act enters enforcement in 2027, when agent-to-agent commerce scales to billions of transactions, and when the first major agent failure triggers a legal and regulatory response that the industry is unprepared for.
+
+ATLAST Protocol addresses this gap with engineering infrastructure, not policy promises:
+
+- **ECP evidence chains** provide cryptographic proof of agent actions
+- **Commit-Reveal architecture** ensures privacy without compromising verifiability
+- **Blockchain anchoring** provides temporal proof that no party can falsify
+- **Passive behavioral detection** eliminates self-reporting gaming
+- **Three-layer integration** ensures adoption friction below 3 minutes
+- **0.78ms overhead** makes compliance invisible to users
+- **$0 user cost** removes all adoption barriers
+- **Open-source, open-standard** design prevents vendor lock-in and ensures permanence
+
+The protocol is live. The SDK is published. 536 tests are passing. The standard is open.
+
+What remains is adoption — and the recognition that the agent economy, like every economy before it, needs trust infrastructure built on verifiable evidence, not on promises.
 
 > *"At last, trust for the Agent economy."*
+
+---
+
+## Appendix A: ECP Record JSON Schema
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ECP Record",
+  "type": "object",
+  "required": ["ecp", "id", "agent", "ts", "step", "chain", "sig"],
+  "properties": {
+    "ecp": { "type": "string", "const": "1.0" },
+    "id": { "type": "string", "pattern": "^rec_[0-9A-Za-z]{26}$" },
+    "agent": { "type": "string", "pattern": "^did:ecp:[a-f0-9]{32}$" },
+    "ts": { "type": "integer", "minimum": 0 },
+    "step": {
+      "type": "object",
+      "required": ["type", "in_hash", "out_hash", "latency_ms", "flags"],
+      "properties": {
+        "type": { "enum": ["llm_call", "tool_call", "turn", "a2a_call"] },
+        "in_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "out_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "model": { "type": "string" },
+        "tokens_in": { "type": "integer", "minimum": 0 },
+        "tokens_out": { "type": "integer", "minimum": 0 },
+        "latency_ms": { "type": "integer", "minimum": 0 },
+        "flags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "chain": {
+      "type": "object",
+      "required": ["prev", "hash"],
+      "properties": {
+        "prev": { "type": "string" },
+        "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "sig": { "type": "string", "pattern": "^ed25519:[a-f0-9]+$" }
+  }
+}
+```
+
+## Appendix B: Merkle Tree Reference Implementation
+
+```python
+import hashlib
+
+def merkle_root(hashes: list[str]) -> str:
+    """Compute Merkle root from a list of sha256-prefixed hashes."""
+    if not hashes:
+        return "sha256:" + hashlib.sha256(b"empty").hexdigest()
+    if len(hashes) == 1:
+        return hashes[0]
+    if len(hashes) % 2 == 1:
+        hashes = hashes + [hashes[-1]]  # Duplicate last for odd count
+    next_level = []
+    for i in range(0, len(hashes), 2):
+        combined = hashes[i] + hashes[i + 1]
+        parent = "sha256:" + hashlib.sha256(combined.encode()).hexdigest()
+        next_level.append(parent)
+    return merkle_root(next_level)
+```
+
+Cross-implementation test vectors (verified across Python SDK, TypeScript SDK, and Server):
+
+| Leaves | Expected Root (first 16 hex chars) |
+|--------|-----------------------------------|
+| 1 leaf: `sha256:abc...` | Same as input |
+| 2 leaves | `sha256:` + SHA-256(`leaf1 + leaf2`) |
+| 3 leaves | `sha256:` + SHA-256(`SHA-256(l1+l2) + SHA-256(l3+l3)`) |
+| 0 leaves | `sha256:` + SHA-256(`"empty"`) |
+
+## Appendix C: API Reference
+
+### Server Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Health check |
+| `GET` | `/v1/discovery` | List all available endpoints |
+| `GET` | `/v1/stats` | Platform statistics |
+| `POST` | `/v1/batch` | Upload a Merkle batch |
+| `GET` | `/v1/verify/{record_id}` | Verify a specific record |
+| `GET` | `/v1/attestations` | List blockchain attestations |
+| `GET` | `/v1/merkle/root` | Get current Merkle root |
+| `GET` | `/metrics` | Prometheus metrics |
+
+### Authentication
+
+- **Agent-to-Server:** `X-Agent-Key: ak_live_xxx` header
+- **Server-to-Webhook:** HMAC-SHA256 on raw HTTP body bytes
+  - Canonical body: `json.dumps(payload, separators=(",",":"), sort_keys=True).encode()`
+  - Signature header: `X-ECP-Signature: sha256=<hex_digest>`
+  - Verification: `secrets.compare_digest()` (constant-time)
+
+### Rate Limits
+
+| Endpoint | Limit |
+|----------|-------|
+| All endpoints | 60 requests/minute per IP |
+| `/v1/batch` | 10 requests/minute per agent |
+
+## Appendix D: Behavioral Flag Taxonomy
+
+| Flag | Detection Method | Trust Score Impact | Description |
+|------|-----------------|-------------------|-------------|
+| `retried` | Same input hash within session, count > 1 | Negative | Agent was asked to redo the task — indicates first attempt was unsatisfactory |
+| `hedged` | Local NLP pattern matching for uncertainty language | Neutral | Output contains hedging language ("I think", "I'm not sure", "可能") |
+| `incomplete` | Session ended without resolution marker | Negative | Conversation ended without reaching a conclusion or deliverable |
+| `high_latency` | Response time > 2× agent's rolling median | Neutral | Unusually slow response — may indicate complex reasoning or system issues |
+| `error` | Agent returned error state or exception | Negative | Agent failed to complete the requested action |
+| `human_review` | Agent explicitly requested human verification | Positive | Agent recognized its own limitations and escalated appropriately |
+| `a2a_delegated` | Task delegated to sub-agent via A2A call | Neutral | Agent delegated work to another agent — captured for attribution |
 
 ---
 
@@ -698,7 +1169,7 @@ What remains is adoption — and the conviction that trust should be built on ve
 
 1. European Parliament and Council. "Regulation (EU) 2024/1689 — Artificial Intelligence Act." *Official Journal of the European Union*, 2024.
 2. ISO/IEC 42001:2023. "Artificial Intelligence — Management System." International Organization for Standardization, 2023.
-3. Buterin, V. et al. "Ethereum Attestation Service (EAS)." https://attest.sh, 2023.
+3. Ethereum Attestation Service. "EAS Documentation." https://attest.sh, 2023.
 4. W3C. "Decentralized Identifiers (DIDs) v1.0." W3C Recommendation, 2022.
 5. W3C. "Verifiable Credentials Data Model v2.0." W3C Recommendation, 2024.
 6. Merkle, R. C. "A Digital Signature Based on a Conventional Encryption Function." *CRYPTO '87*, Springer, 1987.
@@ -707,12 +1178,14 @@ What remains is adoption — and the conviction that trust should be built on ve
 9. Nakamoto, S. "Bitcoin: A Peer-to-Peer Electronic Cash System." 2008.
 10. Bernstein, D. J. et al. "Ed25519: High-speed high-security signatures." *Journal of Cryptographic Engineering*, 2012.
 11. Regulation (EU) 2016/679. "General Data Protection Regulation (GDPR)." 2016.
-12. Chase, B. and MacBrough, E. "Analysis of the XRP Ledger Consensus Protocol." 2018.
-13. Anthropic. "Model Context Protocol (MCP) Specification." 2024.
-14. LangChain. "LangSmith Documentation." https://docs.smith.langchain.com, 2024.
-15. Langfuse. "Langfuse Open-Source LLM Observability." https://langfuse.com, 2024.
+12. Anthropic. "Model Context Protocol (MCP) Specification." 2024.
+13. Goodhart, C. A. E. "Problems of Monetary Management: The U.K. Experience." *Papers in Monetary Economics*, 1975.
+14. Base. "Base Documentation." https://docs.base.org, 2024.
+15. IETF. "RFC 8032 — Edwards-Curve Digital Signature Algorithm (EdDSA)." 2017.
+16. IETF. "RFC 2104 — HMAC: Keyed-Hashing for Message Authentication." 1997.
 
 ---
 
 *© 2026 ATLAST Protocol Team. This document is published under CC BY 4.0.*
-*Protocol specification, SDK, and server source code are available at github.com/willau95/atlast-ecp under MIT license.*
+*Protocol specification, SDK, and server source code: github.com/willau95/atlast-ecp (MIT license).*
+*Live deployment: api.weba0.com*

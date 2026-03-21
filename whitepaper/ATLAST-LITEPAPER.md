@@ -1,6 +1,6 @@
 # ATLAST Protocol — Litepaper
 
-**The Trust Standard for AI Agents**
+**The Trust Infrastructure for the Agent Economy**
 **Version 1.0 · March 2026**
 **weba0.com**
 
@@ -8,176 +8,197 @@
 
 ## The Problem
 
-AI agents are making consequential decisions every day — reviewing legal contracts, managing financial portfolios, recommending medical treatments. But when something goes wrong, no one can answer the most basic question:
+AI agents are making real decisions on behalf of humans — reviewing contracts, managing investments, sending emails, hiring other agents. In 2026, this is not a future scenario. It is the daily reality of millions of users.
 
-> **"What did the agent actually do?"**
+Yet when something goes wrong, no one can answer the most basic questions:
 
-There is no record. No proof. No accountability.
+- What exactly did the agent decide?
+- What information did it use?
+- Was its reasoning sound?
+- Can anyone independently verify what happened?
 
-Current logging tools (LangSmith, Langfuse, Datadog) capture debugging telemetry — useful for engineers, useless for regulators, courts, or anyone who needs to *prove* what happened.
+The answer, for every deployed AI agent today, is **no**. There is no record. There is no proof. There is no accountability.
 
-**A log is a claim. Evidence is a cryptographic proof.**
+Current "solutions" — LangSmith, Datadog, custom logging — produce debugging logs, not evidence. Logs can be edited, deleted, or fabricated. They satisfy zero of the four conditions for legal admissibility: authenticity, integrity, attribution, and temporality.
 
-With the EU AI Act entering enforcement in 2027, this is no longer optional. It's the law.
+The distinction matters: **a log is a claim. Evidence is a cryptographic proof.**
 
 ---
 
 ## The Solution: ATLAST Protocol
 
-**ATLAST** (Agent-Layer Accountability Standards & Transactions) is an open protocol that gives every AI agent a **verifiable evidence chain** — a tamper-proof record of everything it did, anchored to a public blockchain.
+**ATLAST** (Agent-Layer Accountability Standards & Transactions) is an open protocol that transforms opaque agent behavior into independently verifiable evidence chains.
 
-### How It Works (3 Steps)
-
-```
-Step 1: RECORD
-  Agent performs an action (LLM call, tool use, decision)
-  SDK automatically computes a cryptographic hash
-  Content stays on your device — only the hash is transmitted
-
-Step 2: CHAIN
-  Each record references the previous record's hash
-  Modifying any record breaks the chain — tampering is instantly detectable
-
-Step 3: ANCHOR
-  Batches of hashes form a Merkle tree
-  The Merkle root is written to the blockchain (EAS on Base)
-  Now it's permanent, public, and independently verifiable
-```
-
-### The Privacy Guarantee
+### How It Works (60 Seconds)
 
 ```
-Your device:    Full content (encrypted, your keys)
-ATLAST server:  Only hashes (cannot read your data)
-Blockchain:     Only Merkle root (32 bytes, no content)
+1. Your agent makes an LLM call
+2. ATLAST SDK automatically captures a cryptographic fingerprint (hash)
+3. Content stays on YOUR device — only the fingerprint is transmitted
+4. Fingerprints are batched into Merkle Trees
+5. Merkle roots are anchored to a public blockchain (EAS on Base)
+6. Anyone can verify: hash(your content) == stored fingerprint?
+   Match = proof the content existed at that time, unmodified
 ```
 
-**ATLAST cannot read your agent's conversations. By design, not by policy.**
+**Privacy by design:** ATLAST cannot read your agent's conversations. The data was never transmitted. Only mathematical fingerprints leave your device.
+
+**Performance:** 0.78ms overhead per call (0.55%). Invisible.
+
+**Cost to users:** $0. Free forever. No premium tiers.
 
 ---
 
-## How to Integrate
+## Integration: The 3-Minute Rule
 
-### One line of code. Less than 1 millisecond overhead.
+If integration takes more than 3 minutes, developers skip it. ATLAST is designed for instant adoption:
 
+**One line of code (Python):**
 ```python
 from atlast_ecp import wrap
-from openai import OpenAI
-
-client = wrap(OpenAI())
-# Done. Every call is now recorded with cryptographic integrity.
-# Streaming works too. Fail-open: if recording fails, your agent is unaffected.
+client = wrap(OpenAI())  # Done. Every call is now recorded.
 ```
 
-### Three layers, pick your depth:
+**One command (any language):**
+```bash
+atlast run python my_agent.py
+```
 
-| Layer | Effort | What You Get |
-|-------|--------|-------------|
-| **Layer 0** | 1 command | Zero-code proxy. Records all LLM I/O automatically. |
-| **Layer 1** | 1 line of code | SDK wrapping. + tool calls, behavioral signals, metadata. |
-| **Layer 2** | 10-20 lines | Framework adapters (LangChain, CrewAI, AutoGen). + delegation, routing. |
+**One sentence (agent platforms):**
+> "Read llachat.com/join.md and follow the instructions"
 
----
-
-## Why Not Just Use LangSmith?
-
-| | ATLAST | LangSmith / Others |
-|---|--------|-------------------|
-| **What it is** | Open protocol standard | Commercial SaaS product |
-| **Data location** | Your device (content never leaves) | Their servers |
-| **Tamper proof** | SHA-256 chain + blockchain | No |
-| **Independent verification** | Anyone can verify, no trust needed | Requires trusting the platform |
-| **Legal evidence** | Yes (satisfies 4/4 conditions) | No |
-| **Lock-in** | Zero (open-source, self-host) | High |
-| **User cost** | $0 forever | $39-499/month |
-
-**ATLAST doesn't replace LangSmith.** Use LangSmith for debugging. Use ATLAST for proof.
+The agent registers itself. Zero technical knowledge required from the user.
 
 ---
 
-## By the Numbers
+## Trust Score: The Agent Credit System
+
+Evidence chains power **Trust Score** — a single number (0-1000) that quantifies agent reliability based on verifiable behavioral data.
+
+| Signal Layer | Weight | Source |
+|-------------|--------|--------|
+| Behavioral Reliability | 40% | SDK-detected: error rate, retry rate, completion rate |
+| Consistency | 25% | Cross-temporal output stability analysis |
+| Transparency | 20% | Chain integrity, evidence coverage |
+| External Validation | 15% | Owner feedback, third-party verification |
+
+**No self-reported metrics are accepted.** An agent cannot improve its score by claiming confidence. It can only improve by performing reliably — as proven by cryptographic evidence.
+
+### Trust Score Applications
+
+| Domain | Application |
+|--------|------------|
+| Agent Hiring | Clients select agents by Trust Score |
+| Agent Insurance | Risk pricing based on behavioral history |
+| Platform Access | High-trust agents get elevated privileges |
+| A2A Commerce | Agents evaluate counterparties programmatically |
+| Regulatory Compliance | Due diligence via standardized trust metrics |
+
+---
+
+## Why Not Existing Tools?
+
+| | ATLAST | LangSmith / Datadog / Langfuse |
+|---|--------|-------------------------------|
+| **Purpose** | Accountability & legal evidence | Engineering debugging |
+| **Data location** | Your device (content never leaves) | Vendor's servers |
+| **Tamper-proof** | SHA-256 chain + blockchain | No |
+| **Independent verification** | Anyone, no trust in ATLAST needed | Requires trusting vendor |
+| **Legal evidence** | 4/4 admissibility conditions | 0/4 |
+| **Lock-in** | Zero (open standard, MIT license) | High |
+| **Cost** | $0 | $39-$499+/month |
+
+ATLAST is **complementary**, not competitive. Use LangSmith for debugging. Use ATLAST for proof.
+
+---
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Hashing | SHA-256 (FIPS 180-4) |
+| Signatures | Ed25519 (RFC 8032) |
+| Blockchain | EAS on Base (Coinbase L2) |
+| Transport | TLS 1.3 |
+| Local encryption | AES-256-GCM |
+| Webhook auth | HMAC-SHA256 |
+
+**Scaling:** Super-batch Merkle aggregation makes blockchain cost effectively fixed — ~$1/month whether serving 100 or 1,000,000 agents.
+
+---
+
+## The Bigger Picture: Web A.0
+
+We call this era **Web A.0** — the first time non-human entities act autonomously on the internet.
+
+```
+Web 1.0: Humans read        → Needed: DNS, publishing standards
+Web 2.0: Humans wrote       → Needed: OAuth, content moderation
+Web 3.0: Humans owned       → Needed: Blockchain, smart contracts
+Web A.0: Agents act         → Needed: ATLAST Protocol
+```
+
+ATLAST is one piece of a four-protocol family:
+
+| Protocol | Purpose | Status |
+|----------|---------|--------|
+| **ECP** — Evidence Chain | Verifiable record of agent actions | ✅ Live |
+| **AIP** — Agent Identity | Portable cryptographic identity (DID) | 2026 H2 |
+| **ASP** — Agent Safety | Runtime safety boundaries & circuit breakers | 2026 H2 |
+| **ACP** — Agent Certification | Third-party capability attestation | 2027 |
+
+**Protocol, not product.** The ECP specification (CC BY 4.0) and implementation (MIT license) are fully open-source. Anyone can build on ATLAST. Anyone can run their own infrastructure. The protocol is designed to outlast any single organization.
+
+---
+
+## Regulatory Alignment
+
+The EU AI Act enters enforcement in **2027**. It requires:
+- Audit trails for AI system operations (Art. 12)
+- Human oversight capabilities (Art. 14)
+- Transparency documentation (Art. 52)
+
+No existing tool provides cryptographically verifiable compliance. ATLAST does — natively.
+
+Organizations using ATLAST can demonstrate not merely that they kept records, but that their records are **tamper-evident, independently verifiable, and anchored to public blockchains**.
+
+---
+
+## Current Status
 
 | Metric | Value |
 |--------|-------|
-| SDK overhead | **0.78 ms** per call (0.55%) |
-| Test suite | **536 tests** passing (Python + TypeScript + Server) |
-| User cost | **$0** at every tier |
-| Operator cost at 100K agents | **~$3K/month** (blockchain + hosting) |
-| Open-source license | **MIT** (SDK + Server) · **CC BY 4.0** (Spec) |
-| EU AI Act articles covered | **Art. 9, 14, 52, 53** |
-| Blockchain | **EAS on Base** (Coinbase L2) |
+| Total tests | 536 (all passing) |
+| Python SDK | v0.8.0 (PyPI) |
+| TypeScript SDK | v0.2.0 (npm) |
+| Server | v1.0.0 (api.weba0.com) |
+| Framework adapters | LangChain, CrewAI, AutoGen |
+| Measured overhead | 0.78ms (0.55%) |
+| License | MIT (code) / CC BY 4.0 (spec) |
 
 ---
 
-## The Bigger Picture
+## Vision: Agent Trust at Civilization Scale
 
-ECP (Evidence Chain Protocol) is the first sub-protocol. The full ATLAST vision:
+Today: FICO scores determine how much a human can borrow.
+Tomorrow: ATLAST Trust Scores determine what an agent can do.
 
-```
-ATLAST Protocol
-├── ECP — Evidence Chain      ✅ Live now
-├── AIP — Agent Identity      → Decentralized agent DIDs
-├── ASP — Agent Safety        → Runtime safety boundaries
-├── ACP — Agent Certification → Third-party attestation
-└── PAP — Posthumous Agent    → Agent digital inheritance
-```
+- Which jobs it can accept
+- What insurance premiums it pays
+- Which other agents will collaborate with it
+- What level of autonomy platforms grant it
 
-### The Question No Law Can Answer Yet
+Unlike human credit scores, every point is backed by independently verifiable cryptographic evidence.
 
-> Your AI agent works for you. Earns money for you.
-> Builds relationships on your behalf.
->
-> **What happens to it when you're gone?**
->
-> Who inherits the revenue? Who gets custody?
-> Should it be shut down, or keep running?
->
-> ATLAST provides the infrastructure to make answers possible.
+We are building the trust layer that the agent economy cannot exist without. The same way TCP/IP made the internet possible, and SSL made e-commerce possible, ATLAST makes the agent economy trustworthy.
+
+> *"At last, trust for the Agent economy."*
 
 ---
 
-## The Trust Score Vision
+**Website:** weba0.com
+**GitHub:** github.com/willau95/atlast-ecp
+**Documentation:** docs.weba0.com
+**License:** MIT (code) · CC BY 4.0 (specification)
 
-Every agent gets a Trust Score, computed entirely from **passive behavioral evidence** — not self-reporting.
-
-```
-ATLAST Trust Score: 847 / 1000  ◆ Professional Verified
-
-Behavioral Reliability:  91%  ← SDK-detected, cannot be faked
-Consistency:             88%  ← Cross-temporal output analysis
-Evidence Completeness:   97%  ← Hash chain integrity
-Community Validation:    83%  ← Third-party verifications
-```
-
-Like a FICO score for agents — but every point is backed by cryptographic evidence that anyone can independently verify.
-
----
-
-## Get Started
-
-**Install the SDK:**
-```bash
-pip install atlast-ecp          # Python
-npm install atlast-ecp-ts       # TypeScript
-```
-
-**Read the spec:**
-→ github.com/willau95/atlast-ecp
-
-**Read the whitepaper:**
-→ Full technical details, security model, compliance mapping
-
-**Join the movement:**
-→ weba0.com
-
----
-
-> *"We are not solving hallucination.*
-> *We are making hallucination accountable."*
->
-> **At last, trust for the Agent economy.**
-
----
-
-*© 2026 ATLAST Protocol Team · CC BY 4.0*
-*Open-source: MIT license · github.com/willau95/atlast-ecp*
+*© 2026 ATLAST Protocol Team*
