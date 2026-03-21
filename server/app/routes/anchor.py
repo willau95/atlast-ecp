@@ -11,8 +11,38 @@ from ..services.llachat_client import get_pending_batches, mark_batch_anchored
 from ..services.eas import write_attestation
 from ..services.webhook import fire_attestation_webhook
 
+from ..db.database import get_session, Attestation
+
 logger = structlog.get_logger()
 router = APIRouter()
+
+
+async def _save_attestation(batch: dict, attestation_uid: str, eas_tx_hash: str | None):
+    """Persist anchored attestation to local DB. Fail-open: DB errors don't block anchoring."""
+    try:
+        session = await get_session()
+        if session is None:
+            return
+        from datetime import datetime, timezone
+        async with session:
+            record = Attestation(
+                batch_id=batch["batch_id"],
+                agent_did=batch.get("agent_did", ""),
+                merkle_root=batch.get("merkle_root", ""),
+                record_count=batch.get("record_count", 0),
+                attestation_uid=attestation_uid,
+                eas_tx_hash=eas_tx_hash,
+                schema_uid=settings.EAS_SCHEMA_UID,
+                chain_id=84532 if settings.EAS_CHAIN == "sepolia" else 8453,
+                on_chain=bool(attestation_uid),
+                webhook_sent=True,
+                anchored_at=datetime.now(timezone.utc),
+            )
+            session.add(record)
+            await session.commit()
+            logger.info("attestation_saved_to_db", batch_id=batch["batch_id"])
+    except Exception as e:
+        logger.warning("db_save_failed", batch_id=batch.get("batch_id"), error=str(e))
 
 
 async def _anchor_pending():
@@ -45,7 +75,10 @@ async def _anchor_pending():
                 eas_tx_hash=eas_tx_hash,
             )
 
-            # Step 3: Fire webhook to LLaChat (creates cert + feed)
+            # Step 3: Persist to local DB
+            await _save_attestation(batch, attestation_uid, eas_tx_hash)
+
+            # Step 4: Fire webhook to LLaChat (creates cert + feed)
             await fire_attestation_webhook(
                 batch_id=batch["batch_id"],
                 agent_did=batch["agent_did"],
