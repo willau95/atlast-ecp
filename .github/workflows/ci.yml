@@ -19,9 +19,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
-        run: pip install -e "./sdk[crypto,dev]"
+        run: pip install -e "./sdk/python[crypto,dev]"
       - name: Run tests
-        run: cd sdk && python -m pytest tests/ -v --tb=short
+        run: cd sdk/python && python -m pytest tests/ -v --tb=short
 
   test-typescript:
     name: TypeScript (Node ${{ matrix.node-version }})
@@ -35,8 +35,8 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - name: Install dependencies
-        run: cd sdk-ts && npm ci
+        run: cd sdk/typescript && npm ci
       - name: Type check
-        run: cd sdk-ts && npx tsc --noEmit
+        run: cd sdk/typescript && npx tsc --noEmit
       - name: Run tests
-        run: cd sdk-ts && npm test
+        run: cd sdk/typescript && npm test

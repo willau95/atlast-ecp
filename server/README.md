@@ -1,109 +1,85 @@
-# ECP Reference Server
+# ATLAST ECP Server
 
-> Your own Evidence Chain Protocol server in 5 minutes.
+> Evidence Chain Protocol — EAS on-chain anchoring, verification, and webhook dispatch.
 
-An open-source, minimal ECP-compatible server. Implements [ECP Server Spec v1.0](../ECP-SERVER-SPEC.md).
+Part of the [ATLAST Protocol](https://github.com/willau95/atlast-ecp) — trust infrastructure for the Agent economy.
 
-**ECP = Git (open protocol). This server = your own GitHub.**
+## What It Does
 
-## Quick Start
-
-### Option 1: pip (local)
-
-```bash
-cd server
-pip install -r requirements.txt
-cd .. && python -m server.main
-# Server running at http://localhost:8900
-```
-
-### Option 2: Docker
-
-```bash
-cd server
-docker compose up
-# Server running at http://localhost:8900
-```
-
-### Option 3: uvicorn (development)
-
-```bash
-cd /path/to/atlast-ecp
-uvicorn server.main:app --reload --port 8900
-```
+- **EAS Anchoring**: Automatically anchors agent evidence batches to Ethereum Attestation Service (Base chain)
+- **Webhook Dispatch**: Notifies LLaChat when batches are anchored (HMAC-SHA256 signed)
+- **Merkle Verification**: Public endpoint to verify Merkle tree integrity
+- **Discovery**: `.well-known/ecp.json` endpoint for protocol discovery
 
 ## API Endpoints
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/v1/agents/register` | — | Register an agent |
-| `POST` | `/v1/batches` | `X-Agent-Key` | Upload ECP batch |
-| `GET` | `/v1/agents/{handle}/profile` | — | Get agent profile |
-| `GET` | `/v1/leaderboard` | — | Get ranked agents |
-| `GET` | `/health` | — | Health check |
+### Public (no auth)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check |
+| GET | `/v1/health` | Health check (aliased) |
+| GET | `/.well-known/ecp.json` | ECP discovery |
+| GET | `/v1/stats` | Anchoring statistics |
+| POST | `/v1/verify/merkle` | Verify Merkle tree |
+| GET | `/v1/verify/{uid}` | Attestation lookup |
+| GET | `/v1/attestations/{batch_id}` | Batch attestation details |
+| GET | `/v1/attestations` | List attestations |
 
-## Usage with ATLAST SDK
+### Internal (X-Internal-Token required)
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/v1/internal/anchor-now` | Manual anchor trigger |
+| GET | `/v1/internal/anchor-status` | Anchor service config |
+| GET | `/v1/internal/cron-status` | Cron health + schedule |
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `EAS_PRIVATE_KEY` | ✅ | Ethereum private key for EAS attestations |
+| `EAS_SCHEMA_UID` | ✅ | EAS schema identifier |
+| `EAS_CHAIN` | ✅ | `sepolia` or `base` |
+| `EAS_STUB_MODE` | ✅ | `true` for dev, `false` for production |
+| `ECP_WEBHOOK_URL` | ✅ | LLaChat webhook endpoint |
+| `ECP_WEBHOOK_TOKEN` | ✅ | Webhook auth token |
+| `LLACHAT_API_URL` | ✅ | LLaChat API base URL |
+| `LLACHAT_INTERNAL_TOKEN` | ✅ | Service-to-service auth token |
+| `ANCHOR_INTERVAL_MINUTES` | ❌ | Cron interval (default: 60) |
+| `SENTRY_DSN` | ❌ | Sentry error tracking |
+| `CORS_ORIGINS` | ❌ | Comma-separated allowed origins |
+| `PORT` | ❌ | Server port (default: 8080) |
+
+## Deployment
+
+Deployed on Railway: `ecp-server-production.up.railway.app`
+Custom domain: `api.weba0.com` (when SSL ready)
 
 ```bash
-# 1. Register your agent
-curl -X POST http://localhost:8900/v1/agents/register \
-  -H "Content-Type: application/json" \
-  -d '{"did": "did:ecp:my-agent", "public_key": "base64key", "handle": "my-agent"}'
-# → Returns api_key
-
-# 2. Configure SDK to push here
-atlast init
-# Edit ~/.atlast/config.json:
-#   "endpoint": "http://localhost:8900"
-#   "api_key": "atl_..."
-
-# 3. Record & push
-atlast run python my_agent.py
-atlast push --endpoint http://localhost:8900 --key atl_...
+# Local development
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8080
 ```
-
-## Configuration
-
-All via environment variables:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ECP_DB_PATH` | `ecp_server.db` | SQLite database path |
-| `ECP_HOST` | `0.0.0.0` | Bind host |
-| `ECP_PORT` | `8900` | Bind port |
-| `ECP_LOG_LEVEL` | `info` | Log level |
-| `ECP_CORS_ORIGINS` | `*` | Allowed CORS origins |
-| `ECP_WEIGHT_RELIABILITY` | `0.4` | Trust score weight |
-| `ECP_WEIGHT_TRANSPARENCY` | `0.3` | Trust score weight |
-| `ECP_WEIGHT_EFFICIENCY` | `0.2` | Trust score weight |
-| `ECP_WEIGHT_AUTHORITY` | `0.1` | Trust score weight |
 
 ## Architecture
 
 ```
-SQLite (WAL mode)
-  ├── agents          — registered agents + hashed API keys
-  ├── batches         — uploaded batch metadata
-  └── record_hashes   — per-record hash metadata
-
-FastAPI
-  ├── /v1/agents/*    — registration + profile
-  ├── /v1/batches     — batch upload + Merkle verification
-  └── /v1/leaderboard — ranked agents by trust score
+SDK (atlast-ecp) → LLaChat Backend → [pending batches]
+                                           ↓
+                    ECP Server (this) ← pulls pending batches (hourly cron)
+                         ↓
+                    EAS on Base chain (attestation)
+                         ↓
+                    Webhook → LLaChat (certificate + feed)
 ```
 
-- **Zero external dependencies**: SQLite only, no PostgreSQL/Redis needed
-- **Merkle verification**: Validates batch integrity on upload
-- **Trust scoring**: Configurable weights (Reliability/Transparency/Efficiency/Authority)
-- **Privacy by design**: Only receives hashes, never raw content
+## Security
 
-## Tests
-
-```bash
-cd /path/to/atlast-ecp
-python -m pytest server/tests/ -v
-```
+- All `/internal/*` endpoints require `X-Internal-Token` header
+- Webhook payloads signed with HMAC-SHA256 (`X-ECP-Signature` header)
+- Security headers: HSTS, X-Frame-Options, X-Content-Type-Options
+- Timing-safe token comparison (`secrets.compare_digest`)
+- Request body size limit: 10MB
 
 ## License
 
-MIT — same as the ATLAST ECP SDK.
+MIT — see [ATLAST Protocol](https://github.com/willau95/atlast-ecp/blob/main/LICENSE)
