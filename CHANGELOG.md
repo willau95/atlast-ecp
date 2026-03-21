@@ -2,7 +2,7 @@
 
 All notable changes to the ATLAST ECP SDK and Server.
 
-## [0.8.0] — Unreleased (Phase 5)
+## [0.8.0] — 2026-03-21 (Phase 5)
 
 ### Added
 - Framework adapter examples (`examples/langchain_demo.py`, `crewai_demo.py`, `autogen_demo.py`)
