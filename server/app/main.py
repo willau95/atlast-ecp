@@ -16,9 +16,17 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from .config import settings
+
+# ── Rate Limiter ────────────────────────────────────────────────────────────
+
+limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
 # ── Structured Logging ──────────────────────────────────────────────────────
 
@@ -112,6 +120,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # CORS — production-safe origins
 app.add_middleware(
     CORSMiddleware,
@@ -156,6 +168,7 @@ from .routes.anchor import router as anchor_router
 from .routes.cron import router as cron_router
 from .routes.verify import router as verify_router
 from .routes.attestations import router as attestations_router
+from .routes.metrics import router as metrics_router
 
 app.include_router(health_router)
 app.include_router(discovery_router)
@@ -163,6 +176,7 @@ app.include_router(anchor_router)
 app.include_router(cron_router)
 app.include_router(verify_router)
 app.include_router(attestations_router)
+app.include_router(metrics_router)
 
 # Init stats tracking
 from .routes.verify import init_stats

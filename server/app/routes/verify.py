@@ -8,8 +8,10 @@ GET  /v1/stats                     — global anchoring statistics
 
 import hashlib
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Verify"])

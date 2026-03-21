@@ -68,14 +68,29 @@ async def fire_attestation_webhook(
         "X-ECP-Signature": f"sha256={signature}",
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(url, content=payload_bytes, headers=headers)
-            resp.raise_for_status()
-            logger.info("ecp_webhook_sent", batch_id=batch_id, status=resp.status_code)
-            from ..routes.verify import record_webhook_sent
-            record_webhook_sent()
-            return True
-    except Exception as e:
-        logger.warning("ecp_webhook_failed", batch_id=batch_id, error=str(e))
-        return False
+    # Retry with exponential backoff (max 3 attempts)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(url, content=payload_bytes, headers=headers)
+                resp.raise_for_status()
+                logger.info("ecp_webhook_sent", batch_id=batch_id, status=resp.status_code, attempt=attempt + 1)
+                from ..routes.verify import record_webhook_sent
+                record_webhook_sent()
+                return True
+        except Exception as e:
+            logger.warning(
+                "ecp_webhook_attempt_failed",
+                batch_id=batch_id,
+                attempt=attempt + 1,
+                max_retries=max_retries,
+                error=str(e),
+            )
+            if attempt < max_retries - 1:
+                import asyncio
+                wait = 2 ** attempt  # 1s, 2s
+                await asyncio.sleep(wait)
+
+    logger.error("ecp_webhook_exhausted", batch_id=batch_id, attempts=max_retries)
+    return False
