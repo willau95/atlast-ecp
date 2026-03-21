@@ -5,6 +5,11 @@
 import { createHash, randomBytes, generateKeyPairSync, sign, verify, createPrivateKey, createPublicKey } from 'crypto';
 
 export function sha256(data: string): string {
+  return 'sha256:' + createHash('sha256').update(data).digest('hex');
+}
+
+/** Raw SHA-256 hex (no prefix) — for internal use only (e.g., hashRecord). */
+export function sha256Raw(data: string): string {
   return createHash('sha256').update(data).digest('hex');
 }
 
