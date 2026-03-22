@@ -232,6 +232,7 @@ def upload_merkle_root(
     record_hashes: Optional[list[dict]] = None,
     flag_counts: Optional[dict] = None,
     agent_api_key: Optional[str] = None,
+    chain_integrity: Optional[float] = None,
 ) -> Optional[str]:
     """
     Upload Merkle Root to ATLAST API for EAS anchoring.
@@ -263,6 +264,8 @@ def upload_merkle_root(
             body["record_hashes"] = record_hashes
         if flag_counts:
             body["flag_counts"] = flag_counts
+        if chain_integrity is not None:
+            body["chain_integrity"] = chain_integrity
 
         payload = json.dumps(body).encode("utf-8")
 
@@ -341,6 +344,11 @@ def run_batch(flush: bool = False):
             record_hashes_payload = _build_record_hashes_payload(records)
             flag_counts = _aggregate_flag_counts(records)
 
+            # Compute chain integrity signal
+            from .signals import compute_trust_signals
+            trust_signals = compute_trust_signals(records)
+            chain_integrity = trust_signals.get("chain_integrity", 1.0)
+
             # Upload to ATLAST API
             agent_api_key = state.get("agent_api_key") or _get_config_api_key()
             attestation_uid = upload_merkle_root(
@@ -353,6 +361,7 @@ def run_batch(flush: bool = False):
                 record_hashes=record_hashes_payload or None,
                 flag_counts=flag_counts or None,
                 agent_api_key=agent_api_key,
+                chain_integrity=chain_integrity,
             )
 
             batch_result = {

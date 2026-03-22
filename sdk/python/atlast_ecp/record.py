@@ -311,6 +311,9 @@ def create_minimal_record(
     output_text: Optional[str] = None,
     step_type: Optional[str] = None,
     ecp_dir: Optional[str] = None,  # accepted but unused
+    session_id: Optional[str] = None,
+    delegation_id: Optional[str] = None,
+    delegation_depth: Optional[int] = None,
 ) -> dict:
     """
     Create a minimal ECP v1.0 record.
@@ -345,7 +348,17 @@ def create_minimal_record(
         "in_hash": hash_content(in_content),
         "out_hash": hash_content(out_content),
     }
+    # Build meta from explicit params + passed meta dict
+    merged_meta: dict = {}
     if meta:
-        # Only include non-None values
-        record["meta"] = {k: v for k, v in meta.items() if v is not None}
+        merged_meta.update({k: v for k, v in meta.items() if v is not None})
+    # Explicit delegation params (override meta dict if both set)
+    if session_id:
+        merged_meta["session_id"] = session_id
+    if delegation_id:
+        merged_meta["delegation_id"] = delegation_id
+    if delegation_depth is not None:
+        merged_meta["delegation_depth"] = delegation_depth
+    if merged_meta:
+        record["meta"] = merged_meta
     return record
