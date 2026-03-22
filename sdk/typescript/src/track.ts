@@ -51,6 +51,7 @@ export function track<TArgs extends unknown[], TResult>(
         output: `error: ${(e as Error).message}`,
         latencyMs: Date.now() - startTime,
         flags,
+        sessionId: opts.sessionId,
         metadata: opts.metadata,
         identity,
       });
@@ -65,6 +66,7 @@ export function track<TArgs extends unknown[], TResult>(
       output: JSON.stringify(result),
       latencyMs: Date.now() - startTime,
       flags,
+      sessionId: opts.sessionId,
       metadata: opts.metadata,
       identity,
     });

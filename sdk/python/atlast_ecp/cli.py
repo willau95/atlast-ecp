@@ -213,8 +213,8 @@ def _cmd_verify_a2a(args: list[str]):
 
 
 def cmd_stats(args: list[str]):
-    from .config import get_api_url
     """atlast stats"""
+    from .config import get_api_url
     from .storage import load_records, count_records
     from .signals import compute_trust_signals
 
@@ -460,7 +460,7 @@ def cmd_init(args: list[str]):
 
 def cmd_record(args: list[str]):
     """atlast record — create an ECP record from stdin or flags"""
-    from .record import create_minimal_record, create_record, hash_content
+    from .record import create_minimal_record, create_record
     from .storage import save_record
     import os
 
