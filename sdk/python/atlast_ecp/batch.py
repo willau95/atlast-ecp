@@ -38,6 +38,11 @@ ATLAST_API = _get_api_url()
 _batch_timer: Optional[threading.Timer] = None
 _batch_lock = threading.Lock()
 
+# ─── Anti-Abuse Throttle (C6) ─────────────────────────────────────────────────
+import os as _os
+MIN_BATCH_INTERVAL_S = int(_os.environ.get("ATLAST_BATCH_INTERVAL", "60"))
+MAX_RECORDS_PER_BATCH = int(_os.environ.get("ATLAST_MAX_BATCH_SIZE", "1000"))
+
 
 # ─── Merkle Tree ──────────────────────────────────────────────────────────────
 
@@ -293,10 +298,21 @@ def run_batch(flush: bool = False):
             state = _load_batch_state()
             since_ts = state.get("last_batch_ts")
 
+            # Anti-abuse throttle (C6): enforce minimum batch interval
+            if not flush and since_ts:
+                elapsed_s = (time.time() * 1000 - since_ts) / 1000
+                if elapsed_s < MIN_BATCH_INTERVAL_S:
+                    return {"status": "throttled", "retry_after_s": MIN_BATCH_INTERVAL_S - elapsed_s}
+
             # Collect records
             records, hashes = collect_batch(since_ts=since_ts)
             if not hashes:
                 return {"status": "empty", "record_count": 0}  # Nothing to batch
+
+            # Anti-abuse throttle (C6): cap records per batch
+            if len(hashes) > MAX_RECORDS_PER_BATCH:
+                records = records[:MAX_RECORDS_PER_BATCH]
+                hashes = hashes[:MAX_RECORDS_PER_BATCH]
 
             # Build Merkle tree (sha256: prefixed root)
             merkle_root, _ = build_merkle_tree(hashes)
@@ -413,6 +429,8 @@ def _retry_queued():
 
 def start_scheduler(interval_seconds: int = 3600):
     """Start hourly batch scheduler (background daemon thread)."""
+    global _batch_timer
+
     def _scheduled_run():
         global _batch_timer
         run_batch()

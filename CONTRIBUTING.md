@@ -4,11 +4,25 @@ Thank you for your interest in contributing to the Evidence Chain Protocol!
 
 ## Development Setup
 
+### Monorepo Structure
+
+```
+atlast-ecp/
+├── sdk/python/       # Python SDK (PyPI: atlast-ecp)
+├── sdk/typescript/   # TypeScript SDK (npm: @atlast/sdk)
+├── sdk/go/           # Go SDK (placeholder)
+├── server/           # ECP Reference Server (FastAPI)
+├── whitepaper/       # Whitepaper + Litepaper (EN + ZH)
+├── docs/             # ADRs, migration guides, specs
+├── ECP-SPEC.md       # Protocol specification
+└── INTERFACE-CONTRACT.md  # Atlas ↔ LLaChat contract
+```
+
 ### Python SDK
 
 ```bash
 git clone https://github.com/willau95/atlast-ecp.git
-cd atlast-ecp/sdk
+cd atlast-ecp/sdk/python
 pip install -e ".[dev,proxy,adapters]"
 pytest -v
 ```
@@ -16,7 +30,7 @@ pytest -v
 ### TypeScript SDK
 
 ```bash
-cd sdk-ts
+cd sdk/typescript
 npm install
 npm test
 ```
@@ -26,7 +40,7 @@ npm test
 ```bash
 cd server
 pip install -r requirements.txt
-cd .. && python -m pytest server/tests/ -v
+python -m pytest tests/ -v
 ```
 
 ## Making Changes
@@ -35,9 +49,9 @@ cd .. && python -m pytest server/tests/ -v
 2. **Write tests** for any new functionality
 3. **Run the full test suite** before submitting:
    ```bash
-   cd sdk && pytest -v          # Python SDK
-   cd sdk-ts && npm test        # TypeScript SDK
-   cd .. && pytest server/tests/ -v  # Reference Server
+   cd sdk/python && pytest -v              # Python SDK (506+ tests)
+   cd sdk/typescript && npm test           # TypeScript SDK (39+ tests)
+   cd server && python -m pytest tests/ -v # Reference Server (42+ tests)
    ```
 4. **Update documentation** if you changed public APIs
 5. **Update CHANGELOG.md** for user-facing changes

@@ -313,13 +313,13 @@ def analyze_records(records: list[dict], top_n: int = 10) -> dict:
     # ── Summary ───────────────────────────────────────────────────────────
     total = len(records)
     agents = set()
-    actions = Counter()
-    models = Counter()
+    actions: Counter[str] = Counter()
+    models: Counter[str] = Counter()
     total_latency = 0
     latency_count = 0
     total_tokens_in = 0
     total_tokens_out = 0
-    flag_counter = Counter()
+    flag_counter: Counter[str] = Counter()
     error_records = []
     high_latency_records = []
     timestamps = []
@@ -362,7 +362,7 @@ def analyze_records(records: list[dict], top_n: int = 10) -> dict:
 
     avg_latency = total_latency / latency_count if latency_count else 0
 
-    time_span_hours = 0
+    time_span_hours: float = 0
     if len(timestamps) >= 2:
         time_span_ms = max(timestamps) - min(timestamps)
         time_span_hours = time_span_ms / (1000 * 60 * 60)

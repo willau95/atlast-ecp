@@ -38,7 +38,7 @@ def _resolve_ecp_dir() -> Path:
     return Path(_os.environ.get("ATLAST_ECP_DIR", _os.environ.get("ECP_DIR", _os.path.expanduser("~/.ecp"))))
 
 
-def get_or_create_identity(agent_name: str = None, ecp_dir: str = None) -> dict:
+def get_or_create_identity(agent_name: str | None = None, ecp_dir: str | None = None) -> dict:
     """Load existing identity or generate a new one."""
     edir = Path(ecp_dir) if ecp_dir else _resolve_ecp_dir()
     ifile = edir / "identity.json"
@@ -98,7 +98,7 @@ def _maybe_migrate_identity(identity: dict, ifile: Path) -> dict:
     return identity
 
 
-def _create_identity(edir: Path = None) -> dict:
+def _create_identity(edir: Path | None = None) -> dict:
     edir = edir or _resolve_ecp_dir()
     ifile = edir / "identity.json"
     edir.mkdir(exist_ok=True)  # ensure dir exists before writing

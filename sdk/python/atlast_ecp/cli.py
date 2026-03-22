@@ -20,6 +20,7 @@ Commands:
 """
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from atlast_ecp import __version__

@@ -180,7 +180,7 @@ def record_minimal(
         out_text = _extract_text(output_content)
         flags = detect_flags(out_text, latency_ms=latency_ms)
 
-        meta = {}
+        meta: dict[str, Any] = {}
         if model:
             meta["model"] = model
         if latency_ms:

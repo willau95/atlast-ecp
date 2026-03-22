@@ -107,7 +107,7 @@ async def verify_attestation(attestation_uid: str):
 
 # ── Stats ───────────────────────────────────────────────────────────────────
 
-# In-memory stats counter (reset on restart — Redis persistence planned for Phase 6 D6)
+# In-memory stats counter (reset on restart)
 _anchor_stats = {
     "total_anchored": 0,
     "total_errors": 0,

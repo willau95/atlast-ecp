@@ -20,9 +20,6 @@ class Settings:
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
-    # Redis
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
-
     # Server
     PORT: int = int(os.getenv("PORT", "8080"))
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "production")

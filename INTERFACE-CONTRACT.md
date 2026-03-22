@@ -163,6 +163,26 @@ Header:     X-ECP-Signature: sha256={hex_digest}
 - **Trust Score algorithm is Alex-private** — not exposed in any Atlas API.
 - Trust Score computation stays entirely within LLaChat platform.
 
+### 7.1 ATLAST Protocol → LLaChat Dimension Mapping (F1 aligned 2026-03-22)
+
+```
+Protocol dimensions (ATLAST 0-1000):
+  α (behavioral, 0.45) → LLaChat: Reliability + Efficiency
+  β (consistency, 0.35) → LLaChat: Authority
+  γ (transparency, 0.20) → LLaChat: Transparency
+
+LLaChat composite formula:
+  trust_score = (raw × 700) + identity_score(0–300)    // 0-1000
+  raw = Reliability×0.40 + Transparency×0.30 + Efficiency×0.20 + Authority×0.10
+
+Batch fields consumed for trust calculation:
+  flag_counts.{retried, error, incomplete, hedged, a2a_delegated}
+  avg_latency_ms, record_count, batch_ts
+
+Note: chain_integrity = 1.0 constant in Phase 1 (Atlas does not send this value).
+      Phase 7+ will introduce live chain_integrity signals.
+```
+
 ---
 
 ## 8. Infrastructure

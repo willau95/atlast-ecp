@@ -19,7 +19,7 @@ Fail-Open: if any step fails, LLM calls are unaffected.
 
 import warnings
 import threading
-from typing import Optional
+from typing import Any, Optional
 
 _initialized = False
 _init_lock = threading.Lock()
@@ -77,7 +77,7 @@ def init(agent_id: Optional[str] = None, agent_name: Optional[str] = None, ecp_d
         # Resolve alias
         agent_id = agent_id or agent_name
 
-        result = {
+        result: dict[str, Any] = {
             "status": "ok",
             "agent_did": None,
             "instrumented": [],

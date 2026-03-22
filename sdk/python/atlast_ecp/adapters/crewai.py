@@ -76,7 +76,7 @@ class ATLASTCrewCallback:
             elif hasattr(output, "output"):
                 output_text = str(output.output)
             elif isinstance(output, dict):
-                output_text = output.get("raw", output.get("output", str(output)))
+                output_text = str(output.get("raw", output.get("output", str(output))))
             else:
                 output_text = str(output)
 

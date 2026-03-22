@@ -19,7 +19,7 @@ import json
 import time
 import uuid
 from dataclasses import dataclass, field, asdict
-from typing import Optional
+from typing import Any, Optional
 
 
 # ─── Data Structures ──────────────────────────────────────────────────────────
@@ -223,24 +223,38 @@ def create_record(
 
 # ─── Serialization ────────────────────────────────────────────────────────────
 
-def record_to_dict(record: ECPRecord) -> dict:
+def record_to_dict(record: ECPRecord) -> dict[str, Any]:
     """Serialize ECPRecord to dict matching ECP-SPEC canonical format."""
     step = record.step
     chain = record.chain
     anchor = record.anchor
 
-    d = {
+    step_dict: dict[str, Any] = {
+        "type": step.type,
+        "in_hash": step.in_hash,
+        "out_hash": step.out_hash,
+        "latency_ms": step.latency_ms,
+        "flags": step.flags,
+    }
+
+    # Optional step fields (only include if set)
+    if step.model:
+        step_dict["model"] = step.model
+    if step.tokens_in is not None:
+        step_dict["tokens_in"] = step.tokens_in
+    if step.tokens_out is not None:
+        step_dict["tokens_out"] = step.tokens_out
+    if step.cost_usd is not None:
+        step_dict["cost_usd"] = step.cost_usd
+    if step.parent_agent:
+        step_dict["parent_agent"] = step.parent_agent
+
+    d: dict[str, Any] = {
         "ecp": "0.1",
         "id": record.id,
         "agent": record.agent,
         "ts": record.ts,
-        "step": {
-            "type": step.type,
-            "in_hash": step.in_hash,
-            "out_hash": step.out_hash,
-            "latency_ms": step.latency_ms,
-            "flags": step.flags,
-        },
+        "step": step_dict,
         "chain": {
             "prev": chain.prev,
             "hash": chain.hash,
@@ -248,27 +262,16 @@ def record_to_dict(record: ECPRecord) -> dict:
         "sig": record.sig,
     }
 
-    # Optional step fields (only include if set)
-    if step.model:
-        d["step"]["model"] = step.model
-    if step.tokens_in is not None:
-        d["step"]["tokens_in"] = step.tokens_in
-    if step.tokens_out is not None:
-        d["step"]["tokens_out"] = step.tokens_out
-    if step.cost_usd is not None:
-        d["step"]["cost_usd"] = step.cost_usd
-    if step.parent_agent:
-        d["step"]["parent_agent"] = step.parent_agent
-
     # Anchor (filled async after on-chain batch)
     if anchor.batch_id or anchor.tx_hash:
-        d["anchor"] = {}
+        anchor_dict: dict[str, Any] = {}
         if anchor.batch_id:
-            d["anchor"]["batch_id"] = anchor.batch_id
+            anchor_dict["batch_id"] = anchor.batch_id
         if anchor.tx_hash:
-            d["anchor"]["tx_hash"] = anchor.tx_hash
+            anchor_dict["tx_hash"] = anchor.tx_hash
         if anchor.ts:
-            d["anchor"]["ts"] = anchor.ts
+            anchor_dict["ts"] = anchor.ts
+        d["anchor"] = anchor_dict
 
     return d
 

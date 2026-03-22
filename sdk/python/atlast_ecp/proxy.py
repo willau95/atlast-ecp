@@ -34,7 +34,7 @@ import subprocess
 import sys
 import threading
 import time
-from typing import Optional
+from typing import Any, Optional
 
 # aiohttp is optional dependency
 try:
@@ -207,7 +207,7 @@ class ATLASTProxy:
         self.port = port
         self.agent = agent
         self.record_count = 0
-        self._app = None
+        self._app: Any = None
         self._runner = None
 
     async def handle(self, request: web.Request) -> web.StreamResponse:
