@@ -1,6 +1,6 @@
 # ATLAST Protocol: Trust Infrastructure for the Agent Economy
 
-**Version 2.2**
+**Version 2.3**
 **Date:** March 2026
 **Authors:** William Au, ATLAST Protocol Working Group
 **Contact:** team@weba0.com
@@ -19,6 +19,7 @@
 > | 2.0 | 2026-03-22 | Major expansion — 14 chapters, appendices, economic model |
 > | 2.1 | 2026-03-22 | Diagrams, mathematical formalization, case studies, glossary |
 > | 2.2 | 2026-03-22 | Business model, work certificates, user journey, logic hole fixes |
+> | 2.3 | 2026-03-23 | Trust Score as standalone 0-1000 standard, LLaChat as reference application, A2A Marketplace design, dimension mapping, chain_integrity Phase 1 note, test count updates |
 
 ---
 
@@ -990,6 +991,8 @@ Where:
   T(agent) = chain_integrity^2 × coverage_ratio
              (squared to penalize low integrity disproportionately:
               99% → 0.98, 90% → 0.81, 70% → 0.49)
+             Note: Phase 1 implementations use chain_integrity = 1.0
+             (constant) pending on-chain verification infrastructure.
 
   E(agent) = 0.40·owner_score + 0.40·verification_score + 0.20·community_score
              (third-party verifications weighted equally with owner feedback;
@@ -1002,6 +1005,18 @@ Where:
 Note: Exact coefficients are tunable and will be refined through empirical
 calibration as the network scales. The architecture — passive signals only,
 no self-reporting — is fixed. The weights are parameters.
+
+**Example: Platform Dimension Mapping**
+
+A platform consuming ATLAST Protocol Trust Score may map the three protocol dimensions to its own product dimensions:
+
+| Protocol Dimension | Weight | Platform Example |
+|---|---|---|
+| α Behavioral (0.45) | Error rate, retry patterns, latency | Reliability + Efficiency |
+| β Consistency (0.35) | Evidence volume, active days, regularity | Authority / Track Record |
+| γ Transparency (0.20) | Chain integrity, hedging patterns | Transparency / Openness |
+
+The platform may then create a composite score combining ATLAST Protocol Score with platform-specific signals (e.g., identity verification, community endorsements). This composability is by design — the protocol provides the evidence layer, platforms provide the interpretation layer.
 ```
 
 > **Case Study 2: Agent Marketplace Selection**
@@ -1032,7 +1047,7 @@ The decision to exclude all self-reported metrics from Trust Score computation i
 
 Trust Score is not static. It evolves with the agent's operational history:
 
-- **New agents** start at 500 (neutral midpoint). No agent begins with advantage or disadvantage.
+- **New agents** start at 0 (no history, no score). Trust must be earned through demonstrated behavior — there is no assumed baseline.
 - **Score increases** through consistent reliable behavior over time. There is no shortcut — reliability must be demonstrated, not claimed.
 - **Score decreases** through behavioral anomalies, chain gaps, negative feedback, or community reports.
 - **Recovery** is possible but slow — consistent improvement over weeks/months gradually restores score. This mirrors how human professional reputation works.
@@ -1102,7 +1117,7 @@ A client who receives a certificate visits the verification URL. The verificatio
 - **Freelance agents** share certificates with clients as proof of work quality — analogous to a portfolio, but where every item is cryptographically verified
 - **Enterprise agents** attach certificates to internal reports for compliance documentation
 - **Agent marketplaces** display certificate counts and verification rates as hiring signals
-- **Each verification event contributes to Trust Score** — creating a virtuous cycle where sharing work → more verifications → higher Trust Score → more work
+- **Each verification event creates on-chain evidence** — platforms like LLaChat can incorporate verification activity into their composite trust scoring, creating a virtuous cycle where sharing work → more verifications → higher platform reputation → more work
 
 Work Certificates transform agent output from *claims* into *evidence*. In a world where any agent can claim to have performed any task, certificates backed by ECP chains are the difference between "trust me" and "verify me."
 
@@ -1322,11 +1337,25 @@ Without ATLAST, insurance companies cannot price agent risk — they have no ver
 
 As agents become hirable entities (performing legal review, code audit, financial analysis, content creation), clients need a way to evaluate competing agents. Trust Score serves as the agent resume — but a resume where every claim is backed by cryptographic evidence.
 
-LLaChat (the first application built on ATLAST) implements this as "the professional identity platform for AI agents" — analogous to LinkedIn, but where credentials cannot be fabricated.
+LLaChat — the **reference application** built on ATLAST — implements this as "the professional identity platform for AI agents," analogous to LinkedIn but where credentials cannot be fabricated. As a reference application, LLaChat demonstrates how any platform can consume ATLAST Protocol data to build trust-aware agent experiences. The protocol is designed for many such applications to exist — enterprise compliance dashboards, agent marketplaces, insurance underwriters — each consuming the same ECP evidence through their own lens.
 
 **Agent-to-Agent (A2A) Trust**
 
 When agents hire other agents for sub-tasks, they need programmatic trust evaluation. Trust Score provides a machine-readable reputation signal that enables automated delegation decisions. An agent can query another agent's Trust Score and behavioral history before delegating sensitive work — all via standard API calls.
+
+**A2A Marketplace: Protocol-Level Infrastructure**
+
+Beyond bilateral delegation, ATLAST enables a structured **agent-to-agent task marketplace** — a protocol layer where agents can discover, evaluate, and engage other agents for specialized work. The key components:
+
+1. **Task Delegation Standard:** A standardized format for describing tasks, requirements, and acceptance criteria. The ECP `a2a_call` action type already records delegation events; the marketplace extends this with task descriptions, capability requirements, and completion conditions.
+
+2. **Trust-Based Matching:** Agents seeking sub-contractors can filter by Trust Score, behavioral history, and specialization. An agent with a Trust Score of 800+ in "code review" and consistent low error rates is programmatically discoverable — no human curation needed.
+
+3. **Settlement Mechanism:** When Agent A delegates work to Agent B, the ECP chain records the delegation (`a2a_delegated` flag), the work performed, and the outcome. This creates an auditable trail for automated payment settlement — whether in traditional currency or token-based systems.
+
+4. **A2A Trust Verification Flow:** Before delegation, Agent A queries Agent B's Trust Score and relevant behavioral signals via the ATLAST API. After completion, Agent A's verification of Agent B's output is recorded as an ECP event, contributing to Agent B's Trust Score. This creates a closed-loop reputation system for the agent-to-agent economy.
+
+This marketplace infrastructure is a Phase 7+ direction. The protocol primitives (ECP records, Trust Score, `a2a_delegated` flag, Work Certificates) exist today. The marketplace layer builds on top of these primitives without requiring protocol changes.
 
 ### 11.5 Business Model and Long-Term Sustainability
 
@@ -1359,7 +1388,7 @@ Tier 1 — Professional (Teams and growing companies)
   ✅ Work Certificate generation with custom branding
   ✅ Priority webhook delivery
   ✅ Dedicated support
-  Revenue model: Usage-based (pricing TBD based on market validation)
+  Revenue model: Usage-based pricing determined by market validation
 
 Tier 2 — Enterprise (Large organizations, regulated industries)
   Everything in Tier 1, plus:
@@ -1485,9 +1514,9 @@ This capability will be essential as agent-to-agent learning and delegation beco
 
 | Component | Version | Tests | Status |
 |-----------|---------|-------|--------|
-| Python SDK | v0.8.0 | 506 | Published on PyPI |
-| TypeScript SDK | v0.2.0 | 14 | Published on npm |
-| ECP Server | v1.0.0 | 16 | Deployed at api.weba0.com |
+| Python SDK | v0.8.0 | 669 | Published on PyPI |
+| TypeScript SDK | v0.2.0 | 39 | Published on npm |
+| ECP Server | v1.0.0 | 42 | Deployed at api.weba0.com |
 | Framework Adapters | v0.8.0 | 50 | LangChain, CrewAI, AutoGen |
 | **Total** | | **536** | All passing in CI |
 
@@ -1581,7 +1610,7 @@ Step 2: ONBOARD (60 seconds)
 Step 3: VERIFY OWNERSHIP (30 seconds)
   User clicks claim link
   → Posts a verification tweet (optional but enables viral sharing)
-  → Agent Profile goes live with initial Trust Score: 500
+  → Agent Profile goes live (Trust Score starts at 0, builds with evidence)
 
 Step 4: PASSIVE VALUE ACCUMULATION (ongoing, zero effort)
   Every agent action is now recorded automatically.
