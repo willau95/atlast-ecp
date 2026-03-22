@@ -47,6 +47,8 @@ async def _save_attestation(batch: dict, attestation_uid: str, eas_tx_hash: str 
 
 async def _anchor_pending():
     """Core anchor logic — fetch pending batches, anchor to EAS, fire webhooks."""
+    import time as _time
+    _anchor_start = _time.time()
     batches = await get_pending_batches()
     if not batches:
         return {"processed": 0, "anchored": 0, "errors": 0}
@@ -96,6 +98,26 @@ async def _anchor_pending():
     # Update global stats
     from .verify import record_anchor_stats
     record_anchor_stats(anchored, errors)
+
+    # Persist anchor run to DB
+    try:
+        from ..db.database import get_session, AnchorLog
+        session = await get_session()
+        if session is not None:
+            import time as _time
+            from datetime import datetime, timezone
+            async with session:
+                log = AnchorLog(
+                    processed=len(batches),
+                    anchored=anchored,
+                    errors=errors,
+                    duration_ms=int((_time.time() - _anchor_start) * 1000),
+                    run_at=datetime.now(timezone.utc),
+                )
+                session.add(log)
+                await session.commit()
+    except Exception as e:
+        logger.warning("anchor_log_save_failed", error=str(e))
 
     # Prometheus counters
     from .metrics import anchor_total, anchor_latency

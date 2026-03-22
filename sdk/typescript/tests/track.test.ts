@@ -45,7 +45,7 @@ describe('track', () => {
   it('stores record with the correct agent_id', async () => {
     const fn = track('my-agent', async () => 'result');
     await fn();
-    expect(storeRecord).toHaveBeenCalledWith('my-agent', expect.objectContaining({ agent_id: 'my-agent' }));
+    expect(storeRecord).toHaveBeenCalledWith('my-agent', expect.objectContaining({ agent: 'my-agent' }));
   });
 
   it('re-throws errors from the wrapped function', async () => {
@@ -62,10 +62,10 @@ describe('track', () => {
   });
 
   it('uses custom stepType from TrackOptions', async () => {
-    const fn = track({ agentId: 'test-agent', stepType: 'tool_call' }, async () => 'ok');
+    const fn = track({ agentId: 'test-agent', action: 'tool_call' }, async () => 'ok');
     await fn();
     const [, record] = vi.mocked(storeRecord).mock.calls[0];
-    expect((record as { step_type: string }).step_type).toBe('tool_call');
+    expect((record as { action: string }).action).toBe('tool_call');
   });
 
   it('includes metadata from TrackOptions in the stored record', async () => {
@@ -79,6 +79,6 @@ describe('track', () => {
     const fn = track('test-agent', async () => 'ok');
     await fn();
     const [, record] = vi.mocked(storeRecord).mock.calls[0];
-    expect((record as { step_type: string }).step_type).toBe('custom');
+    expect((record as { action: string }).action).toBe('custom');
   });
 });

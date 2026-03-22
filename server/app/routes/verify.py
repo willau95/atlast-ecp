@@ -133,11 +133,39 @@ def init_stats():
 
 @router.get("/v1/stats")
 async def get_stats():
-    """Public stats — no auth, read-only."""
+    """Public stats — DB-backed when available, fallback to in-memory."""
+    # Try DB first for persistent stats
+    try:
+        from ..db.database import get_session, Attestation, AnchorLog
+        session = await get_session()
+        if session is not None:
+            from sqlalchemy import func, select
+            async with session:
+                att_count = (await session.execute(
+                    select(func.count(Attestation.id)).where(Attestation.on_chain == True)
+                )).scalar() or 0
+                webhook_count = (await session.execute(
+                    select(func.count(Attestation.id)).where(Attestation.webhook_sent == True)
+                )).scalar() or 0
+                error_count = (await session.execute(
+                    select(func.coalesce(func.sum(AnchorLog.errors), 0))
+                )).scalar() or 0
+            return {
+                "total_anchored": att_count,
+                "total_errors": error_count,
+                "total_webhooks_sent": webhook_count,
+                "server_start": _anchor_stats["server_start"],
+                "eas_chain": settings.EAS_CHAIN,
+                "source": "database",
+            }
+    except Exception:
+        pass  # Fallback to in-memory
+
     return {
         "total_anchored": _anchor_stats["total_anchored"],
         "total_errors": _anchor_stats["total_errors"],
         "total_webhooks_sent": _anchor_stats["total_webhooks_sent"],
         "server_start": _anchor_stats["server_start"],
         "eas_chain": settings.EAS_CHAIN,
+        "source": "memory",
     }

@@ -5,15 +5,20 @@
 export interface ECPRecord {
   id: string;
   ts: number;
-  agent_id: string;
-  step_type: 'llm_call' | 'tool_call' | 'decision' | 'custom';
+  agent: string;
+  action: 'llm_call' | 'tool_call' | 'a2a_call' | 'message' | 'decision' | 'custom';
+  in_hash: string;
+  out_hash: string;
   model?: string;
-  input_hash: string;
-  output_hash: string;
   tokens_in?: number;
   tokens_out?: number;
   latency_ms?: number;
   flags: string[];
+  cost_usd?: number;
+  parent_agent?: string;
+  session_id?: string;
+  delegation_id?: string;
+  delegation_depth?: number;
   metadata?: Record<string, unknown>;
   chain: {
     prev: string;

@@ -14,12 +14,12 @@ describe('record', () => {
     });
 
     expect(r.id).toMatch(/^rec_/);
-    expect(r.agent_id).toBe('test-agent');
-    expect(r.input_hash).toMatch(/^sha256:[a-f0-9]{64}$/);
-    expect(r.output_hash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(r.agent).toBe('test-agent');
+    expect(r.in_hash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(r.out_hash).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(r.chain.prev).toBe('genesis');
     expect(r.chain.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
-    expect(r.step_type).toBe('llm_call');
+    expect(r.action).toBe('llm_call');
   });
 
   it('chains records correctly', () => {
@@ -53,7 +53,7 @@ describe('record', () => {
     expect(json).not.toContain('secret input');
     expect(json).not.toContain('secret output');
     // But should contain hashes with sha256: prefix
-    expect(r.input_hash).toMatch(/^sha256:[a-f0-9]{64}$/);
-    expect(r.output_hash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(r.in_hash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(r.out_hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
 });

@@ -66,7 +66,7 @@ export function wrap<T extends object>(client: T, options: WrapOptions): T {
 
                         const record = createRecord({
                           agentId: options.agentId,
-                          stepType: 'llm_call',
+                          action: 'llm_call',
                           model: params?.model as string,
                           input: inputStr,
                           output: outputStr,

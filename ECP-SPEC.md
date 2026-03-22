@@ -165,6 +165,7 @@ Flags are boolean signals derived from **passive behavior analysis**. They are c
 | `error` | Negative | Agent returned an error state |
 | `human_review` | Positive | Agent requested human verification |
 | `a2a_delegated` | Neutral | Task delegated to sub-agent |
+| `speed_anomaly` | Neutral | Output suspiciously fast for its length (>500 chars in <100ms, or <10% of median latency) |
 
 ---
 

@@ -26,7 +26,7 @@ describe('batch upload', () => {
     const kp = generateKeyPair();
     vi.mocked(loadOrCreateIdentity).mockReturnValue({
       did: generateDID(),
-      agent_id: 'test-agent',
+      agent: 'test-agent',
       public_key: kp.publicKey,
       private_key: kp.privateKey,
       created_at: new Date().toISOString(),

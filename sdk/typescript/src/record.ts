@@ -17,7 +17,7 @@ export function getChainHead(): string {
 
 export interface CreateRecordOptions {
   agentId: string;
-  stepType?: ECPRecord['step_type'];
+  action?: ECPRecord['action'];
   model?: string;
   input: string;
   output: string;
@@ -25,6 +25,11 @@ export interface CreateRecordOptions {
   tokensOut?: number;
   latencyMs?: number;
   flags?: string[];
+  costUsd?: number;
+  parentAgent?: string;
+  sessionId?: string;
+  delegationId?: string;
+  delegationDepth?: number;
   metadata?: Record<string, unknown>;
   identity?: ECPIdentity;
 }
@@ -33,15 +38,20 @@ export function createRecord(opts: CreateRecordOptions): ECPRecord {
   const record: ECPRecord = {
     id: generateId('rec'),
     ts: Date.now(),
-    agent_id: opts.agentId,
-    step_type: opts.stepType || 'llm_call',
+    agent: opts.agentId,
+    action: opts.action || 'llm_call',
+    in_hash: sha256(opts.input),
+    out_hash: sha256(opts.output),
     model: opts.model,
-    input_hash: sha256(opts.input),
-    output_hash: sha256(opts.output),
     tokens_in: opts.tokensIn,
     tokens_out: opts.tokensOut,
     latency_ms: opts.latencyMs,
     flags: opts.flags || [],
+    cost_usd: opts.costUsd,
+    parent_agent: opts.parentAgent,
+    session_id: opts.sessionId,
+    delegation_id: opts.delegationId,
+    delegation_depth: opts.delegationDepth,
     metadata: opts.metadata,
     chain: {
       prev: lastHash,

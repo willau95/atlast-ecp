@@ -58,8 +58,8 @@ describe('wrap', () => {
 
     await client.chat.completions.create({ model: 'gpt-4', messages: [] });
     expect(storeRecord).toHaveBeenCalledWith('my-llm-agent', expect.objectContaining({
-      agent_id: 'my-llm-agent',
-      step_type: 'llm_call',
+      agent: 'my-llm-agent',
+      action: 'llm_call',
     }));
   });
 

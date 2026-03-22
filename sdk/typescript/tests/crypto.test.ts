@@ -24,7 +24,7 @@ describe('crypto', () => {
     const record = {
       id: 'rec_test',
       ts: 1000,
-      agent_id: 'test',
+      agent: 'test',
       chain: { prev: 'genesis', hash: 'should-be-zeroed' },
       sig: 'should-be-removed',
     };

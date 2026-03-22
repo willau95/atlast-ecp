@@ -3,7 +3,7 @@ ECP Signals — passive behavioral signal detection.
 All signals are detected locally via rule engine. Never LLM-as-Judge.
 Agent CANNOT control or self-report these flags.
 
-Flags per ECP-SPEC §4:
+Flags per ECP-SPEC §3:
   retried        — Agent was asked to redo this task (Negative)
   hedged         — Output contained uncertainty language (Neutral)
   incomplete     — Conversation ended without resolution (Negative)
@@ -11,6 +11,7 @@ Flags per ECP-SPEC §4:
   error          — Agent returned an error state (Negative)
   human_review   — Agent requested human verification (Positive)
   a2a_delegated  — Task delegated to sub-agent (Neutral)
+  speed_anomaly  — Output suspiciously fast for its length (Neutral)
 """
 
 import re

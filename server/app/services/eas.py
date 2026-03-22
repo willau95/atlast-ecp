@@ -162,10 +162,16 @@ async def _live_attestation(
     if receipt['status'] != 1:
         raise ValueError(f"Transaction reverted: {tx_hash_hex}")
 
-    # Extract attestation UID from Attested event log data
-    attestation_uid = tx_hash_hex
+    # Extract attestation UID from Attested event log
+    # EAS Attested event: Attested(address indexed recipient, address indexed attester, bytes32 uid, bytes32 indexed schemaId)
+    # uid is the first (and only) non-indexed param → first 32 bytes of log data
+    attestation_uid = tx_hash_hex  # fallback
     if receipt.get('logs'):
-        attestation_uid = f"0x{receipt['logs'][0]['data'].hex()}"
+        log_data = receipt['logs'][0].get('data', b'')
+        if isinstance(log_data, (bytes, bytearray)) and len(log_data) >= 32:
+            attestation_uid = f"0x{log_data[:32].hex()}"
+        elif isinstance(log_data, str) and len(log_data) >= 66:  # "0x" + 64 hex
+            attestation_uid = log_data[:66]
 
     return {
         "attestation_uid": attestation_uid,

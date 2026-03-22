@@ -17,7 +17,8 @@ import { sha256 } from './crypto';
 
 export interface TrackOptions {
   agentId: string;
-  stepType?: 'llm_call' | 'tool_call' | 'decision' | 'custom';
+  action?: 'llm_call' | 'tool_call' | 'a2a_call' | 'message' | 'decision' | 'custom';
+  sessionId?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -45,7 +46,7 @@ export function track<TArgs extends unknown[], TResult>(
       flags.push('error');
       const record = createRecord({
         agentId: opts.agentId,
-        stepType: opts.stepType || 'custom',
+        action: opts.action || 'custom',
         input: inputStr,
         output: `error: ${(e as Error).message}`,
         latencyMs: Date.now() - startTime,
@@ -59,7 +60,7 @@ export function track<TArgs extends unknown[], TResult>(
 
     const record = createRecord({
       agentId: opts.agentId,
-      stepType: opts.stepType || 'custom',
+      action: opts.action || 'custom',
       input: inputStr,
       output: JSON.stringify(result),
       latencyMs: Date.now() - startTime,
