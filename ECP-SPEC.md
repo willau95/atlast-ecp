@@ -1,6 +1,6 @@
 # ECP — Evidence Chain Protocol
 
-**Version:** 2.0  
+**Version:** 2.1  
 **Status:** Draft  
 **Part of:** [ATLAST Protocol](https://github.com/willau95/atlast-ecp)  
 **License:** MIT  

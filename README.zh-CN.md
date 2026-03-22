@@ -176,6 +176,8 @@ atlast insights                     # 本地分析
 atlast verify <record_id>           # 验证链完整性
 atlast verify --a2a a.jsonl b.jsonl # 多 Agent 验证
 atlast push                         # 上传到 ECP 服务器（可选）
+atlast flush                        # 立即上传 batch
+atlast proxy --port 8340            # 启动透明代理
 ```
 
 ---

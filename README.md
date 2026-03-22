@@ -176,6 +176,8 @@ atlast insights                     # Local analytics
 atlast verify <record_id>           # Verify chain integrity
 atlast verify --a2a a.jsonl b.jsonl # Multi-agent verification
 atlast push                         # Upload to ECP server (opt-in)
+atlast flush                        # Immediate batch upload
+atlast proxy --port 8340            # Start transparent proxy
 ```
 
 ---
