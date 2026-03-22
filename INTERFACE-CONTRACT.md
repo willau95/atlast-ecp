@@ -89,21 +89,30 @@ Header:     X-ECP-Signature: sha256={hex_digest}
 }
 ```
 
-### 5.2 Batch Submit Payload
+### 5.2 Batch Submit Payload (SDK → LLaChat `/v1/batches`)
 
 ```json
 {
   "agent_did": "did:ecp:{hex}",
   "merkle_root": "sha256:{64hex}",
-  "signature": "{ed25519_hex}",
+  "sig": "ed25519:{hex}",
   "record_count": 42,
-  "records": [...],
-  "batch_ts": 1711036800.123
+  "avg_latency_ms": 150,
+  "batch_ts": 1711036800123,
+  "ecp_version": "0.1",
+  "record_hashes": [
+    {"id": "rec_{hex}", "hash": "sha256:{hex}", "flags": ["hedged"], "in_hash": "sha256:{hex}", "out_hash": "sha256:{hex}"}
+  ],
+  "flag_counts": {"hedged": 1, "retried": 0}
 }
 ```
 
-- `batch_ts`: float (seconds since epoch). Alex auto-normalizes to ms.
+- `batch_ts`: int (Unix milliseconds). NOT float, NOT seconds.
 - `merkle_root`: always has `sha256:` prefix.
+- `sig`: `ed25519:{hex}` or `"unverified"` (when cryptography package not installed).
+- `record_hashes`: optional. Each entry has `id`, `hash`, `flags` (required), plus `in_hash`/`out_hash` (optional, v0.8.0+).
+- `flag_counts`: optional. Aggregated flag counts across all records.
+- `ecp_version`: currently `"0.1"` (batch protocol version, distinct from ECP record version `"1.0"`).
 
 ### 5.3 Webhook Payload (attestation.anchored)
 

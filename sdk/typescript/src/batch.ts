@@ -43,7 +43,7 @@ export async function uploadBatch(config: ATLASTConfig): Promise<BatchUploadResp
     avg_latency_ms: avgLatency,
     batch_ts: Date.now(),
     sig,
-    ecp_version: '0.5',
+    ecp_version: '0.1',
     flag_counts: flagCounts,
     record_hashes: records.map((r) => ({
       id: r.id,
