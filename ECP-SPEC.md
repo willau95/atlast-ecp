@@ -206,12 +206,18 @@ This ensures identical content always produces the same hash, regardless of impl
 
 ## 7. Version Compatibility
 
+### 7.1 ECP Record Version (`ecp` field)
+
 | Version | Format | Status |
 |---------|--------|--------|
 | `0.1` | Nested (`step.type`, `step.in_hash`, `chain.prev`) | Legacy, still valid |
 | `1.0` | Flat (`action`, `in_hash`, `prev`) | Current |
 
 Readers MUST accept both v0.1 and v1.0 records. Writers SHOULD produce v1.0.
+
+### 7.2 Batch Protocol Version (`ecp_version` in batch payload)
+
+The `ecp_version` field in batch upload payloads identifies the batch protocol version, which is distinct from the ECP record format version above. Current batch protocol version is `"0.1"`. This field is written into on-chain EAS attestation data for provenance tracking.
 
 ---
 

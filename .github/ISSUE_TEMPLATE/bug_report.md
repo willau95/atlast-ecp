@@ -8,7 +8,7 @@ assignees: ''
 
 **Component** (check one):
 - [ ] Python SDK (`atlast-ecp`)
-- [ ] TypeScript SDK (`atlast-ecp-ts`)
+- [ ] TypeScript SDK (`@atlast/sdk`)
 - [ ] CLI (`atlast` command)
 - [ ] Proxy (`atlast proxy` / `atlast run`)
 - [ ] Reference Server (`server/`)

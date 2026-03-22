@@ -5,7 +5,7 @@
 ## Install
 
 ```bash
-go get github.com/willau95/atlast-ecp/sdk-go
+go get github.com/willau95/atlast-ecp/sdk/go
 ```
 
 ## Quick Start

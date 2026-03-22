@@ -4,7 +4,7 @@
 
 This policy covers:
 - **ATLAST ECP Python SDK** (`atlast-ecp` on PyPI)
-- **ATLAST ECP TypeScript SDK** (`atlast-ecp-ts` on npm)
+- **ATLAST ECP TypeScript SDK** (`@atlast/sdk` on npm)
 - **ECP Reference Server** (`server/`)
 - **ECP Proxy** (`atlast proxy` / `atlast run`)
 

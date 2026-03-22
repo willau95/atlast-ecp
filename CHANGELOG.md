@@ -9,9 +9,31 @@ All notable changes to the ATLAST ECP SDK and Server.
 - Adapter integration README (`sdk/python/atlast_ecp/adapters/README.md`)
 - 21 edge-case adapter tests (total: 50 adapter tests)
 - 34 proxy unit tests (`tests/test_proxy.py`)
+- Streaming response recording (`_RecordedStream` in `wrap.py`) — zero latency impact
+- PostgreSQL integration (SQLAlchemy async, `attestations` + `anchor_logs` tables)
+- Redis connection support
+- Sentry error monitoring (3+ consecutive cron failures auto-reported)
+- Prometheus metrics (`/metrics` endpoint: anchor/webhook/merkle/cron counters)
+- Rate limiting (60/min via SlowAPI)
+- Webhook retry with exponential backoff (3 attempts)
+- E2E full chain verification (7/7 endpoints tested)
+- TS SDK v0.2.0 published to npm as `@atlast/sdk`
+- PyPI v0.8.0 published via GitHub Actions trusted publishing
+- Whitepaper v2.2 (EN 102KB + ZH 66KB, 14 chapters, 9 Mermaid diagrams)
+- Litepaper v1.0 (EN + ZH)
+- INTERFACE-CONTRACT.md — canonical API reference
+- ARCHITECTURE.md — system architecture documentation
 
 ### Changed
 - Monorepo restructure: `atlast-ecp-server` merged into `server/`, SDKs reorganized to `sdk/{python,typescript,go}/`
+- Server version bumped to 1.0.0
+- Custom domain `api.weba0.com` with TLS 1.3
+
+### Fixed
+- TS SDK empty Merkle tree hash consistency (now matches Python SDK + Server)
+- TS SDK `ecp_version` aligned to `"0.1"` (was `"0.5"`)
+- INTERFACE-CONTRACT.md batch payload documentation accuracy
+- Deep audit: 13 issues found and fixed across SDK/Server
 
 ## [0.7.0] — 2026-03-20
 

@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/atlast-ecp/"><img src="https://img.shields.io/pypi/v/atlast-ecp?color=1D4ED8&label=PyPI" alt="PyPI"></a>
-  <a href="https://www.npmjs.com/package/atlast-ecp-ts"><img src="https://img.shields.io/npm/v/atlast-ecp-ts?color=059669&label=npm" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/@atlast/sdk"><img src="https://img.shields.io/npm/v/@atlast/sdk?color=059669&label=npm" alt="npm"></a>
   <a href="https://github.com/willau95/atlast-ecp/actions"><img src="https://github.com/willau95/atlast-ecp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT"></a>
   <a href="https://weba0.com"><img src="https://img.shields.io/badge/Web_A.0-Live-1D4ED8" alt="Web A.0"></a>
@@ -249,7 +249,7 @@ atlast verify --a2a researcher.jsonl analyst.jsonl writer.jsonl
 
 ### SDKs
 - **[Python SDK](sdk/)** — `pip install atlast-ecp` — 19 modules, 387 tests
-- **[TypeScript SDK](sdk-ts/)** — `npm install atlast-ecp-ts` — 12 tests
+- **[TypeScript SDK](sdk/typescript/)** — `npm install @atlast/sdk` — 14 tests
 - **[Go SDK](sdk-go/)** — Pure stdlib, zero dependencies
 
 ### Tools
@@ -376,5 +376,5 @@ MIT — free for personal and commercial use.
 <p align="center">
   <b>ATLAST Protocol</b> — At last, trust for the Agent economy.
   <br><br>
-  <a href="https://weba0.com">weba0.com</a> · <a href="https://github.com/willau95/atlast-ecp">GitHub</a> · <a href="https://pypi.org/project/atlast-ecp/">PyPI</a> · <a href="https://www.npmjs.com/package/atlast-ecp-ts">npm</a>
+  <a href="https://weba0.com">weba0.com</a> · <a href="https://github.com/willau95/atlast-ecp">GitHub</a> · <a href="https://pypi.org/project/atlast-ecp/">PyPI</a> · <a href="https://www.npmjs.com/package/@atlast/sdk">npm</a>
 </p>

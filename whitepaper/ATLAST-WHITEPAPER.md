@@ -997,6 +997,8 @@ Where:
 
   Final score = round(TrustScore × 1000)  ∈ [0, 1000]
 
+**ATLAST Protocol Trust Score is a complete, standalone metric (0-1000).** Any platform can use it directly as an agent's trust indicator. Platforms building composite reputation systems may incorporate ATLAST Trust Score as one dimension — for example, weighting it at 70% alongside a 30% platform-specific identity layer. The protocol score itself is always computed purely from ECP evidence data, independent of any platform's proprietary signals.
+
 Note: Exact coefficients are tunable and will be refined through empirical
 calibration as the network scales. The architecture — passive signals only,
 no self-reporting — is fixed. The weights are parameters.
