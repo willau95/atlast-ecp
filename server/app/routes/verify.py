@@ -91,7 +91,7 @@ async def verify_attestation(attestation_uid: str):
     is_testnet = settings.EAS_CHAIN == "sepolia"
 
     # For now, return the EAS explorer link and metadata
-    # Full on-chain verification via web3 will be added in Phase 5
+    # Full on-chain verification via web3 planned for mainnet launch
     base_url = "https://base-sepolia.easscan.org" if is_testnet else "https://base.easscan.org"
 
     return {
@@ -107,7 +107,7 @@ async def verify_attestation(attestation_uid: str):
 
 # ── Stats ───────────────────────────────────────────────────────────────────
 
-# In-memory stats counter (reset on restart — will use Redis in Phase 5)
+# In-memory stats counter (reset on restart — Redis persistence planned for Phase 6 D6)
 _anchor_stats = {
     "total_anchored": 0,
     "total_errors": 0,
