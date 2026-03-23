@@ -181,42 +181,57 @@ def _ensure_agent_registered(identity: dict) -> bool:
         return True
 
     try:
-
         payload = json.dumps({
             "did": identity["did"],
             "public_key": identity["pub_key"],
             "ecp_version": "0.1",
         }).encode("utf-8")
 
-        req = urllib.request.Request(
-            f"{_get_api_url()}/agents/register",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            result = json.loads(resp.read())
-            # Store claim_url for user to verify ownership
-            state["agent_registered"] = True
-            state["agent_api_key"] = result.get("agent_api_key", "")
-            state["claim_url"] = result.get("claim_url", "")
-            state["verification_tweet"] = result.get("verification_tweet", "")
-            _save_batch_state(state)
-            # Also persist to local config for CLI access
-            if result.get("agent_api_key"):
-                save_config({
-                    "agent_did": identity["did"],
-                    "agent_api_key": result["agent_api_key"],
-                    "endpoint": _get_api_url(),
-                })
-            return True
+        last_error: Optional[Exception] = None
+        for attempt in range(3):
+            try:
+                req = urllib.request.Request(
+                    f"{_get_api_url()}/agents/register",
+                    data=payload,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    result = json.loads(resp.read())
+                    state["agent_registered"] = True
+                    state["agent_api_key"] = result.get("agent_api_key", "")
+                    state["claim_url"] = result.get("claim_url", "")
+                    state["verification_tweet"] = result.get("verification_tweet", "")
+                    _save_batch_state(state)
+                    if result.get("agent_api_key"):
+                        save_config({
+                            "agent_did": identity["did"],
+                            "agent_api_key": result["agent_api_key"],
+                            "endpoint": _get_api_url(),
+                        })
+                    return True
+            except urllib.error.HTTPError as e:
+                if e.code == 409:
+                    # Already registered — success
+                    state["agent_registered"] = True
+                    _save_batch_state(state)
+                    return True
+                if 400 <= e.code < 500:
+                    break  # Permanent client error — don't retry
+                last_error = e
+            except (urllib.error.URLError, TimeoutError, OSError) as e:
+                last_error = e
+
+            if attempt < 2:
+                time.sleep(2 ** attempt)
 
     except Exception:
-        # 409 = already registered — that's OK
-        # Other failures = will retry next batch
-        state["agent_registered"] = True  # Optimistic: don't block indefinitely
-        _save_batch_state(state)
-        return False
+        pass
+
+    # All retries failed — optimistic: don't block indefinitely
+    state["agent_registered"] = True
+    _save_batch_state(state)
+    return False
 
 
 # ─── Upload to ATLAST API ──────────────────────────────────────────────────────
@@ -233,10 +248,15 @@ def upload_merkle_root(
     flag_counts: Optional[dict] = None,
     agent_api_key: Optional[str] = None,
     chain_integrity: Optional[float] = None,
+    max_retries: int = 3,
 ) -> Optional[str]:
     """
     Upload Merkle Root to ATLAST API for EAS anchoring.
     Returns attestation_uid on success, None on failure (will be queued).
+
+    Retries with exponential backoff: 1s → 2s → 4s (max_retries=3).
+    Only retries on transient errors (5xx, timeout, connection error).
+    Permanent errors (4xx) fail immediately.
 
     Payload matches backend BatchUploadRequest exactly:
     - merkle_root: sha256:{hex}
@@ -249,42 +269,58 @@ def upload_merkle_root(
     - record_hashes: [{id, hash, flags}] (optional)
     - flag_counts: {flag: count} (optional)
     """
-    try:
+    body: dict = {
+        "merkle_root": merkle_root,
+        "agent_did": agent_did,
+        "record_count": record_count,
+        "avg_latency_ms": avg_latency_ms,
+        "batch_ts": batch_ts,        # int Unix ms — backend REQUIRED field
+        "sig": sig,                   # ed25519:{hex} or "unverified" — backend REQUIRED
+        "ecp_version": ecp_version,
+    }
+    if record_hashes:
+        body["record_hashes"] = record_hashes
+    if flag_counts:
+        body["flag_counts"] = flag_counts
+    if chain_integrity is not None:
+        body["chain_integrity"] = chain_integrity
 
-        body: dict = {
-            "merkle_root": merkle_root,
-            "agent_did": agent_did,
-            "record_count": record_count,
-            "avg_latency_ms": avg_latency_ms,
-            "batch_ts": batch_ts,        # int Unix ms — backend REQUIRED field
-            "sig": sig,                   # ed25519:{hex} or "unverified" — backend REQUIRED
-            "ecp_version": ecp_version,
-        }
-        if record_hashes:
-            body["record_hashes"] = record_hashes
-        if flag_counts:
-            body["flag_counts"] = flag_counts
-        if chain_integrity is not None:
-            body["chain_integrity"] = chain_integrity
+    payload = json.dumps(body).encode("utf-8")
 
-        payload = json.dumps(body).encode("utf-8")
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if agent_api_key:
+        headers["X-Agent-Key"] = agent_api_key
 
-        headers = {"Content-Type": "application/json"}
-        if agent_api_key:
-            headers["X-Agent-Key"] = agent_api_key
+    last_error: Optional[Exception] = None
+    for attempt in range(max_retries):
+        try:
+            req = urllib.request.Request(
+                f"{_get_api_url()}/batches",
+                data=payload,
+                headers=headers,
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                result = json.loads(resp.read())
+                return result.get("attestation_uid") or result.get("batch_id")
 
-        req = urllib.request.Request(
-            f"{_get_api_url()}/batches",
-            data=payload,
-            headers=headers,
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            result = json.loads(resp.read())
-            return result.get("attestation_uid") or result.get("batch_id")
+        except urllib.error.HTTPError as e:
+            # 4xx = permanent error (bad request, auth failure) — don't retry
+            if 400 <= e.code < 500:
+                return None
+            # 5xx = transient — retry with backoff
+            last_error = e
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            # Connection refused, DNS failure, timeout — retry
+            last_error = e
+        except Exception:
+            return None  # Unknown error — Fail-Open, don't retry
 
-    except Exception:
-        return None  # Fail-Open: queued for retry
+        # Exponential backoff: 1s, 2s, 4s
+        if attempt < max_retries - 1:
+            time.sleep(2 ** attempt)
+
+    return None  # All retries exhausted — Fail-Open: queued for retry
 
 
 # ─── Main Batch Process ───────────────────────────────────────────────────────

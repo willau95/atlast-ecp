@@ -59,16 +59,47 @@ export async function uploadBatch(config: ATLASTConfig): Promise<BatchUploadResp
     headers['X-Agent-Key'] = apiKey;
   }
 
-  const resp = await fetch(`${apiUrl}/v1/batches`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-  });
+  const maxRetries = config.maxRetries ?? 3;
+  let lastError: Error | undefined;
 
-  if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(`Batch upload failed (${resp.status}): ${errText}`);
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const resp = await fetch(`${apiUrl}/v1/batches`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      // 4xx = permanent error — don't retry
+      if (resp.status >= 400 && resp.status < 500) {
+        const errText = await resp.text();
+        throw new Error(`Batch upload failed (${resp.status}): ${errText}`);
+      }
+
+      // 5xx = transient — retry
+      if (!resp.ok) {
+        lastError = new Error(`Server error (${resp.status})`);
+        if (attempt < maxRetries - 1) {
+          await new Promise((r) => setTimeout(r, 2 ** attempt * 1000));
+          continue;
+        }
+        throw lastError;
+      }
+
+      return (await resp.json()) as BatchUploadResponse;
+    } catch (e) {
+      lastError = e as Error;
+      // Network errors (TypeError from fetch) — retry
+      if (e instanceof TypeError && attempt < maxRetries - 1) {
+        await new Promise((r) => setTimeout(r, 2 ** attempt * 1000));
+        continue;
+      }
+      // Re-throw non-retryable errors
+      if (!(e instanceof TypeError) && !(lastError.message.startsWith('Server error'))) {
+        throw e;
+      }
+    }
   }
 
-  return (await resp.json()) as BatchUploadResponse;
+  throw lastError || new Error('Batch upload failed after retries');
 }

@@ -67,6 +67,7 @@ export interface ATLASTConfig {
   autoUpload?: boolean;
   batchSize?: number;
   flushIntervalMs?: number;
+  maxRetries?: number;  // Upload retry attempts (default: 3)
 }
 
 export interface LocalConfig {

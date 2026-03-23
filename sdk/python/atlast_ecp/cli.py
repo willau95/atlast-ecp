@@ -556,7 +556,38 @@ def cmd_log(args: list[str]):
 
 
 def cmd_push(args: list[str]):
-    """atlast push [--endpoint URL] [--key KEY] — upload records to ECP server"""
+    """atlast push [--endpoint URL] [--key KEY] [--retry] — upload records to ECP server
+
+    --retry  Re-upload previously failed batches from the upload queue.
+    """
+    if "--retry" in args:
+        args_clean = [a for a in args if a != "--retry"]
+        # Set endpoint/key if provided
+        import os
+        from .config import get_api_url, get_api_key
+        for i, a in enumerate(args_clean):
+            if a == "--endpoint" and i + 1 < len(args_clean):
+                os.environ["ATLAST_API_URL"] = args_clean[i + 1]
+            if a == "--key" and i + 1 < len(args_clean):
+                from .batch import _load_batch_state, _save_batch_state
+                state = _load_batch_state()
+                state["agent_api_key"] = args_clean[i + 1]
+                _save_batch_state(state)
+
+        from .batch import _retry_queued, get_upload_queue
+        queue = get_upload_queue()
+        if not queue:
+            print("✅ No failed batches in queue.")
+            return
+        print(f"🔄 Retrying {len(queue)} failed batch(es)...")
+        _retry_queued()
+        remaining = get_upload_queue()
+        if not remaining:
+            print("✅ All retries succeeded!")
+        else:
+            print(f"⚠️  {len(remaining)} batch(es) still failing.")
+        return
+
     cmd_flush(args)
 
 
