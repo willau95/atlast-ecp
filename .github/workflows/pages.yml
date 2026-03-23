@@ -37,6 +37,7 @@ jobs:
         run: |
           mkdir -p _site
           cp -r docs-site/.vitepress/dist/* _site/
+          echo "docs.weba0.com" > _site/CNAME
           mkdir -p _site/verify
           # verify-page (legacy) or verify/ folder
           cp verify-page/index.html _site/verify/ 2>/dev/null || true
