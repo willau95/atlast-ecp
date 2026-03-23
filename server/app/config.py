@@ -32,7 +32,7 @@ class Settings:
 
     # CORS
     CORS_ORIGINS: list[str] = os.getenv(
-        "CORS_ORIGINS", "https://llachat.com,https://www.llachat.com,https://weba0.com,https://www.weba0.com,https://verify.weba0.com,https://docs.weba0.com,https://willau95.github.io"
+        "CORS_ORIGINS", "https://llachat.com,https://www.llachat.com,https://weba0.com,https://www.weba0.com,https://docs.weba0.com,https://willau95.github.io"
     ).split(",")
 
 

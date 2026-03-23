@@ -25,7 +25,7 @@ Usage:
 
     # Or upload for web verification:
     atlast proof --session sprint-42 --upload
-    → https://verify.weba0.com/p/abc123
+    → https://docs.weba0.com/verify/p/abc123
 
 Privacy Model:
     - User ALWAYS controls what content is shared
@@ -154,7 +154,7 @@ def generate_proof(
                 "4. Signature: Ed25519 verify(public_key, sig, chain.hash)",
                 "5. On-chain: check Merkle root on Base EAS (if anchored)",
             ],
-            "online_verify": "https://verify.weba0.com",
+            "online_verify": "https://docs.weba0.com/verify/",
             "hash_algorithm": "SHA-256",
             "signature_algorithm": "Ed25519",
             "canonical_json": "json.dumps(sort_keys=True, ensure_ascii=False, separators=(',',':'))",
