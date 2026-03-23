@@ -134,15 +134,33 @@ def load_local_summary(record_id: str) -> Optional[str]:
 # NEVER transmitted. NEVER leaves the device. Only for local audit/inspect.
 
 def save_vault(record_id: str, input_content: str, output_content: str) -> None:
-    """Save raw content to vault for local inspection. Never transmitted."""
+    """Save raw content to vault for local inspection. Never transmitted.
+    
+    Also triggers encrypted backup if vault_backup_path is configured.
+    """
     try:
         init_storage()
-        vault_file = VAULT_DIR / f"{record_id}.json"
-        vault_file.write_text(json.dumps({
+        content_json = json.dumps({
             "record_id": record_id,
             "input": input_content,
             "output": output_content,
-        }, ensure_ascii=False, indent=2), encoding="utf-8")
+        }, ensure_ascii=False, indent=2)
+        vault_file = VAULT_DIR / f"{record_id}.json"
+        vault_file.write_text(content_json, encoding="utf-8")
+        
+        # Auto-backup if configured (Fail-Open)
+        try:
+            from .config import get_vault_backup_path
+            backup_path = get_vault_backup_path()
+            if backup_path:
+                from .identity import get_or_create_identity
+                identity = get_or_create_identity()
+                priv_key = identity.get("priv_key")
+                if priv_key:
+                    from .vault_backup import backup_vault_entry
+                    backup_vault_entry(record_id, content_json, backup_path, priv_key)
+        except Exception:
+            pass  # Fail-Open: backup failure never crashes agent
     except Exception:
         pass  # Fail-Open: vault save failure never crashes agent
 

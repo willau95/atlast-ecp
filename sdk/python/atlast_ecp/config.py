@@ -82,3 +82,12 @@ def get_webhook_token() -> Optional[str]:
         return env
     cfg = load_config()
     return cfg.get("webhook_token") or None
+
+
+def get_vault_backup_path() -> Optional[str]:
+    """Get vault backup path: env ATLAST_VAULT_BACKUP > config vault_backup_path > None."""
+    env = os.environ.get("ATLAST_VAULT_BACKUP")
+    if env:
+        return env
+    cfg = load_config()
+    return cfg.get("vault_backup_path") or None

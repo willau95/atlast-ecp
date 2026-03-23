@@ -99,20 +99,51 @@ def _maybe_migrate_identity(identity: dict, ifile: Path) -> dict:
 
 
 def _create_identity(edir: Path | None = None) -> dict:
+    """
+    Create a new agent identity with BIP39 recovery support.
+    
+    New flow (with cryptography):
+      1. Generate 16 bytes random entropy
+      2. Entropy → BIP39 mnemonic (12 words)
+      3. Entropy → HKDF → Ed25519 seed → keypair
+      4. Save identity.json (WITHOUT mnemonic — security)
+      5. Return identity dict WITH transient '_mnemonic' key (for display only)
+    
+    Legacy flow (without cryptography):
+      Random hex fallback, no mnemonic support.
+    """
     edir = edir or _resolve_ecp_dir()
     ifile = edir / "identity.json"
     edir.mkdir(exist_ok=True)  # ensure dir exists before writing
+    
+    mnemonic_words = None
+    
     if HAS_CRYPTO:
-        private_key = Ed25519PrivateKey.generate()
-        pub_bytes = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
-        priv_bytes = private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
-        pub_hex = pub_bytes.hex()
-        priv_hex = priv_bytes.hex()
+        try:
+            from .recovery import generate_mnemonic, entropy_to_ed25519_seed
+            # New BIP39 path
+            mnemonic_words, entropy = generate_mnemonic()
+            seed = entropy_to_ed25519_seed(entropy)
+            private_key = Ed25519PrivateKey.from_private_bytes(seed)
+            pub_bytes = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+            priv_bytes = private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+            pub_hex = pub_bytes.hex()
+            priv_hex = priv_bytes.hex()
+            entropy_hash = hashlib.sha256(entropy).hexdigest()[:32]
+        except Exception:
+            # Fallback to random if recovery module fails
+            private_key = Ed25519PrivateKey.generate()
+            pub_bytes = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+            priv_bytes = private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+            pub_hex = pub_bytes.hex()
+            priv_hex = priv_bytes.hex()
+            entropy_hash = None
     else:
         # Fallback: random hex (records marked unverified)
         import secrets
         priv_hex = secrets.token_hex(32)
         pub_hex = hashlib.sha256(bytes.fromhex(priv_hex)).hexdigest()
+        entropy_hash = None
 
     # DID identifier = first 32 chars of sha256(pubkey hex) = 16 bytes
     agent_id = hashlib.sha256(pub_hex.encode()).hexdigest()[:32]
@@ -125,8 +156,18 @@ def _create_identity(edir: Path | None = None) -> dict:
         "created_at": _now_ms(),
         "verified": HAS_CRYPTO,
     }
+    
+    # Store entropy hash for recovery verification (NOT the entropy itself)
+    if entropy_hash:
+        identity["recovery_version"] = 1
+        identity["entropy_hash"] = entropy_hash
 
     ifile.write_text(json.dumps(identity, indent=2))
+    
+    # Attach mnemonic transiently (NOT persisted to disk)
+    if mnemonic_words:
+        identity["_mnemonic"] = mnemonic_words
+    
     return identity
 
 
