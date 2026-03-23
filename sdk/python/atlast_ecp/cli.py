@@ -99,6 +99,9 @@ def cmd_verify(args: list[str]):
 
     if args[0] == "--a2a":
         return _cmd_verify_a2a(args[1:])
+
+    if args[0] == "--proof":
+        return _cmd_verify_proof(args[1:])
     
 
     record_id = args[0]
@@ -162,6 +165,28 @@ def cmd_verify(args: list[str]):
         print(f"\n  View on server: {server_url.replace('/v1', '')}/verify/{record_id}\n")
     else:
         print(f"\n  Record ID: {record_id}  (configure ATLAST_API_URL to view online)\n")
+
+
+def _cmd_verify_proof(args: list[str]):
+    """atlast verify --proof file.json — independently verify a proof package"""
+    if not args:
+        print("Usage: atlast verify --proof <file.json>")
+        sys.exit(1)
+
+    proof_file = args[0]
+    if not os.path.exists(proof_file):
+        print(f"❌ File not found: {proof_file}")
+        sys.exit(1)
+
+    with open(proof_file) as f:
+        proof = json.load(f)
+
+    from .proof import verify_proof, format_proof_report
+
+    verification = verify_proof(proof)
+    print(format_proof_report(proof, verification))
+
+    sys.exit(0 if verification["valid"] else 1)
 
 
 def _cmd_verify_a2a(args: list[str]):
@@ -573,6 +598,169 @@ def _cmd_insights(args: list[str]):
     cmd_insights(args)
 
 
+def cmd_proof(args: list[str]):
+    """atlast proof [--session ID] [--include-content] [--records id1,id2] [-o file.json]"""
+    from .proof import generate_proof, verify_proof, format_proof_report
+
+    session_id = None
+    include_content = "--include-content" in args or "-c" in args
+    output_file = None
+    record_ids = None
+
+    for i, a in enumerate(args):
+        if a == "--session" and i + 1 < len(args):
+            session_id = args[i + 1]
+        if (a == "-o" or a == "--output") and i + 1 < len(args):
+            output_file = args[i + 1]
+        if a == "--records" and i + 1 < len(args):
+            record_ids = args[i + 1].split(",")
+
+    proof = generate_proof(
+        record_ids=record_ids,
+        session_id=session_id,
+        include_content=include_content,
+    )
+
+    if "error" in proof:
+        print(f"❌ {proof['error']}")
+        sys.exit(1)
+
+    # Self-verify
+    verification = verify_proof(proof)
+
+    if output_file:
+        with open(output_file, "w") as f:
+            json.dump(proof, f, indent=2, ensure_ascii=False)
+        print(f"✅ Proof package saved: {output_file}")
+        print(f"   Records: {proof['summary']['total_records']}")
+        print(f"   Content: {proof['summary']['content_included']} included, "
+              f"{proof['summary']['content_redacted']} redacted")
+        print(f"   Verification: {'✅ VALID' if verification['valid'] else '❌ ISSUES'}")
+        print(f"\n   Share this file. Recipient verifies with:")
+        print(f"   $ atlast verify --proof {output_file}")
+    else:
+        print(format_proof_report(proof, verification))
+
+
+def cmd_inspect(args: list[str]):
+    """atlast inspect <record_id> — show record with full content + hash verification"""
+    if not args:
+        print("Usage: atlast inspect <record_id>")
+        print("  Shows the ECP record paired with original content from the local vault.")
+        print("  Verifies that content hashes match the record.")
+        sys.exit(1)
+
+    record_id = args[0]
+    from .storage import load_record_by_id, load_vault
+    from .record import hash_content
+
+    record = load_record_by_id(record_id)
+    if not record:
+        print(f"❌ Record not found: {record_id}")
+        sys.exit(1)
+
+    vault = load_vault(record_id)
+
+    # Extract hashes from record
+    if record.get("ecp") == "1.0":
+        in_hash = record.get("in_hash", "")
+        out_hash = record.get("out_hash", "")
+        meta = record.get("meta", {})
+        action = record.get("action", "?")
+        model = meta.get("model", "—")
+        latency = meta.get("latency_ms", 0)
+        tokens_in = meta.get("tokens_in", "—")
+        tokens_out = meta.get("tokens_out", "—")
+        flags = meta.get("flags", [])
+        session = meta.get("session_id", "—")
+    else:
+        step = record.get("step", {})
+        in_hash = step.get("in_hash", "")
+        out_hash = step.get("out_hash", "")
+        action = step.get("type", "?")
+        model = step.get("model", "—")
+        latency = step.get("latency_ms", 0)
+        tokens_in = step.get("tokens_in", "—")
+        tokens_out = step.get("tokens_out", "—")
+        flags = step.get("flags", [])
+        session = step.get("session_id", "—")
+
+    chain = record.get("chain", {})
+    ts = record.get("ts", 0)
+
+    from datetime import datetime, timezone
+    dt = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC") if ts else "?"
+
+    print(f"\n🔍 ECP Record Inspection: {record_id}")
+    print("=" * 60)
+    print(f"  Time:     {dt}")
+    print(f"  Agent:    {record.get('agent', '?')}")
+    print(f"  Session:  {session}")
+    print(f"  Action:   {action}")
+    print(f"  Model:    {model}")
+    print(f"  Latency:  {latency}ms")
+    print(f"  Tokens:   {tokens_in} in / {tokens_out} out")
+    print(f"  Flags:    {flags if flags else '✅ clean'}")
+
+    # Chain info
+    if chain:
+        print(f"\n🔗 Chain")
+        print(f"  Prev:     {chain.get('prev', '?')}")
+        print(f"  Hash:     {chain.get('hash', '?')[:40]}...")
+        print(f"  Sig:      {record.get('sig', 'none')[:40]}...")
+
+    # Content + Hash verification
+    print(f"\n📄 Content (from local vault)")
+    print("-" * 60)
+
+    if not vault:
+        print("  ⚠️  No vault content found for this record.")
+        print("  Content vault was not enabled when this record was created.")
+        print("  Hashes are still valid — but original content is not available.")
+        print(f"\n  in_hash:  {in_hash}")
+        print(f"  out_hash: {out_hash}")
+    else:
+        input_text = vault.get("input", "")
+        output_text = vault.get("output", "")
+
+        # Verify hashes match
+        computed_in_hash = hash_content(input_text)
+        computed_out_hash = hash_content(output_text)
+        in_match = computed_in_hash == in_hash
+        out_match = computed_out_hash == out_hash
+
+        print(f"\n  📥 INPUT {'✅ hash verified' if in_match else '❌ HASH MISMATCH'}")
+        print(f"  Hash: {in_hash}")
+        print(f"  ┌{'─'*56}┐")
+        # Truncate long content
+        display_in = input_text[:500] + ("..." if len(input_text) > 500 else "")
+        for line in display_in.split("\n"):
+            print(f"  │ {line[:54]:54s} │")
+        print(f"  └{'─'*56}┘")
+
+        print(f"\n  📤 OUTPUT {'✅ hash verified' if out_match else '❌ HASH MISMATCH'}")
+        print(f"  Hash: {out_hash}")
+        print(f"  ┌{'─'*56}┐")
+        display_out = output_text[:800] + ("..." if len(output_text) > 800 else "")
+        for line in display_out.split("\n"):
+            print(f"  │ {line[:54]:54s} │")
+        print(f"  └{'─'*56}┘")
+
+        if in_match and out_match:
+            print(f"\n  🟢 CONTENT VERIFIED — hashes match original content")
+            print(f"     sha256(input)  == record.in_hash  ✅")
+            print(f"     sha256(output) == record.out_hash ✅")
+            print(f"     Content has NOT been tampered with.")
+        else:
+            print(f"\n  🔴 CONTENT MISMATCH — content may have been altered!")
+            if not in_match:
+                print(f"     sha256(input)  != record.in_hash  ❌")
+            if not out_match:
+                print(f"     sha256(output) != record.out_hash ❌")
+
+    print()
+
+
 def cmd_export(args: list[str]):
     """atlast export [--format json] — export ECP records"""
     import json as _json
@@ -740,6 +928,8 @@ def main():
         "register": cmd_register,
         "certify": cmd_certify,
         "export": cmd_export,
+        "inspect": cmd_inspect,
+        "proof": cmd_proof,
         "insights": _cmd_insights,
         "config": _cmd_config,
         "discover": _cmd_discover,

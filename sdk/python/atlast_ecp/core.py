@@ -8,13 +8,14 @@ Design: stateful singleton managing identity, chain, and async recording.
 Thread-safe. Fail-Open. Never raises.
 """
 
+import json
 import threading
 import time
 from typing import Any, Optional
 
 from .identity import get_or_create_identity, sign
 from .record import create_record, create_minimal_record, record_to_dict, hash_content, ECPRecord
-from .storage import save_record
+from .storage import save_record, save_vault
 from .signals import detect_flags
 
 
@@ -125,6 +126,11 @@ def record(
         rec_dict = record_to_dict(rec)
         save_record(rec_dict, local_summary=local_summary)
 
+        # Save raw content to vault using same serialization as hash_content
+        # so sha256(vault_content) == record.in_hash/out_hash
+        from .record import _serialize_for_hash
+        save_vault(rec.id, _serialize_for_hash(input_content), _serialize_for_hash(output_content))
+
         # Update chain state
         _state.get_and_set_last_record(rec)
 
@@ -215,6 +221,11 @@ def record_minimal(
             meta=meta if meta else None,
         )
         save_record(rec)
+
+        # Save raw content to vault using same serialization as hash_content
+        from .record import _serialize_for_hash
+        save_vault(rec["id"], _serialize_for_hash(input_content), _serialize_for_hash(output_content))
+
         return rec["id"]
     except Exception:
         return None

@@ -13,6 +13,7 @@ import os
 ECP_DIR = Path(os.environ.get("ATLAST_ECP_DIR", os.environ.get("ECP_DIR", os.path.expanduser("~/.ecp"))))
 RECORDS_DIR = ECP_DIR / "records"
 LOCAL_DIR = ECP_DIR / "local"       # summaries, never uploaded
+VAULT_DIR = ECP_DIR / "vault"       # raw content, never uploaded — for local audit
 INDEX_FILE = ECP_DIR / "index.json" # record_id → file + line mapping
 QUEUE_FILE = ECP_DIR / "upload_queue.jsonl"  # unuploaded batches
 
@@ -24,6 +25,7 @@ def init_storage():
     ECP_DIR.mkdir(parents=True, exist_ok=True)
     RECORDS_DIR.mkdir(parents=True, exist_ok=True)
     LOCAL_DIR.mkdir(parents=True, exist_ok=True)
+    VAULT_DIR.mkdir(parents=True, exist_ok=True)
     if not INDEX_FILE.exists():
         INDEX_FILE.write_text(json.dumps({}))
 
@@ -125,6 +127,35 @@ def load_local_summary(record_id: str) -> Optional[str]:
     """Load local-only summary for a record (never transmitted)."""
     summary_file = LOCAL_DIR / f"{record_id}.txt"
     return summary_file.read_text(encoding="utf-8") if summary_file.exists() else None
+
+
+# ─── Content Vault ────────────────────────────────────────────────────────────
+# Stores raw input/output content locally so users can pair hashes with content.
+# NEVER transmitted. NEVER leaves the device. Only for local audit/inspect.
+
+def save_vault(record_id: str, input_content: str, output_content: str) -> None:
+    """Save raw content to vault for local inspection. Never transmitted."""
+    try:
+        init_storage()
+        vault_file = VAULT_DIR / f"{record_id}.json"
+        vault_file.write_text(json.dumps({
+            "record_id": record_id,
+            "input": input_content,
+            "output": output_content,
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass  # Fail-Open: vault save failure never crashes agent
+
+
+def load_vault(record_id: str) -> Optional[dict]:
+    """Load raw content from vault. Returns {input, output} or None."""
+    vault_file = VAULT_DIR / f"{record_id}.json"
+    if not vault_file.exists():
+        return None
+    try:
+        return json.loads(vault_file.read_text(encoding="utf-8"))
+    except Exception:
+        return None
 
 
 def enqueue_for_upload(batch: dict):

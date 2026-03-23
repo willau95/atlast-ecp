@@ -77,16 +77,19 @@ def sha256(data: str) -> str:
     return f"sha256:{_sha256_hex(data)}"
 
 
+def _serialize_for_hash(content) -> str:
+    """Serialize content to the canonical string used for hashing."""
+    if isinstance(content, str):
+        return content
+    return json.dumps(content, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+
+
 def hash_content(content) -> str:
     """
     Hash any content (str, list, dict) with sha256: prefix.
     Content stays local — only hash is transmitted.
     """
-    if isinstance(content, str):
-        raw = content
-    else:
-        raw = json.dumps(content, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    return sha256(raw)
+    return sha256(_serialize_for_hash(content))
 
 
 def compute_chain_hash(record_dict: dict) -> str:
