@@ -3,10 +3,15 @@ Additional database models for ATLAST ECP Server.
 API Keys, Agents, and Batch records for direct SDK → Server path.
 """
 
-from sqlalchemy import Column, String, Integer, BigInteger, Float, Boolean, DateTime, Text, Index, JSON
+from sqlalchemy import Column, String, Integer, BigInteger, Float, Boolean, Text, Index, JSON
+from sqlalchemy.types import TIMESTAMP
 from datetime import datetime, timezone
 
 from .database import Base
+
+
+def _utcnow():
+    return datetime.now(timezone.utc)
 
 
 class Agent(Base):
@@ -17,8 +22,8 @@ class Agent(Base):
     did = Column(String(128), unique=True, nullable=False, index=True)
     public_key = Column(String(256), nullable=True)
     ecp_version = Column(String(16), default="0.1")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    last_seen = Column(DateTime, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), default=_utcnow)
+    last_seen = Column(TIMESTAMP(timezone=True), nullable=True)
 
 
 class APIKey(Base):
@@ -31,8 +36,8 @@ class APIKey(Base):
     agent_did = Column(String(128), nullable=False, index=True)
     rate_limit_tier = Column(String(32), default="free")  # free / pro / enterprise
     active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    last_used = Column(DateTime, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), default=_utcnow)
+    last_used = Column(TIMESTAMP(timezone=True), nullable=True)
     rotated_from = Column(String(128), nullable=True)  # Previous key hash (for rotation audit trail)
 
 
@@ -55,7 +60,7 @@ class Batch(Base):
     status = Column(String(32), default="pending")  # pending / anchored / failed
     attestation_uid = Column(String(128), nullable=True)
     eas_tx_hash = Column(String(128), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(TIMESTAMP(timezone=True), default=_utcnow)
 
     __table_args__ = (
         Index("ix_batches_status_created", "status", "created_at"),
