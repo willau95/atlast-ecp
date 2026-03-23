@@ -3,7 +3,7 @@ Additional database models for ATLAST ECP Server.
 API Keys, Agents, and Batch records for direct SDK → Server path.
 """
 
-from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text, Index, JSON
+from sqlalchemy import Column, String, Integer, BigInteger, Float, Boolean, DateTime, Text, Index, JSON
 from datetime import datetime, timezone
 
 from .database import Base
@@ -46,7 +46,7 @@ class Batch(Base):
     merkle_root = Column(String(128), nullable=False)
     record_count = Column(Integer, nullable=False, default=0)
     avg_latency_ms = Column(Integer, default=0)
-    batch_ts = Column(Integer, nullable=False)  # Unix ms
+    batch_ts = Column(BigInteger, nullable=False)  # Unix ms (needs BigInteger: >2^31)
     sig = Column(String(256), nullable=False)
     ecp_version = Column(String(16), default="0.1")
     record_hashes = Column(JSON, nullable=True)
