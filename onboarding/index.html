@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATLAST Protocol — Get Started</title>
+  <style>
+    :root { --bg:#0a0a0a; --bg2:#111; --accent:#00ff88; --text:#e0e0e0; --dim:#777; --border:#222; --r:8px; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'SF Mono','Fira Code','Consolas',monospace;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+
+    /* Progress */
+    .progress{display:flex;gap:8px;padding:24px 0;justify-content:center;position:fixed;top:0;width:100%;background:var(--bg);z-index:10}
+    .step-dot{width:36px;height:4px;border-radius:2px;background:var(--border);transition:background 0.3s}
+    .step-dot.done{background:var(--accent)} .step-dot.current{background:var(--accent);box-shadow:0 0 8px rgba(0,255,136,0.4)}
+
+    /* Container */
+    .container{max-width:640px;width:100%;padding:80px 24px 40px;min-height:100vh;display:flex;flex-direction:column;justify-content:center}
+    .step{display:none;animation:fadeIn 0.3s ease} .step.active{display:block}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+    /* Typography */
+    h1{font-size:2rem;color:#fff;margin-bottom:12px;font-weight:500}
+    h2{font-size:1.3rem;color:#fff;margin-bottom:16px;font-weight:500}
+    p{line-height:1.6;margin-bottom:16px;font-size:0.9rem}
+    .hero-icon{font-size:4rem;margin-bottom:20px}
+    .subtitle{color:var(--dim);font-size:0.85rem}
+
+    /* Bullets */
+    .features{list-style:none;margin:24px 0}
+    .features li{padding:12px 0;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center;font-size:0.9rem}
+    .features li span:first-child{color:var(--accent);font-size:1.1rem;width:24px;text-align:center}
+
+    /* Code */
+    .code-block{position:relative;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;margin:12px 0;font-size:0.82rem;line-height:1.7;overflow-x:auto;white-space:pre}
+    .code-label{font-size:0.7rem;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+    .copy-btn{position:absolute;top:8px;right:8px;padding:4px 10px;background:var(--border);border:none;color:var(--dim);border-radius:4px;cursor:pointer;font-family:inherit;font-size:0.7rem}
+    .copy-btn:hover{color:var(--accent);background:#1a1a1a}
+    .copy-btn.copied{color:var(--accent)}
+
+    /* Buttons */
+    .btn{display:inline-block;padding:14px 28px;border-radius:var(--r);font-family:inherit;font-size:0.9rem;cursor:pointer;transition:all 0.2s;border:none}
+    .btn-primary{background:var(--accent);color:#000;font-weight:600} .btn-primary:hover{opacity:0.85}
+    .btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text)} .btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+    .btn-row{display:flex;gap:12px;margin-top:28px;align-items:center}
+
+    /* Key display */
+    .key-display{background:#0a1a10;border:2px solid var(--accent);border-radius:var(--r);padding:20px;text-align:center;margin:20px 0}
+    .key-display .key{font-size:1.1rem;color:var(--accent);word-break:break-all;margin:8px 0}
+    .key-display .warn{color:#ffaa00;font-size:0.8rem;margin-top:8px}
+
+    /* Tabs */
+    .tabs{display:flex;gap:0;margin-bottom:0}
+    .tab{padding:10px 20px;background:var(--bg);border:1px solid var(--border);border-bottom:none;cursor:pointer;color:var(--dim);font-size:0.8rem;border-radius:var(--r) var(--r) 0 0}
+    .tab.active{background:var(--bg2);color:var(--accent);border-color:var(--border)}
+    .tab-content{display:none} .tab-content.active{display:block}
+
+    /* Celebration */
+    .celebration{text-align:center;padding:40px 0}
+    .celebration h1{font-size:2.5rem}
+    .links{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:24px 0}
+    .link-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;text-align:center;transition:border-color 0.2s}
+    .link-card:hover{border-color:var(--accent);text-decoration:none}
+    .link-card .icon{font-size:1.5rem;margin-bottom:8px}
+    .link-card .label{font-size:0.85rem;color:var(--text)}
+
+    /* Input */
+    input[type=text]{width:100%;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:0.85rem;outline:none;margin:8px 0}
+    input:focus{border-color:var(--accent)}
+    .status-msg{font-size:0.82rem;margin-top:8px}
+    .status-msg.ok{color:var(--accent)} .status-msg.err{color:#ff4444}
+
+    @media(max-width:600px){.links{grid-template-columns:1fr}h1{font-size:1.5rem}.container{padding:70px 16px 24px}}
+  </style>
+</head>
+<body>
+  <!-- Progress Bar -->
+  <div class="progress" id="progress"></div>
+
+  <div class="container">
+    <!-- Step 1: Welcome -->
+    <div class="step active" data-step="1">
+      <div class="hero-icon">◈</div>
+      <h1>Welcome to ATLAST Protocol</h1>
+      <p class="subtitle">The trust infrastructure for the AI Agent economy</p>
+      <ul class="features">
+        <li><span>◎</span> <strong>Record</strong> — Create tamper-proof evidence chains for every AI agent action</li>
+        <li><span>⟠</span> <strong>Verify</strong> — Cryptographic hashes + on-chain anchoring ensure integrity</li>
+        <li><span>◈</span> <strong>Trust</strong> — Build verifiable reputation that compounds over time</li>
+      </ul>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="goStep(2)">Get Started →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Install -->
+    <div class="step" data-step="2">
+      <h2>① Install the SDK</h2>
+      <p>Choose your language and install with one command:</p>
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('python',this)">Python</div>
+        <div class="tab" onclick="switchTab('typescript',this)">TypeScript</div>
+      </div>
+      <div class="tab-content active" id="tab-python">
+        <div class="code-block">pip install atlast-ecp<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <p style="font-size:0.8rem;color:var(--dim)">Requires Python 3.10+</p>
+      </div>
+      <div class="tab-content" id="tab-typescript">
+        <div class="code-block">npm install atlast-ecp-ts<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <p style="font-size:0.8rem;color:var(--dim)">Requires Node.js 18+</p>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(3)">Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Initialize -->
+    <div class="step" data-step="3">
+      <h2>② Initialize Your Identity</h2>
+      <p>Run the init command to create your cryptographic identity:</p>
+      <div class="code-block">atlast init<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <p>This creates <code>~/.atlast/</code> with:</p>
+      <ul class="features">
+        <li><span>🔑</span> <strong>Ed25519 keypair</strong> — Your agent's cryptographic identity</li>
+        <li><span>🆔</span> <strong>DID</strong> — Decentralized Identifier (did:ecp:...)</li>
+        <li><span>⚙️</span> <strong>Config</strong> — Server endpoint and preferences</li>
+      </ul>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(2)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(4)">Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Register -->
+    <div class="step" data-step="4">
+      <h2>③ Register & Get API Key</h2>
+      <p>Register your agent with the ATLAST server to get an API key:</p>
+      <div class="code-block">atlast register<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <p>Or register manually — enter your DID and public key:</p>
+      <input type="text" id="reg-did" placeholder="did:ecp:...">
+      <input type="text" id="reg-pubkey" placeholder="Public key (hex)">
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="doRegister()" id="reg-btn">Register Agent</button>
+      </div>
+      <div id="reg-result"></div>
+      <div class="btn-row" style="margin-top:20px">
+        <button class="btn btn-secondary" onclick="goStep(3)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(5)">Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 5: First Record -->
+    <div class="step" data-step="5">
+      <h2>④ Create Your First Record</h2>
+      <p>Record an evidence chain entry with just 2 lines:</p>
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab2('py',this)">Python</div>
+        <div class="tab" onclick="switchTab2('ts',this)">TypeScript</div>
+      </div>
+      <div class="tab-content active" id="tab2-py">
+        <div class="code-block">from atlast_ecp.core import record
+
+# That's it — content is hashed locally, never leaves your device
+record_id = record("What is 2+2?", "The answer is 4")<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      </div>
+      <div class="tab-content" id="tab2-ts">
+        <div class="code-block">import { record } from 'atlast-ecp-ts';
+
+const recordId = record('What is 2+2?', 'The answer is 4');<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      </div>
+      <p style="margin-top:16px">What happens under the hood:</p>
+      <ul class="features">
+        <li><span>1</span> Content is SHA-256 hashed locally</li>
+        <li><span>2</span> Record is signed with your Ed25519 key</li>
+        <li><span>3</span> Chain hash links to previous record</li>
+        <li><span>4</span> Saved to local <code>~/.ecp/records/</code></li>
+        <li><span>5</span> Queued for batch upload to server</li>
+      </ul>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(4)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(6)">Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 6: Verify -->
+    <div class="step" data-step="6">
+      <h2>⑤ Verify Your Chain</h2>
+      <p>Check your evidence chain integrity anytime:</p>
+      <div class="code-block">atlast log          # View recent records
+atlast stats        # Chain stats + integrity check
+atlast inspect &lt;id&gt; # Detailed record view<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <p>Or verify on-chain:</p>
+      <ul class="features">
+        <li><span>🔗</span> Records are batched and anchored to <strong>Base</strong> via EAS</li>
+        <li><span>✅</span> Verify at <a href="../verify/" target="_blank">verify.weba0.com</a></li>
+        <li><span>📊</span> Track everything in the <a href="../dashboard/" target="_blank">Dashboard</a></li>
+      </ul>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(5)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(7)">Finish →</button>
+      </div>
+    </div>
+
+    <!-- Step 7: Done -->
+    <div class="step" data-step="7">
+      <div class="celebration">
+        <div class="hero-icon">🎉</div>
+        <h1>You're All Set!</h1>
+        <p class="subtitle">Your agent now has a verifiable evidence chain</p>
+      </div>
+      <div class="links">
+        <a href="https://willau95.github.io/atlast-ecp/" target="_blank" class="link-card">
+          <div class="icon">📚</div>
+          <div class="label">Documentation</div>
+        </a>
+        <a href="../dashboard/" class="link-card">
+          <div class="icon">📊</div>
+          <div class="label">Dashboard</div>
+        </a>
+        <a href="../verify/" class="link-card">
+          <div class="icon">✅</div>
+          <div class="label">Verify Records</div>
+        </a>
+        <a href="https://github.com/willau95/atlast-ecp" target="_blank" class="link-card">
+          <div class="icon">⭐</div>
+          <div class="label">GitHub</div>
+        </a>
+      </div>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn btn-secondary" onclick="goStep(1)">← Start Over</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TOTAL_STEPS = 7;
+    let currentStep = 1;
+    const API_URL = 'https://api.weba0.com/v1';
+
+    function initProgress() {
+      const el = document.getElementById('progress');
+      el.innerHTML = Array.from({length: TOTAL_STEPS}, (_, i) =>
+        `<div class="step-dot" data-s="${i+1}"></div>`
+      ).join('');
+      updateProgress();
+    }
+
+    function updateProgress() {
+      document.querySelectorAll('.step-dot').forEach(d => {
+        const s = +d.dataset.s;
+        d.className = 'step-dot' + (s < currentStep ? ' done' : s === currentStep ? ' current' : '');
+      });
+    }
+
+    function goStep(n) {
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.querySelector(`.step[data-step="${n}"]`).classList.add('active');
+      currentStep = n;
+      updateProgress();
+      window.scrollTo(0, 0);
+    }
+
+    function switchTab(lang, tabEl) {
+      tabEl.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tabEl.classList.add('active');
+      document.getElementById('tab-python').classList.toggle('active', lang === 'python');
+      document.getElementById('tab-typescript').classList.toggle('active', lang === 'typescript');
+    }
+
+    function switchTab2(lang, tabEl) {
+      tabEl.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tabEl.classList.add('active');
+      document.getElementById('tab2-py').classList.toggle('active', lang === 'py');
+      document.getElementById('tab2-ts').classList.toggle('active', lang === 'ts');
+    }
+
+    function copyCode(btn) {
+      const code = btn.parentElement.textContent.replace('Copy', '').replace('Copied!', '').trim();
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = 'Copied!'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+      });
+    }
+
+    async function doRegister() {
+      const did = document.getElementById('reg-did').value.trim();
+      const pubkey = document.getElementById('reg-pubkey').value.trim();
+      const result = document.getElementById('reg-result');
+      const btn = document.getElementById('reg-btn');
+
+      if (!did || !pubkey) { result.innerHTML = '<p class="status-msg err">Please enter both DID and public key</p>'; return; }
+
+      btn.disabled = true; btn.textContent = 'Registering...';
+      try {
+        const res = await fetch(`${API_URL}/agents/register`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ did, public_key: pubkey })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || data.error || res.statusText);
+
+        const key = data.api_key || data.key;
+        result.innerHTML = `
+          <div class="key-display">
+            <p style="font-size:0.8rem;color:var(--dim)">Your API Key</p>
+            <div class="key">${key}</div>
+            <button class="copy-btn" onclick="navigator.clipboard.writeText('${key}');this.textContent='Copied!'" style="position:static;margin-top:8px">Copy Key</button>
+            <p class="warn">⚠️ Save this key now — it won't be shown again!</p>
+          </div>`;
+      } catch (e) {
+        result.innerHTML = `<p class="status-msg err">Registration failed: ${e.message}</p>`;
+      } finally {
+        btn.disabled = false; btn.textContent = 'Register Agent';
+      }
+    }
+
+    initProgress();
+  </script>
+</body>
+</html>
