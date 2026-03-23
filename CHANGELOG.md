@@ -2,6 +2,35 @@
 
 All notable changes to the ATLAST ECP SDK and Server.
 
+## [0.9.0] — 2026-03-24 (Production Launch — All Rounds Complete)
+
+### Added
+- **P1 Cloud Backup**: BIP39 12-word mnemonic recovery, AES-256-GCM encrypted vault backup, `atlast recover` CLI, auto-detect iCloud/Dropbox
+- **P4 Base Mainnet**: EAS deployment LIVE on Base (chain_id 8453), first mainnet attestation
+- **P7 Dashboard v0.1**: Static dashboard deployed to GitHub Pages
+- **P8 Onboarding flow**: Interactive onboarding page
+- **P9 Docs site**: VitePress 22-page documentation at docs.weba0.com
+- **P6 Web verify page**: Zero-dependency SPA for batch/attestation verification
+- **ST3 Stability test**: 24h long-running stability test script
+- **Cross-SDK interop**: 14/14 tests (Python↔TS hash+merkle identical)
+- Server `GET /v1/agents/{did}/records` endpoint for record sync
+- GitHub Pages CI deployment for docs + dashboard + onboarding + verify
+- Custom domain docs.weba0.com with base path routing
+- Production stress tests ST1-ST4 all passing
+- Content Vault + Proof Package + `atlast inspect/proof` CLI commands
+
+### Fixed
+- `batch_ts` Integer→BigInteger (Unix ms exceeds int32)
+- `DateTime→TIMESTAMP(timezone=True)` for asyncpg tz-aware compat
+- mypy langchain.py callback signatures updated for latest langchain-core
+- Server tests importable from repo root (conftest.py sys.path fix)
+- verify.weba0.com consolidated into docs.weba0.com/verify/
+
+### Changed
+- EAS chain switched from Sepolia to Base Mainnet
+- SDK retry with exponential backoff (3 attempts)
+- API Key management + direct batch upload on ECP Server
+
 ## [0.8.1] — 2026-03-23 (Phase 7 — Deep Audit + Quality)
 
 ### Fixed
