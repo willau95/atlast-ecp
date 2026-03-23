@@ -1,4 +1,4 @@
-name: Deploy Docs + Verify to GitHub Pages
+name: Deploy Docs + Verify + Dashboard + Onboarding to GitHub Pages
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
     paths:
       - 'docs-site/**'
       - 'verify-page/**'
+      - 'verify/**'
+      - 'dashboard/**'
+      - 'onboarding/**'
   workflow_dispatch:
 
 permissions:
@@ -35,7 +38,15 @@ jobs:
           mkdir -p _site
           cp -r docs-site/.vitepress/dist/* _site/
           mkdir -p _site/verify
-          cp verify-page/index.html _site/verify/
+          # verify-page (legacy) or verify/ folder
+          cp verify-page/index.html _site/verify/ 2>/dev/null || true
+          cp verify/index.html _site/verify/ 2>/dev/null || true
+          # Dashboard
+          mkdir -p _site/dashboard
+          cp dashboard/* _site/dashboard/
+          # Onboarding
+          mkdir -p _site/onboarding
+          cp onboarding/* _site/onboarding/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
