@@ -45,11 +45,66 @@ async def _save_attestation(batch: dict, attestation_uid: str, eas_tx_hash: str 
         logger.warning("db_save_failed", batch_id=batch.get("batch_id"), error=str(e))
 
 
+async def _get_local_pending_batches() -> list[dict]:
+    """Fetch pending batches from local DB (direct SDK uploads)."""
+    try:
+        session = await get_session()
+        if session is None:
+            return []
+        from sqlalchemy import select
+        from ..db.models import Batch
+        async with session:
+            result = await session.execute(
+                select(Batch).where(Batch.status == "pending").order_by(Batch.created_at).limit(50)
+            )
+            rows = result.scalars().all()
+            return [{
+                "batch_id": r.batch_id,
+                "agent_did": r.agent_did,
+                "merkle_root": r.merkle_root,
+                "record_count": r.record_count,
+                "avg_latency_ms": r.avg_latency_ms,
+                "batch_ts": r.batch_ts,
+                "sig": r.sig,
+                "_source": "local",
+            } for r in rows]
+    except Exception as e:
+        logger.warning("local_pending_fetch_failed", error=str(e))
+        return []
+
+
+async def _mark_local_batch_anchored(batch_id: str, attestation_uid: str, eas_tx_hash: str | None):
+    """Update local batch status to anchored."""
+    try:
+        session = await get_session()
+        if session is None:
+            return
+        from sqlalchemy import select
+        from ..db.models import Batch
+        async with session:
+            result = await session.execute(
+                select(Batch).where(Batch.batch_id == batch_id)
+            )
+            batch = result.scalar_one_or_none()
+            if batch:
+                batch.status = "anchored"
+                batch.attestation_uid = attestation_uid
+                batch.eas_tx_hash = eas_tx_hash
+                await session.commit()
+    except Exception as e:
+        logger.warning("local_batch_update_failed", batch_id=batch_id, error=str(e))
+
+
 async def _anchor_pending():
-    """Core anchor logic — fetch pending batches, anchor to EAS, fire webhooks."""
+    """Core anchor logic — fetch pending batches from LLaChat + local DB, anchor to EAS, fire webhooks."""
     import time as _time
     _anchor_start = _time.time()
-    batches = await get_pending_batches()
+
+    # Fetch from both sources
+    llachat_batches = await get_pending_batches()
+    local_batches = await _get_local_pending_batches()
+    batches = llachat_batches + local_batches
+
     if not batches:
         return {"processed": 0, "anchored": 0, "errors": 0}
 
@@ -70,17 +125,20 @@ async def _anchor_pending():
             attestation_uid = eas_result.get("attestation_uid", "")
             eas_tx_hash = eas_result.get("tx_hash")
 
-            # Step 2: Notify LLaChat that batch is anchored
-            await mark_batch_anchored(
-                batch_id=batch["batch_id"],
-                attestation_uid=attestation_uid,
-                eas_tx_hash=eas_tx_hash,
-            )
+            # Step 2: Mark batch as anchored (local DB or LLaChat depending on source)
+            if batch.get("_source") == "local":
+                await _mark_local_batch_anchored(batch["batch_id"], attestation_uid, eas_tx_hash)
+            else:
+                await mark_batch_anchored(
+                    batch_id=batch["batch_id"],
+                    attestation_uid=attestation_uid,
+                    eas_tx_hash=eas_tx_hash,
+                )
 
-            # Step 3: Persist to local DB
+            # Step 3: Persist to attestations table
             await _save_attestation(batch, attestation_uid, eas_tx_hash)
 
-            # Step 4: Fire webhook to LLaChat (creates cert + feed)
+            # Step 4: Fire webhook (if configured)
             await fire_attestation_webhook(
                 batch_id=batch["batch_id"],
                 agent_did=batch["agent_did"],

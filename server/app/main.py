@@ -190,6 +190,8 @@ from .routes.cron import router as cron_router
 from .routes.verify import router as verify_router
 from .routes.attestations import router as attestations_router
 from .routes.metrics import router as metrics_router
+from .routes.auth import router as auth_router
+from .routes.batches import router as batches_router
 
 app.include_router(health_router)
 app.include_router(discovery_router)
@@ -198,6 +200,8 @@ app.include_router(cron_router)
 app.include_router(verify_router)
 app.include_router(attestations_router)
 app.include_router(metrics_router)
+app.include_router(auth_router)
+app.include_router(batches_router)
 
 # Init stats tracking
 from .routes.verify import init_stats

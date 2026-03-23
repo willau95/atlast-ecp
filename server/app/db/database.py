@@ -83,10 +83,13 @@ async def init_db():
     _engine = create_async_engine(async_url, echo=False, pool_size=5, max_overflow=10)
     _session_factory = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 
+    # Import all models so Base.metadata knows about them
+    from .models import Agent, APIKey, Batch  # noqa: F401
+
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    logger.info("db_initialized", tables=["attestations", "anchor_logs"])
+    logger.info("db_initialized", tables=["attestations", "anchor_logs", "agents", "api_keys", "batches"])
 
 
 async def get_session() -> AsyncSession | None:
