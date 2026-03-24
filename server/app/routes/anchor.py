@@ -14,6 +14,7 @@ from ..services.webhook import fire_attestation_webhook
 from ..db.database import get_session, Attestation
 
 from ..services.merkle import build_super_merkle_tree, get_inclusion_proof
+from ..services.monitoring import capture_error
 import json as json_lib
 import uuid as _uuid
 
@@ -120,7 +121,7 @@ async def _anchor_super_batch(batches: list[dict], _anchor_start: float) -> dict
         attestation_uid = eas_result.get("attestation_uid", "")
         eas_tx_hash = eas_result.get("tx_hash")
     except Exception as e:
-        logger.error("super_batch_eas_failed", error=str(e))
+        capture_error(e, {"context": "super_batch_eas", "batch_count": len(batches)})
         return {"processed": len(batches), "anchored": 0, "errors": len(batches)}
 
     # Store SuperBatch record
@@ -175,7 +176,7 @@ async def _anchor_super_batch(batches: list[dict], _anchor_start: float) -> dict
             )
             anchored += 1
         except Exception as e:
-            logger.warning("super_batch_item_failed", batch_id=batch.get("batch_id"), error=str(e))
+            capture_error(e, {"context": "super_batch_item", "batch_id": batch.get("batch_id")})
             errors += 1
 
     # Stats + logs
@@ -267,7 +268,7 @@ async def _anchor_pending():
 
             anchored += 1
         except Exception as e:
-            logger.warning("anchor_batch_failed", batch_id=batch.get("batch_id"), error=str(e))
+            capture_error(e, {"context": "anchor_batch", "batch_id": batch.get("batch_id")})
             errors += 1
 
     # Update global stats

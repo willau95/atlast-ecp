@@ -1,0 +1,45 @@
+name: Production Smoke Test
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * *'  # Daily at 00:00 UTC
+  workflow_dispatch:
+
+jobs:
+  smoke-production:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health check
+        run: |
+          STATUS=$(curl -sf https://api.weba0.com/v1/health | jq -r '.status')
+          echo "Health status: $STATUS"
+          [ "$STATUS" = "healthy" ] || { echo "❌ Health check failed"; exit 1; }
+
+      - name: Discovery endpoint
+        run: |
+          SCHEMA=$(curl -sf https://api.weba0.com/.well-known/ecp.json | jq -r '.schema_uid')
+          EXPECTED="0xa67da7e880b3fe643f0e12b754c6048fc0a0bad0ed9a932ac85a5ebf6bd9326e"
+          echo "Schema UID: $SCHEMA"
+          [ "$SCHEMA" = "$EXPECTED" ] || { echo "❌ Schema UID mismatch"; exit 1; }
+
+      - name: Stats endpoint
+        run: |
+          curl -sf https://api.weba0.com/v1/stats | jq .
+          echo "✅ Stats endpoint OK"
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install SDK
+        run: pip install -e "sdk/python/[dev]"
+      - name: Run Python SDK tests
+        run: pytest sdk/python/tests/ -q --tb=short

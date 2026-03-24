@@ -82,9 +82,9 @@ async def _scheduled_anchor():
         from .routes.metrics import cron_failures
         cron_failures.set(_cron_state["consecutive_failures"])
         logger.error("cron_anchor_failed", error=str(e), consecutive=_cron_state["consecutive_failures"])
-        if _cron_state["consecutive_failures"] >= 3 and settings.SENTRY_DSN:
-            import sentry_sdk
-            sentry_sdk.capture_exception(e)
+        if _cron_state["consecutive_failures"] >= 3:
+            from .services.monitoring import capture_error
+            capture_error(e, {"context": "cron_anchor", "consecutive": _cron_state["consecutive_failures"]})
 
 
 # ── Lifespan ────────────────────────────────────────────────────────────────
@@ -179,6 +179,15 @@ async def limit_request_size(request: Request, call_next):
         from fastapi.responses import JSONResponse
         return JSONResponse(status_code=413, content={"detail": "Request body too large"})
     return await call_next(request)
+
+
+# ── Global Exception Handler ────────────────────────────────────────────────
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    from .services.monitoring import capture_error
+    capture_error(exc, {"context": "unhandled", "path": str(request.url), "method": request.method})
+    return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 
 # ── Routes ──────────────────────────────────────────────────────────────────

@@ -1,36 +1,30 @@
 ---
 name: Bug Report
-about: Report a bug in ECP SDK, CLI, Proxy, or Reference Server
-title: "[Bug] "
-labels: bug
-assignees: ''
+description: Report a bug in ATLAST ECP
+labels: [bug]
 ---
 
-**Component** (check one):
-- [ ] Python SDK (`atlast-ecp`)
-- [ ] TypeScript SDK (`@atlast/sdk`)
-- [ ] CLI (`atlast` command)
-- [ ] Proxy (`atlast proxy` / `atlast run`)
-- [ ] Reference Server (`server/`)
-- [ ] Other
+## Describe the bug
 
-**ECP Version**: <!-- e.g. 0.6.1 -->
-**Python/Node Version**: <!-- e.g. Python 3.12, Node 20 -->
-**OS**: <!-- e.g. macOS 14, Ubuntu 22.04 -->
+<!-- A clear description of what the bug is -->
 
-## Description
-<!-- Clear description of the bug -->
+## To Reproduce
 
-## Steps to Reproduce
-1. 
-2. 
-3. 
+1. ...
+2. ...
+3. ...
 
-## Expected Behavior
-<!-- What should happen -->
+## Expected behavior
 
-## Actual Behavior
-<!-- What actually happens. Include error messages/tracebacks. -->
+<!-- What you expected to happen -->
 
-## ECP Record Level
-<!-- Which spec level are you using? L1 (Core) / L2 (Metadata) / L3 (Chain) / L4 (Identity) / L5 (Anchor) -->
+## Environment
+
+- SDK version: <!-- e.g., atlast-ecp 0.9.0 -->
+- Python/Node version: <!-- e.g., Python 3.12 -->
+- OS: <!-- e.g., macOS 14.3 -->
+- Server URL: <!-- e.g., https://api.weba0.com -->
+
+## Additional context
+
+<!-- Logs, screenshots, ECP record IDs, etc. -->

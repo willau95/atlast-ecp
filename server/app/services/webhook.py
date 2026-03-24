@@ -104,7 +104,9 @@ async def fire_attestation_webhook(
                 wait = 2 ** attempt  # 1s, 2s
                 await asyncio.sleep(wait)
 
-    logger.error("ecp_webhook_exhausted", batch_id=batch_id, attempts=max_retries)
+    from .monitoring import capture_error
+    err = RuntimeError(f"Webhook exhausted after {max_retries} attempts for {batch_id}")
+    capture_error(err, {"context": "webhook", "batch_id": batch_id, "url": url})
     from ..routes.metrics import webhook_total
     webhook_total.labels(status="failed").inc()
     return False

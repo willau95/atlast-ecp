@@ -50,8 +50,8 @@ async def write_attestation(
         )
     except Exception as e:
         # Fail-Open: fall back to stub if live fails
-        import traceback
-        print(f"EAS LIVE ERROR: {e}\n{traceback.format_exc()}")
+        from .monitoring import capture_error
+        capture_error(e, {"context": "eas_live_attestation", "merkle_root": merkle_root, "agent_did": agent_did})
         result = await _stub_attestation(merkle_root, agent_did, record_count, batch_ts)
         result["mode"] = "fallback_stub"
         result["error"] = str(e)
