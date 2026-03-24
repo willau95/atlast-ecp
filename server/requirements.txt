@@ -13,3 +13,4 @@ sqlalchemy[asyncio]>=2.0.0
 asyncpg>=0.29.0
 sentry-sdk[fastapi]==2.18.0
 prometheus-client==0.21.0
+aiosqlite>=0.20.0
