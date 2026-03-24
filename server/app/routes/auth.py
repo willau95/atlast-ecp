@@ -12,7 +12,7 @@ import hashlib
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Request
 from pydantic import BaseModel
 import structlog
 
@@ -81,11 +81,15 @@ class RegisterResponse(BaseModel):
 
 
 @router.post("/v1/agents/register", response_model=RegisterResponse)
-async def register_agent(req: RegisterRequest):
+async def register_agent(req: RegisterRequest, request: Request):
     """
     Register a new agent and return an API key.
     Idempotent: if agent already exists, returns a new API key (old ones stay valid).
     """
+    # Validate DID format
+    if not req.did or not req.did.startswith("did:ecp:"):
+        raise HTTPException(status_code=422, detail="Invalid DID format. Expected: did:ecp:{hex}")
+
     session = await get_session()
     if session is None:
         raise HTTPException(status_code=503, detail="Database not available")

@@ -43,19 +43,11 @@ async def write_attestation(
     if settings.EAS_STUB_MODE == "true":
         return await _stub_attestation(merkle_root, agent_did, record_count, batch_ts)
 
-    try:
-        return await _live_attestation(
-            merkle_root, agent_did, record_count,
-            avg_latency_ms, batch_ts, ecp_version,
-        )
-    except Exception as e:
-        # Fail-Open: fall back to stub if live fails
-        from .monitoring import capture_error
-        capture_error(e, {"context": "eas_live_attestation", "merkle_root": merkle_root, "agent_did": agent_did})
-        result = await _stub_attestation(merkle_root, agent_did, record_count, batch_ts)
-        result["mode"] = "fallback_stub"
-        result["error"] = str(e)
-        return result
+    # Production: no fallback to stub. Failure = raise → batch stays pending for retry.
+    return await _live_attestation(
+        merkle_root, agent_did, record_count,
+        avg_latency_ms, batch_ts, ecp_version,
+    )
 
 
 async def _stub_attestation(
@@ -133,6 +125,10 @@ async def _live_attestation(
     import asyncio
     loop = asyncio.get_event_loop()
 
+    # Get coordinated nonce (prevents concurrent tx conflicts)
+    from .anchor_coordinator import get_next_nonce, record_successful_nonce
+    coordinated_nonce = await get_next_nonce()
+
     def _send_tx():
         # Build raw calldata (web3.py ABI encoder has issues with nested tuples)
         from web3 import Web3 as W3
@@ -144,12 +140,13 @@ async def _live_attestation(
             [(schema_b, ('0x0000000000000000000000000000000000000000', 0, True, b'\x00'*32, encoded_data, 0))]
         )
 
+        nonce = coordinated_nonce if coordinated_nonce is not None else w3.eth.get_transaction_count(account.address)
         base_fee = w3.eth.get_block('latest').baseFeePerGas
         tx = {
             "from": account.address,
             "to": EAS_CONTRACT,
             "data": calldata,
-            "nonce": w3.eth.get_transaction_count(account.address),
+            "nonce": nonce,
             "gas": 500000,
             "maxFeePerGas": base_fee * 3,
             "maxPriorityFeePerGas": w3.to_wei(0.001, 'gwei'),
@@ -160,9 +157,12 @@ async def _live_attestation(
         signed = account.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
-        return tx_hash, receipt
+        return tx_hash, receipt, nonce
 
-    tx_hash, receipt = await loop.run_in_executor(None, _send_tx)
+    tx_hash, receipt, used_nonce = await loop.run_in_executor(None, _send_tx)
+
+    # Record successful nonce for coordination
+    await record_successful_nonce(used_nonce, f"0x{tx_hash.hex()}")
     tx_hash_hex = f"0x{tx_hash.hex()}"
 
     if receipt['status'] != 1:

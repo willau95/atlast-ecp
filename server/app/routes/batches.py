@@ -67,15 +67,18 @@ async def upload_batch(
                 )
         except HTTPException as e:
             if e.status_code == 503:
-                # DB not available — accept without auth (Fail-Open for early adoption)
-                logger.warning("batch_upload_no_auth_db_unavailable", did=req.agent_did)
-            else:
-                raise
+                # DB not available — reject (fail-closed)
+                raise HTTPException(status_code=503, detail="Database not available, cannot verify auth")
+            raise
     else:
-        # No API key — accept in non-production (permissive for early adoption)
+        # No API key — reject in production (fail-closed)
         if settings.ENVIRONMENT == "production":
-            # In production, log warning but still accept (Fail-Open for SDK adoption)
-            logger.warning("batch_upload_no_api_key", did=req.agent_did)
+            raise HTTPException(
+                status_code=401,
+                detail="API key required. Register at POST /v1/agents/register first.",
+            )
+        # Non-production: accept without auth for local development
+        logger.warning("batch_upload_no_api_key_dev", did=req.agent_did)
 
     # Generate batch_id
     batch_id = f"batch_{secrets.token_hex(8)}"

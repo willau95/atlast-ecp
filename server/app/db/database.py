@@ -101,7 +101,7 @@ async def init_db():
     _session_factory = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 
     # Import all models so Base.metadata knows about them
-    from .models import Agent, APIKey, Batch  # noqa: F401
+    from .models import Agent, APIKey, Batch, AnchorLock, AnchorState  # noqa: F401
 
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -121,6 +121,10 @@ async def _run_migrations():
         "ALTER TABLE attestations ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC'",
         "ALTER TABLE attestations ALTER COLUMN anchored_at TYPE TIMESTAMPTZ USING anchored_at AT TIME ZONE 'UTC'",
         "ALTER TABLE anchor_logs ALTER COLUMN run_at TYPE TIMESTAMPTZ USING run_at AT TIME ZONE 'UTC'",
+        # v1.1.0: Batch retry tracking
+        "ALTER TABLE batches ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0",
+        "ALTER TABLE batches ADD COLUMN IF NOT EXISTS last_retry_at TIMESTAMPTZ",
+        "ALTER TABLE batches ADD COLUMN IF NOT EXISTS error_message TEXT",
     ]
     async with _engine.begin() as conn:
         for sql in migrations:

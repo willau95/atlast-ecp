@@ -10,6 +10,27 @@ from datetime import datetime, timezone
 from .database import Base
 
 
+class AnchorLock(Base):
+    """Distributed lock for anchor coordination — prevents concurrent anchoring."""
+    __tablename__ = "anchor_lock"
+
+    id = Column(String(32), primary_key=True, default="singleton")
+    instance_id = Column(String(64), nullable=False)
+    acquired_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    ttl_seconds = Column(Integer, default=300)
+
+
+class AnchorState(Base):
+    """Persistent anchor state — nonce tracking."""
+    __tablename__ = "anchor_state"
+
+    id = Column(String(32), primary_key=True, default="singleton")
+    last_nonce = Column(Integer, nullable=True)
+    last_tx_hash = Column(String(128), nullable=True)
+    last_success_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    wallet_balance_wei = Column(String(64), nullable=True)
+
+
 def _utcnow():
     return datetime.now(timezone.utc)
 
@@ -60,6 +81,9 @@ class Batch(Base):
     status = Column(String(32), default="pending")  # pending / anchored / failed
     attestation_uid = Column(String(128), nullable=True)
     eas_tx_hash = Column(String(128), nullable=True)
+    retry_count = Column(Integer, default=0)
+    last_retry_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), default=_utcnow)
 
     __table_args__ = (
