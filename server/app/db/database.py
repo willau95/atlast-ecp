@@ -32,7 +32,7 @@ class Attestation(Base):
     agent_did = Column(String(128), nullable=False, index=True)
     merkle_root = Column(String(128), nullable=False)
     record_count = Column(Integer, nullable=False, default=0)
-    attestation_uid = Column(String(128), unique=True, nullable=True, index=True)
+    attestation_uid = Column(String(128), nullable=True, index=True)  # not unique: super-batch shares UID
     eas_tx_hash = Column(String(128), nullable=True)
     schema_uid = Column(String(128), nullable=True)
     chain_id = Column(Integer, nullable=True)

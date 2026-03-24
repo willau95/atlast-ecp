@@ -40,7 +40,11 @@ async def setup_test_db():
 
     # Monkey-patch get_session to use our test DB
     original_get_session = db_module.get_session
-    db_module.get_session = lambda: session_factory()
+
+    async def _test_get_session():
+        return session_factory()
+
+    db_module.get_session = _test_get_session
     db_module._engine = engine
     db_module._session_factory = session_factory
 
