@@ -134,9 +134,58 @@ async def get_agent_stats(did: str):
             .where(Batch.agent_did == did, Batch.status == "anchored")
         )).scalar() or 0
     
+    # Include drift status
+    from ..services.drift import compute_drift
+    drift = await compute_drift(did)
+
     return {
         "did": did,
         "created_at": agent.created_at.isoformat() if agent.created_at else None,
         "total_batches": batch_count,
         "anchored_batches": anchored_count,
+        "drift_status": {
+            "drift_score": drift.drift_score,
+            "drift_detected": drift.drift_detected,
+            "changed_dimensions": [d.name for d in drift.changed_dimensions],
+        },
+    }
+
+
+@router.get("/v1/agents/{did}/drift")
+async def get_agent_drift(did: str):
+    """Get detailed behavioral drift analysis for an agent."""
+    session = await get_session()
+    if session is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    from sqlalchemy import select
+    async with session:
+        agent = (await session.execute(
+            select(Agent).where(Agent.did == did)
+        )).scalar_one_or_none()
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+
+    from ..services.drift import compute_drift
+    drift = await compute_drift(did)
+
+    return {
+        "did": did,
+        "drift_score": drift.drift_score,
+        "drift_detected": drift.drift_detected,
+        "changed_dimensions": [
+            {
+                "name": d.name,
+                "baseline_mean": d.baseline_mean,
+                "baseline_std": d.baseline_std,
+                "current_mean": d.current_mean,
+                "z_score": d.z_score,
+                "drifted": d.drifted,
+            }
+            for d in drift.changed_dimensions
+        ],
+        "baseline_window": drift.baseline_window,
+        "current_window": drift.current_window,
+        "total_batches": drift.total_batches,
+        "error": drift.error,
     }
