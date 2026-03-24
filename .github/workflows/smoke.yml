@@ -15,7 +15,7 @@ jobs:
         run: |
           STATUS=$(curl -sf https://api.weba0.com/v1/health | jq -r '.status')
           echo "Health status: $STATUS"
-          [ "$STATUS" = "healthy" ] || { echo "❌ Health check failed"; exit 1; }
+          [ "$STATUS" = "ok" ] || [ "$STATUS" = "healthy" ] || { echo "❌ Health check failed (got: $STATUS)"; exit 1; }
 
       - name: Discovery endpoint
         run: |
