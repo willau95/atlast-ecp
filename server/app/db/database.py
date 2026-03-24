@@ -10,7 +10,7 @@ ECP Server stores attestation records in Postgres for:
 import structlog
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text, Index
+from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text, Index, TIMESTAMP
 from datetime import datetime, timezone
 
 from ..config import settings
@@ -37,8 +37,8 @@ class Attestation(Base):
     chain_id = Column(Integer, nullable=True)
     on_chain = Column(Boolean, default=False)
     webhook_sent = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    anchored_at = Column(DateTime, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc))
+    anchored_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("ix_attestations_agent_created", "agent_did", "created_at"),
@@ -50,7 +50,7 @@ class AnchorLog(Base):
     __tablename__ = "anchor_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    run_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    run_at = Column(TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc))
     processed = Column(Integer, default=0)
     anchored = Column(Integer, default=0)
     errors = Column(Integer, default=0)
