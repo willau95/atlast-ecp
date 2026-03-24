@@ -1358,6 +1358,22 @@ def cmd_index(args: list[str]):
     print(f"✅ Index built: {count} records")
 
 
+def cmd_demo(args: list[str]):
+    """atlast demo [--days 60] — generate realistic demo data for dashboard"""
+    days = 60
+    for i, a in enumerate(args):
+        if a == "--days" and i + 1 < len(args):
+            days = int(args[i + 1])
+
+    from .demo_data import generate_demo_data
+    print(f"🎲 Generating {days} days of realistic demo data...")
+    count = generate_demo_data(days=days)
+    print(f"✅ Generated {count} records across {days} days")
+    print(f"   Agent: did:ecp:demo_research_agent_001")
+    print(f"   Scenario: Market research agent with drift + error spike around day 30-34")
+    print(f"\n   Now run: atlast dashboard")
+
+
 def cmd_dashboard(args: list[str]):
     """atlast dashboard [--port 3827] [--no-open] — launch local web dashboard"""
     port = 3827
@@ -1469,6 +1485,7 @@ def main():
         "timeline": cmd_timeline,
         "index": cmd_index,
         "dashboard": cmd_dashboard,
+        "demo": cmd_demo,
     }
     commands.update(query_commands)
 

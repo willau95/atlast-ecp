@@ -165,7 +165,7 @@ class TestDashboardServer:
         resp = urllib.request.urlopen(f"http://127.0.0.1:{port}/")
         html = resp.read().decode()
         assert "ATLAST" in html
-        assert "ECP Dashboard" in html
+        assert "Evidence Dashboard" in html
         server.server_close()
 
 
