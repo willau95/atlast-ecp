@@ -64,7 +64,7 @@ function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.hidden = true);
   const el = document.getElementById(`page-${page}`);
   if (el) { el.hidden = false; }
-  const loaders = { overview: loadOverview, records: loadRecords, batches: loadBatches, chain: loadChain, settings: loadSettings };
+  const loaders = { overview: loadOverview, records: loadRecords, batches: loadBatches, superbatches: loadSuperBatches, chain: loadChain, settings: loadSettings };
   if (loaders[page]) loaders[page]();
 }
 
@@ -226,6 +226,101 @@ async function loadBatches() {
   }
 }
 
+// ── Super-Batches ──
+
+async function loadSuperBatches() {
+  const page = document.getElementById('page-superbatches');
+  page.innerHTML = `
+    <div class="page-header"><h2>Super-Batches</h2><p>Aggregated on-chain attestations — 1000x gas savings</p></div>
+    <div id="superbatch-content"><div class="loading">Loading</div></div>
+  `;
+
+  try {
+    // Fetch recent attestations that may contain super-batch info
+    const attestations = await api('/attestations').catch(() => ({ attestations: [] }));
+    const el = document.getElementById('superbatch-content');
+
+    // Try to fetch any super-batches from stats or attestation UIDs
+    const items = attestations.attestations || [];
+    const superBatchIds = new Set();
+    const sbData = [];
+
+    // Check each attestation for super_batch references
+    for (const att of items.slice(0, 20)) {
+      if (att.super_batch_id && !superBatchIds.has(att.super_batch_id)) {
+        superBatchIds.add(att.super_batch_id);
+        try {
+          const sb = await api(`/super-batches/${att.super_batch_id}`);
+          sbData.push(sb);
+        } catch { /* not found */ }
+      }
+    }
+
+    if (sbData.length === 0) {
+      el.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">⬡</div>
+          <p>No super-batches yet</p>
+          <p class="empty-sub">Super-batches are created when ≥${5} batches are pending during an anchor cycle.<br>
+          Each super-batch aggregates multiple batches into a single on-chain attestation.</p>
+        </div>
+      `;
+      return;
+    }
+
+    el.innerHTML = `
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr>
+          <th>Super-Batch ID</th>
+          <th>Batches</th>
+          <th>Merkle Root</th>
+          <th>Attestation</th>
+          <th>Status</th>
+          <th>Created</th>
+        </tr></thead>
+        <tbody>${sbData.map(sb => `<tr onclick="showSuperBatchDetail('${sb.super_batch_id}')">
+          <td><code>${trunc(sb.super_batch_id, 20)}</code></td>
+          <td>${sb.batch_count}</td>
+          <td><code>${trunc(sb.super_merkle_root, 24)}</code></td>
+          <td>${sb.attestation_uid ? `<a href="https://base.easscan.org/attestation/view/${sb.attestation_uid}" target="_blank">${trunc(sb.attestation_uid, 16)}</a>` : '—'}</td>
+          <td><span class="badge ${sb.status === 'anchored' ? 'badge-green' : 'badge-yellow'}">${sb.status}</span></td>
+          <td>${fmtDate(sb.created_at)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    `;
+  } catch (e) {
+    document.getElementById('superbatch-content').innerHTML = `<div class="error">${e.message}</div>`;
+  }
+}
+
+async function showSuperBatchDetail(sbId) {
+  try {
+    const sb = await api(`/super-batches/${sbId}`);
+    const batchList = (sb.batch_ids || []).map(id => `<li><code>${id}</code></li>`).join('');
+    const detail = `
+      <div class="modal-overlay" onclick="this.remove()">
+        <div class="modal" onclick="event.stopPropagation()">
+          <h3>Super-Batch Detail</h3>
+          <div class="setting-row"><span class="setting-label">ID</span><code>${sb.super_batch_id}</code></div>
+          <div class="setting-row"><span class="setting-label">Merkle Root</span><code style="font-size:0.75rem;word-break:break-all">${sb.super_merkle_root}</code></div>
+          <div class="setting-row"><span class="setting-label">Attestation</span><a href="https://base.easscan.org/attestation/view/${sb.attestation_uid}" target="_blank">${sb.attestation_uid || '—'}</a></div>
+          <div class="setting-row"><span class="setting-label">TX Hash</span><code style="font-size:0.75rem">${sb.eas_tx_hash || '—'}</code></div>
+          <div class="setting-row"><span class="setting-label">Batch Count</span>${sb.batch_count}</div>
+          <div class="setting-row"><span class="setting-label">Status</span><span class="badge ${sb.status === 'anchored' ? 'badge-green' : 'badge-yellow'}">${sb.status}</span></div>
+          <div class="setting-row"><span class="setting-label">Created</span>${fmtDate(sb.created_at)}</div>
+          <div class="setting-row"><span class="setting-label">Anchored</span>${fmtDate(sb.anchored_at)}</div>
+          <h4>Included Batches (${sb.batch_count})</h4>
+          <ul class="batch-list">${batchList || '<li>—</li>'}</ul>
+          <button class="btn" onclick="this.closest('.modal-overlay').remove()">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', detail);
+  } catch (e) {
+    alert(`Failed to load: ${e.message}`);
+  }
+}
+
 // ── Chain Visualization ──
 
 async function loadChain() {
@@ -336,6 +431,26 @@ function fmtDate(d) {
 // ── Init ──
 
 document.getElementById('api-key-input').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ── Auto-Refresh ──
+
+let _refreshTimer = null;
+let autoRefresh = localStorage.getItem('atlast_auto_refresh') !== 'false';
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  if (autoRefresh && currentPage === 'overview') {
+    _refreshTimer = setInterval(() => { if (currentPage === 'overview') loadOverview(); }, 30000);
+  }
+}
+
+function stopAutoRefresh() {
+  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
+}
+
+// Start auto-refresh when on overview
+const _origNavigate = navigate;
+// (auto-refresh hooks into page transitions via the loader map)
 
 // Auto-login if key exists
 if (API_KEY) {

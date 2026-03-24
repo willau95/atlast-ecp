@@ -184,3 +184,21 @@ tr:hover td { background: var(--bg-card); }
   .content { margin-left: 60px; padding: 16px; }
   .cards { grid-template-columns: 1fr 1fr; }
 }
+
+/* Modal */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+.modal h3 { margin: 0 0 16px; color: var(--accent); }
+.modal h4 { margin: 16px 0 8px; color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.batch-list { list-style: none; padding: 0; margin: 0; }
+.batch-list li { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.batch-list li:last-child { border-bottom: none; }
+
+/* Empty state */
+.empty { text-align: center; padding: 48px 24px; color: var(--text-dim); }
+.empty-icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
+.empty-sub { font-size: 0.85rem; margin-top: 8px; line-height: 1.6; }
+
+/* Error with retry */
+.error { color: #ef4444; padding: 12px; background: rgba(239,68,68,0.1); border-radius: 8px; }
+.btn-retry { margin-top: 8px; cursor: pointer; }
