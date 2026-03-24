@@ -67,8 +67,8 @@ class TestOpenClawPlugin:
         records = load_records(limit=10)
         assert len(records) >= 1
 
-    def test_record_type_is_turn(self):
-        """OpenClaw records must use 'turn' type (per ECP-SPEC §3.1)."""
+    def test_record_type_is_tool_call(self):
+        """OpenClaw records must use 'tool_call' type (per ECP-SPEC §3.1)."""
         from plugin import on_tool_result
         from atlast_ecp.storage import load_records
 
@@ -80,8 +80,8 @@ class TestOpenClawPlugin:
         time.sleep(0.3)
 
         records = load_records(limit=1)
-        assert records[0]["step"]["type"] == "turn", \
-            f"OpenClaw should use 'turn' type, got: {records[0]['step']['type']}"
+        assert records[0]["step"]["type"] == "tool_call", \
+            f"OpenClaw should use 'tool_call' type, got: {records[0]['step']['type']}"
 
     def test_hash_format(self):
         """Hashes must have sha256: prefix."""
@@ -335,7 +335,7 @@ for r in records:
 
 # Assertions
 assert len(records) == 3, f"Expected 3 records, got {{len(records)}}"
-assert all(r['step']['type'] == 'turn' for r in records), "All should be turn type"
+assert all(r['step']['type'] == 'tool_call' for r in records), "All should be tool_call type"
 assert all(r.get('ecp') == '0.1' for r in records), "All should have ecp=0.1"
 assert all(r['step']['in_hash'].startswith('sha256:') for r in records)
 assert all(r['step']['out_hash'].startswith('sha256:') for r in records)

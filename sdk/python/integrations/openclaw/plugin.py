@@ -69,7 +69,7 @@ def on_tool_result(
         record_async(
             input_content=in_content,
             output_content=str(tool_result),
-            step_type="turn",
+            step_type="tool_call",
             model=kwargs.get("model"),
             tokens_in=kwargs.get("tokens_in"),
             tokens_out=kwargs.get("tokens_out"),
