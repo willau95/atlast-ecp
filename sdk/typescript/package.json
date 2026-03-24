@@ -1,7 +1,7 @@
 {
   "name": "atlast-ecp-ts",
-  "version": "0.2.2",
-  "description": "ATLAST ECP SDK for TypeScript/Node.js — Evidence Chain Protocol for AI agents",
+  "version": "0.3.0",
+  "description": "ATLAST ECP SDK for TypeScript/Node.js \u2014 Evidence Chain Protocol for AI agents",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",

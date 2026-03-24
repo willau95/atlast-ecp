@@ -2,6 +2,34 @@
 
 All notable changes to the ATLAST ECP SDK and Server.
 
+## [0.10.0] — 2026-03-25 (Full Feature Release)
+
+### Added
+- **Query & Audit Engine**: `atlast search`, `atlast audit`, `atlast trace`, `atlast timeline` — full CLI query suite with `--json` for agent consumption
+- **Per-agent Rate Limiting**: Configurable per-agent rate limits on server
+- **Local Web Dashboard**: `atlast dashboard` launches problem-oriented UI at localhost:3827
+  - Overview with auto-detected issues (error spikes, confidence drops, latency anomalies)
+  - Activity tab with agent/error filters
+  - Full-text search across 10 fields (including date, agent)
+  - Evidence chain trace visualization with step-by-step input/output
+  - Click any record to expand vault content
+- **MCP Query Tools**: `atlast-ecp-mcp` stdio server for AI agent integration
+- **Demo Data Generator**: `atlast demo --days 60` creates 2 realistic scenarios (Research Agent + Code Review Agent)
+- **Vault V2 (Proxy)**: Smart deduplication — stores only new content per turn, not full conversation history. 13x storage reduction for long conversations. Government-grade audit trail with SHA-256 hash verification.
+- **Dashboard Test Guide**: `docs/DASHBOARD-TEST-GUIDE.md` with 2 real scenario walkthroughs
+
+### Fixed
+- **Critical: EAS Fail-Closed** — production never generates fake UIDs on EAS failure
+- **Critical: Auth Enforced** — production rejects unauthenticated batch uploads
+- **Critical: Anchor Coordinator** — prevents concurrent anchor races
+- Search now includes date and agent fields — clicking Detected Issue cards correctly filters
+- SQLite search index rebuild (`atlast index`) handles edge cases
+
+### Changed
+- docs/api-reference.md updated: sepolia → base-mainnet (reflects actual production)
+- Python SDK version: 0.9.0 → 0.10.0
+- TypeScript SDK version: 0.2.2 → 0.3.0
+
 ## [0.9.0] — 2026-03-24 (Production Launch — All Rounds Complete)
 
 ### Added

@@ -12,7 +12,7 @@ Health check. Returns server status and version.
 
 **Response:** `200 OK`
 ```json
-{"status": "ok", "version": "1.0.0", "chain": "sepolia"}
+{"status": "ok", "version": "1.0.0", "chain": "base-mainnet"}
 ```
 
 ### `GET /.well-known/ecp.json`
@@ -24,7 +24,7 @@ ECP service discovery. Returns server capabilities, supported endpoints, and sch
   "protocol": "ecp",
   "version": "1.0.0",
   "endpoints": ["health", "stats", "verify", "attestations", "discovery"],
-  "chain": "sepolia",
+  "chain": "base-mainnet",
   "schema_uid": "0xa67da7e..."
 }
 ```
@@ -38,7 +38,7 @@ Global anchoring statistics — total attestations, batches processed, agents re
   "total_attestations": 42,
   "total_batches_processed": 156,
   "total_agents": 12,
-  "chain": "sepolia"
+  "chain": "base-mainnet"
 }
 ```
 
@@ -78,7 +78,7 @@ Check an EAS attestation by UID. Returns attestation details and verification st
   "verified": true,
   "merkle_root": "sha256:...",
   "tx_hash": "0x...",
-  "chain": "sepolia"
+  "chain": "base-mainnet"
 }
 ```
 
