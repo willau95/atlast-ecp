@@ -171,6 +171,107 @@ def _reconstruct_sse_content(chunks: bytes, provider: str) -> str:
         return chunks.decode("utf-8", errors="replace")
 
 
+# ─── Message Extraction (Vault v2) ────────────────────────────────────────────
+
+# Session tracking for system prompt deduplication
+_session_system_prompts: dict[str, str] = {}  # session_id → last system_prompt_hash
+_session_lock = threading.Lock()
+
+
+def _extract_new_content(req_body: bytes, provider: str) -> dict:
+    """
+    Extract only the NEW content from an API request, avoiding duplicate
+    storage of conversation history.
+
+    Returns a dict with:
+      - input: last user message (the new instruction)
+      - system_prompt: system prompt (only if first time or changed)
+      - full_request_hash: SHA-256 of the complete request body (for audit verification)
+      - context_messages_count: total messages in the request
+      - session_id: derived from request content for grouping
+
+    Architecture principle: store new content only, but hash EVERYTHING
+    so auditors can verify completeness via chain reconstruction.
+    """
+    import hashlib
+
+    req_text = req_body.decode("utf-8", errors="replace")
+    full_request_hash = "sha256:" + hashlib.sha256(req_body).hexdigest()
+
+    result = {
+        "input": req_text,  # fallback: store full body if parsing fails
+        "system_prompt": None,
+        "full_request_hash": full_request_hash,
+        "context_messages_count": 0,
+        "session_id": None,
+    }
+
+    try:
+        data = json.loads(req_body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return result
+
+    messages = data.get("messages", [])
+    if not messages:
+        # Not a chat completion (might be embeddings, etc.) — store full body
+        return result
+
+    result["context_messages_count"] = len(messages)
+
+    # Extract system prompt
+    system_parts = []
+    for m in messages:
+        if m.get("role") == "system":
+            content = m.get("content", "")
+            if isinstance(content, list):
+                content = " ".join(
+                    p.get("text", "") if isinstance(p, dict) else str(p)
+                    for p in content
+                )
+            system_parts.append(content)
+
+    system_prompt = "\n".join(system_parts) if system_parts else None
+
+    # Extract the last user message (= the new instruction)
+    last_user_content = None
+    for m in reversed(messages):
+        if m.get("role") == "user":
+            content = m.get("content", "")
+            if isinstance(content, list):
+                # Handle multimodal: text parts only (images are not stored in vault)
+                text_parts = []
+                for p in content:
+                    if isinstance(p, dict) and p.get("type") == "text":
+                        text_parts.append(p.get("text", ""))
+                    elif isinstance(p, str):
+                        text_parts.append(p)
+                content = "\n".join(text_parts)
+            last_user_content = content
+            break
+
+    if last_user_content is not None:
+        result["input"] = last_user_content
+
+    # Derive a session_id from the system prompt + model for grouping
+    model_name = data.get("model", "unknown")
+    session_seed = (system_prompt or "") + ":" + model_name
+    session_id = "sess_" + hashlib.sha256(session_seed.encode()).hexdigest()[:12]
+    result["session_id"] = session_id
+
+    # System prompt deduplication: only include if first time or changed
+    if system_prompt:
+        sp_hash = hashlib.sha256(system_prompt.encode()).hexdigest()
+        with _session_lock:
+            prev_hash = _session_system_prompts.get(session_id)
+            if prev_hash != sp_hash:
+                # First time or changed — store it
+                _session_system_prompts[session_id] = sp_hash
+                result["system_prompt"] = system_prompt
+            # else: same as before — don't store again
+
+    return result
+
+
 # ─── ECP Recording ────────────────────────────────────────────────────────────
 
 def _record_ecp(req_body: bytes, resp_content: str, path: str, provider: str,
@@ -179,10 +280,20 @@ def _record_ecp(req_body: bytes, resp_content: str, path: str, provider: str,
     """Fire-and-forget ECP recording in background thread."""
     def _do_record():
         try:
-            from .core import record_minimal
+            import hashlib
+            from .core import record_minimal_v2
+
             meta_model = model if model != "unknown" else None
-            record_minimal(
-                input_content=req_body.decode("utf-8", errors="replace"),
+
+            # Extract only new content (not repeated history)
+            extracted = _extract_new_content(req_body, provider)
+
+            # Hash the full response for audit verification
+            resp_bytes = resp_content.encode("utf-8") if isinstance(resp_content, str) else resp_content
+            full_response_hash = "sha256:" + hashlib.sha256(resp_bytes).hexdigest()
+
+            record_minimal_v2(
+                input_content=extracted["input"],
                 output_content=resp_content,
                 agent=agent,
                 action=_detect_action(path),
@@ -190,6 +301,16 @@ def _record_ecp(req_body: bytes, resp_content: str, path: str, provider: str,
                 latency_ms=latency_ms,
                 tokens_in=tokens_in,
                 tokens_out=tokens_out,
+                session_id=extracted["session_id"],
+                # Vault v2 metadata
+                vault_extra={
+                    "vault_version": 2,
+                    "system_prompt": extracted["system_prompt"],
+                    "full_request_hash": extracted["full_request_hash"],
+                    "full_response_hash": full_response_hash,
+                    "context_messages_count": extracted["context_messages_count"],
+                    "session_id": extracted["session_id"],
+                },
             )
         except Exception:
             pass  # Fail-Open

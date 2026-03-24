@@ -165,6 +165,71 @@ def save_vault(record_id: str, input_content: str, output_content: str) -> None:
         pass  # Fail-Open: vault save failure never crashes agent
 
 
+def save_vault_v2(record_id: str, input_content: str, output_content: str,
+                   extra: Optional[dict] = None) -> None:
+    """
+    Save vault with v2 structure (Proxy path).
+
+    Stores only NEW content per record. Audit metadata (full_request_hash,
+    system_prompt, context_messages_count) enables complete reconstruction
+    and verification of the original API call via chain traversal.
+
+    Vault v2 file structure:
+      {
+        "record_id": "rec_xxx",
+        "vault_version": 2,
+        "input": "last user message (new content only)",
+        "output": "full assistant response",
+        "system_prompt": "..." or null,
+        "full_request_hash": "sha256:...",
+        "full_response_hash": "sha256:...",
+        "context_messages_count": 8,
+        "session_id": "sess_..."
+      }
+    """
+    try:
+        init_storage()
+        vault_data = {
+            "record_id": record_id,
+            "input": input_content,
+            "output": output_content,
+        }
+
+        if extra:
+            vault_data["vault_version"] = extra.get("vault_version", 2)
+            # Only include system_prompt if present (first time or changed)
+            if extra.get("system_prompt") is not None:
+                vault_data["system_prompt"] = extra["system_prompt"]
+            if extra.get("full_request_hash"):
+                vault_data["full_request_hash"] = extra["full_request_hash"]
+            if extra.get("full_response_hash"):
+                vault_data["full_response_hash"] = extra["full_response_hash"]
+            if extra.get("context_messages_count"):
+                vault_data["context_messages_count"] = extra["context_messages_count"]
+            if extra.get("session_id"):
+                vault_data["session_id"] = extra["session_id"]
+
+        content_json = json.dumps(vault_data, ensure_ascii=False, indent=2)
+        vault_file = VAULT_DIR / f"{record_id}.json"
+        vault_file.write_text(content_json, encoding="utf-8")
+
+        # Auto-backup if configured (Fail-Open) — same as save_vault
+        try:
+            from .config import get_vault_backup_path
+            backup_path = get_vault_backup_path()
+            if backup_path:
+                from .identity import get_or_create_identity
+                identity = get_or_create_identity()
+                priv_key = identity.get("priv_key")
+                if priv_key:
+                    from .vault_backup import backup_vault_entry
+                    backup_vault_entry(record_id, content_json, backup_path, priv_key)
+        except Exception:
+            pass  # Fail-Open
+    except Exception:
+        pass  # Fail-Open
+
+
 def load_vault(record_id: str) -> Optional[dict]:
     """Load raw content from vault. Returns {input, output} or None."""
     vault_file = VAULT_DIR / f"{record_id}.json"

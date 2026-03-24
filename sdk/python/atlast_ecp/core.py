@@ -231,6 +231,87 @@ def record_minimal(
         return None
 
 
+def record_minimal_v2(
+    input_content: Any,
+    output_content: Any,
+    agent: str = "default",
+    action: str = "llm_call",
+    model: Optional[str] = None,
+    latency_ms: int = 0,
+    tokens_in: Optional[int] = None,
+    tokens_out: Optional[int] = None,
+    session_id: Optional[str] = None,
+    delegation_id: Optional[str] = None,
+    delegation_depth: Optional[int] = None,
+    vault_extra: Optional[dict] = None,
+) -> Optional[str]:
+    """
+    Minimal ECP recording with Vault v2 support (Proxy path).
+
+    Like record_minimal() but accepts vault_extra dict for additional
+    audit metadata (system_prompt, full_request_hash, context_messages_count).
+
+    Vault v2 structure:
+      {
+        "record_id": "rec_xxx",
+        "vault_version": 2,
+        "input": "new user message only",
+        "output": "full assistant response",
+        "system_prompt": "..." (only when first/changed),
+        "full_request_hash": "sha256:..." (hash of complete API request),
+        "full_response_hash": "sha256:..." (hash of complete API response),
+        "context_messages_count": N,
+        "session_id": "sess_..."
+      }
+
+    Audit guarantee: full_request_hash allows verification that
+    chain reconstruction matches the original API call exactly.
+    """
+    try:
+        out_text = _extract_text(output_content)
+        flags = detect_flags(out_text, latency_ms=latency_ms)
+
+        meta: dict[str, Any] = {}
+        if model:
+            meta["model"] = model
+        if latency_ms:
+            meta["latency_ms"] = latency_ms
+        if tokens_in is not None:
+            meta["tokens_in"] = tokens_in
+        if tokens_out is not None:
+            meta["tokens_out"] = tokens_out
+        if flags:
+            meta["flags"] = flags
+        if session_id:
+            meta["session_id"] = session_id
+        if delegation_id:
+            meta["delegation_id"] = delegation_id
+        if delegation_depth is not None:
+            meta["delegation_depth"] = delegation_depth
+
+        rec = create_minimal_record(
+            agent=agent,
+            action=action,
+            in_content=input_content,
+            out_content=output_content,
+            meta=meta if meta else None,
+        )
+        save_record(rec)
+
+        # Save vault v2 with audit metadata
+        from .storage import save_vault_v2
+        save_vault_v2(
+            record_id=rec["id"],
+            input_content=input_content if isinstance(input_content, str) else str(input_content),
+            output_content=output_content if isinstance(output_content, str) else str(output_content),
+            extra=vault_extra,
+        )
+
+        return rec["id"]
+    except Exception:
+        return None
+
+
 def record_minimal_async(
     input_content: Any,
     output_content: Any,
