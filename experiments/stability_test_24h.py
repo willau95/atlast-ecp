@@ -20,7 +20,7 @@ def verify_chain(records):
     if not records:
         return True
     for i, rec in enumerate(records):
-        d = record_to_dict(rec)
+        d = rec if isinstance(rec, dict) else record_to_dict(rec)
         expected = compute_chain_hash(d)
         if d.get("chain_hash") and d["chain_hash"] != expected:
             return False
