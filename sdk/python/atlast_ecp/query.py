@@ -75,8 +75,14 @@ def rebuild_index(verbose: bool = False) -> int:
     count = 0
     now_ms = int(time.time() * 1000)
 
-    for f in sorted(RECORDS_DIR.glob("*.jsonl")):
-        for line in f.read_text(encoding="utf-8").splitlines():
+    import gzip as _gzip
+    all_files = sorted(set(RECORDS_DIR.glob("*.jsonl")) | set(RECORDS_DIR.glob("*.jsonl.gz")))
+    for f in all_files:
+        if str(f).endswith(".gz"):
+            lines = _gzip.open(f, "rt", encoding="utf-8").read().splitlines()
+        else:
+            lines = f.read_text(encoding="utf-8").splitlines()
+        for line in lines:
             if not line.strip():
                 continue
             try:

@@ -101,7 +101,7 @@ async def lifespan(app: FastAPI):
     # Run first anchor 60s after startup, then every interval
     from datetime import timedelta
     first_run = datetime.now(timezone.utc) + timedelta(seconds=60)
-    if not scheduler.get_job("anchor_cron"):
+    if True:  # replace_existing handles duplicates
         scheduler.add_job(
             _scheduled_anchor,
             "interval",
@@ -128,7 +128,11 @@ async def lifespan(app: FastAPI):
         await close_db()
     except Exception:
         pass
-    scheduler.shutdown(wait=False)
+    try:
+        if scheduler.running:
+            scheduler.shutdown(wait=False)
+    except Exception:
+        pass  # Event loop may already be closed in test teardown
     logger.info("ecp_server_stopped")
 
 
