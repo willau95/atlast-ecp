@@ -54,7 +54,7 @@ if settings.SENTRY_DSN:
 
 # ── Scheduler ───────────────────────────────────────────────────────────────
 
-scheduler = AsyncIOScheduler()
+scheduler: AsyncIOScheduler | None = None
 _cron_state = {
     "last_run": None,
     "last_result": None,
@@ -98,20 +98,20 @@ async def lifespan(app: FastAPI):
         stub=settings.EAS_STUB_MODE,
         anchor_interval=f"{interval}min",
     )
-    # Run first anchor 60s after startup, then every interval
+    # Create fresh scheduler each lifespan (avoids stale state in tests)
+    global scheduler
     from datetime import timedelta
+    scheduler = AsyncIOScheduler()
     first_run = datetime.now(timezone.utc) + timedelta(seconds=60)
-    if True:  # replace_existing handles duplicates
-        scheduler.add_job(
-            _scheduled_anchor,
-            "interval",
-            minutes=interval,
-            id="anchor_cron",
-            next_run_time=first_run,
-            replace_existing=True,
-        )
-    if not scheduler.running:
-        scheduler.start()
+    scheduler.add_job(
+        _scheduled_anchor,
+        "interval",
+        minutes=interval,
+        id="anchor_cron",
+        next_run_time=first_run,
+    )
+    scheduler.start()
+    app.state.scheduler = scheduler
     logger.info("cron_started", interval_minutes=interval)
 
     # Init database (if configured)
@@ -245,4 +245,4 @@ init_stats()
 
 # Expose cron_state for cron router
 app.state.cron_state = _cron_state
-app.state.scheduler = scheduler
+# scheduler is set in lifespan and accessed via app.state.scheduler

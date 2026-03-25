@@ -22,7 +22,8 @@ def client():
     os.environ["ECP_WEBHOOK_URL"] = ""
 
     from app.main import app
-    return TestClient(app)
+    with TestClient(app) as c:
+        yield c
 
 
 # ── Health ──────────────────────────────────────────────────────────────────
