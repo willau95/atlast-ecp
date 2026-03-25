@@ -108,6 +108,7 @@ async def lifespan(app: FastAPI):
             minutes=interval,
             id="anchor_cron",
             next_run_time=first_run,
+            replace_existing=True,
         )
     if not scheduler.running:
         scheduler.start()
