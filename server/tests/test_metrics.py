@@ -161,42 +161,44 @@ class TestApiRequestLatencyMetrics:
 
 
 # ── Endpoint integration tests (pure-computation routes, no DB needed) ───────
+# Use a single TestClient to avoid repeated app lifespan start/stop which causes
+# "Event loop is closed" errors from apscheduler in CI.
+
+import hashlib as _hashlib
+
+@pytest.fixture(scope="module")
+def test_client():
+    """Shared TestClient — one app lifespan per module."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    with TestClient(app, raise_server_exceptions=False) as client:
+        yield client
+
 
 class TestMerkleVerifyEndpointMetrics:
     """Verify that the /v1/verify/merkle endpoint increments the counter."""
 
-    def test_valid_merkle_increments_counter(self):
-        import hashlib
-        from fastapi.testclient import TestClient
-        from app.main import app
-
-        # Build a real single-leaf Merkle tree
-        leaf = "sha256:" + hashlib.sha256(b"test").hexdigest()
+    def test_valid_merkle_increments_counter(self, test_client):
+        leaf = "sha256:" + _hashlib.sha256(b"test").hexdigest()
         before = _counter("ecp_merkle_verify", {"result": "valid"})
 
-        with TestClient(app, raise_server_exceptions=False) as client:
-            resp = client.post(
-                "/v1/verify/merkle",
-                json={"merkle_root": leaf, "record_hashes": [leaf]},
-            )
+        resp = test_client.post(
+            "/v1/verify/merkle",
+            json={"merkle_root": leaf, "record_hashes": [leaf]},
+        )
 
         assert resp.status_code == 200
         assert resp.json()["valid"] is True
         assert _counter("ecp_merkle_verify", {"result": "valid"}) == before + 1
 
-    def test_invalid_merkle_increments_counter(self):
-        import hashlib
-        from fastapi.testclient import TestClient
-        from app.main import app
-
-        leaf = "sha256:" + hashlib.sha256(b"test").hexdigest()
+    def test_invalid_merkle_increments_counter(self, test_client):
+        leaf = "sha256:" + _hashlib.sha256(b"test").hexdigest()
         before = _counter("ecp_merkle_verify", {"result": "invalid"})
 
-        with TestClient(app, raise_server_exceptions=False) as client:
-            resp = client.post(
-                "/v1/verify/merkle",
-                json={"merkle_root": "sha256:wrongrootvalue", "record_hashes": [leaf]},
-            )
+        resp = test_client.post(
+            "/v1/verify/merkle",
+            json={"merkle_root": "sha256:wrongrootvalue", "record_hashes": [leaf]},
+        )
 
         assert resp.status_code == 200
         assert resp.json()["valid"] is False
@@ -206,14 +208,10 @@ class TestMerkleVerifyEndpointMetrics:
 class TestAttestationVerifyEndpointMetrics:
     """Verify that GET /v1/verify/{uid} increments attestation_verify_total."""
 
-    def test_verify_attestation_increments_counter(self):
-        from fastapi.testclient import TestClient
-        from app.main import app
-
+    def test_verify_attestation_increments_counter(self, test_client):
         before = _counter("ecp_attestation_verify", {"result": "valid"})
 
-        with TestClient(app, raise_server_exceptions=False) as client:
-            resp = client.get("/v1/verify/0xdeadbeef1234")
+        resp = test_client.get("/v1/verify/0xdeadbeef1234")
 
         assert resp.status_code == 200
         assert _counter("ecp_attestation_verify", {"result": "valid"}) == before + 1
@@ -222,16 +220,12 @@ class TestAttestationVerifyEndpointMetrics:
 class TestMetricsEndpointOutput:
     """Verify /metrics returns Prometheus text with our metric names."""
 
-    def test_metrics_endpoint_contains_ecp_metrics(self):
-        from fastapi.testclient import TestClient
-        from app.main import app
-
+    def test_metrics_endpoint_contains_ecp_metrics(self, test_client):
         # Ensure at least one metric has been observed so it appears in output
         from app.routes.metrics import anchor_total
         anchor_total.labels(status="success").inc()
 
-        with TestClient(app, raise_server_exceptions=False) as client:
-            resp = client.get("/metrics")
+        resp = test_client.get("/metrics")
 
         assert resp.status_code == 200
         body = resp.text
