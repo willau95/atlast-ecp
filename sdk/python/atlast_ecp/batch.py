@@ -118,7 +118,10 @@ def collect_batch(since_ts: Optional[int] = None) -> tuple[list[dict], list[str]
     records = load_records(limit=10000)
 
     if since_ts:
-        records = [r for r in records if r.get("ts", 0) > since_ts]
+        records = [
+            r for r in records
+            if isinstance(r.get("ts", 0), (int, float)) and r.get("ts", 0) > since_ts
+        ]
 
     # Use each record's chain hash as the Merkle leaf
     hashes = [
