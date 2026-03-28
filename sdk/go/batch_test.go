@@ -108,7 +108,7 @@ func TestUploadBatchSuccess(t *testing.T) {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
-		receivedKey = r.Header.Get("X-Agent-Key")
+		receivedKey = r.Header.Get("X-API-Key")
 		_ = json.NewDecoder(r.Body).Decode(&received)
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok"}`))
@@ -120,12 +120,12 @@ func TestUploadBatchSuccess(t *testing.T) {
 	}
 	batch := BuildBatch(records)
 
-	if err := UploadBatch(srv.URL+"/v1", "my-key", batch); err != nil {
+	if err := UploadBatch(srv.URL+"/v1", "my-key", "did:ecp:test", "ed25519:testsig", batch); err != nil {
 		t.Fatalf("UploadBatch error: %v", err)
 	}
 
 	if receivedKey != "my-key" {
-		t.Errorf("X-Agent-Key header: want %q, got %q", "my-key", receivedKey)
+		t.Errorf("X-API-Key header: want %q, got %q", "my-key", receivedKey)
 	}
 	if received["merkle_root"] != batch.MerkleRoot {
 		t.Errorf("merkle_root mismatch in payload")
@@ -138,17 +138,17 @@ func TestUploadBatchSuccess(t *testing.T) {
 func TestUploadBatchNoAPIKey(t *testing.T) {
 	var receivedKey string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedKey = r.Header.Get("X-Agent-Key")
+		receivedKey = r.Header.Get("X-API-Key")
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
 
 	batch := BuildBatch(nil)
-	if err := UploadBatch(srv.URL+"/v1", "", batch); err != nil {
+	if err := UploadBatch(srv.URL+"/v1", "", "did:ecp:test", "ed25519:sig", batch); err != nil {
 		t.Fatalf("UploadBatch error: %v", err)
 	}
 	if receivedKey != "" {
-		t.Errorf("X-Agent-Key should be absent when empty, got %q", receivedKey)
+		t.Errorf("X-API-Key should be absent when empty, got %q", receivedKey)
 	}
 }
 
@@ -159,7 +159,7 @@ func TestUploadBatchHTTPError(t *testing.T) {
 	defer srv.Close()
 
 	batch := BuildBatch(nil)
-	err := UploadBatch(srv.URL+"/v1", "bad-key", batch)
+	err := UploadBatch(srv.URL+"/v1", "bad-key", "did:ecp:test", "ed25519:sig", batch)
 	if err == nil {
 		t.Error("expected error for HTTP 401")
 	}
@@ -167,7 +167,7 @@ func TestUploadBatchHTTPError(t *testing.T) {
 
 func TestUploadBatchConnectionError(t *testing.T) {
 	batch := BuildBatch(nil)
-	err := UploadBatch("http://127.0.0.1:1", "", batch)
+	err := UploadBatch("http://127.0.0.1:1", "", "did:ecp:test", "ed25519:sig", batch)
 	if err == nil {
 		t.Error("expected error for connection refused")
 	}

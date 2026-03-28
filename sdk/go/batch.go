@@ -50,13 +50,16 @@ func BuildBatch(records []Record) Batch {
 
 // UploadBatch POSTs a batch to the ATLAST API.
 // apiURL should be the full versioned base URL, e.g. "https://api.weba0.com/v1".
-// apiKey is sent as X-Agent-Key header (omitted if empty).
-func UploadBatch(apiURL, apiKey string, batch Batch) error {
+// apiKey is sent as X-API-Key header (omitted if empty).
+// agentDID and sig are required by the server.
+func UploadBatch(apiURL, apiKey, agentDID, sig string, batch Batch) error {
 	payload, err := json.Marshal(map[string]interface{}{
 		"merkle_root":   batch.MerkleRoot,
+		"agent_did":     agentDID,
 		"record_count":  batch.RecordCount,
 		"record_hashes": batch.RecordHashes,
 		"batch_ts":      batch.CreatedAt,
+		"sig":           sig,
 		"ecp_version":   "0.1",
 	})
 	if err != nil {
@@ -69,7 +72,7 @@ func UploadBatch(apiURL, apiKey string, batch Batch) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if apiKey != "" {
-		req.Header.Set("X-Agent-Key", apiKey)
+		req.Header.Set("X-API-Key", apiKey)
 	}
 
 	resp, err := http.DefaultClient.Do(req)

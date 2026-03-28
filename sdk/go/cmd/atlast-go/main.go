@@ -135,7 +135,15 @@ func cmdPush(args []string) {
 	fmt.Printf("Pushing batch %s (%d records, root=%s...)\n",
 		batch.ID, batch.RecordCount, batch.MerkleRoot[:20])
 
-	if err := ecp.UploadBatch(url, key, batch); err != nil {
+	// Load identity for agent_did and signing
+	identity, err := ecp.GetOrCreateIdentity()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Identity error: %v\n", err)
+		os.Exit(1)
+	}
+	sig := ecp.SignData(identity, batch.MerkleRoot)
+
+	if err := ecp.UploadBatch(url, key, identity.DID, sig, batch); err != nil {
 		fmt.Fprintf(os.Stderr, "Upload failed: %v\n", err)
 		os.Exit(1)
 	}

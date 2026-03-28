@@ -25,12 +25,12 @@ func TestBuildMerkleRootDeterministic(t *testing.T) {
 	}
 }
 
-func TestBuildMerkleRootOrderIndependent(t *testing.T) {
-	// Because we sort first, order shouldn't matter
+func TestBuildMerkleRootOrderDependent(t *testing.T) {
+	// Order matters — no sorting. Different order = different root.
 	a := BuildMerkleRoot([]string{"sha256:bbb", "sha256:aaa"})
 	b := BuildMerkleRoot([]string{"sha256:aaa", "sha256:bbb"})
-	if a != b {
-		t.Error("Merkle root should be order-independent")
+	if a == b {
+		t.Error("Merkle root should be order-dependent (no sorting)")
 	}
 }
 

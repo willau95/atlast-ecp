@@ -4,31 +4,31 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"sort"
 )
 
 // ComputeChainHash computes the chain hash for a record.
-// Matches Python SDK record.py compute_chain_hash().
+// Matches Python SDK record.py compute_chain_hash():
+// SHA-256 of canonical JSON of the full record, with chain.hash and sig zeroed.
 func ComputeChainHash(r Record) string {
-	// Canonical JSON: sorted keys, no extra whitespace
-	canonical := map[string]interface{}{
-		"ecp":      r.ECP,
-		"id":       r.ID,
-		"ts":       r.TS,
-		"agent":    r.Agent,
-		"action":   r.Action,
-		"in_hash":  r.InHash,
-		"out_hash": r.OutHash,
+	// Deep copy to avoid mutation, zero out chain.hash and sig
+	clone := r
+	if clone.Chain != nil {
+		chainCopy := *clone.Chain
+		chainCopy.Hash = ""
+		clone.Chain = &chainCopy
 	}
-	data, _ := json.Marshal(canonical)
+	clone.Sig = ""
+
+	// json.Marshal produces sorted keys by default for structs
+	data, _ := json.Marshal(clone)
 	h := sha256.Sum256(data)
 	return fmt.Sprintf("sha256:%x", h)
 }
 
 // BuildMerkleRoot builds a Merkle root from a list of hash strings.
-// Algorithm matches Python SDK verify.py build_merkle_root():
-// 1. Sort hashes lexicographically
-// 2. Pair adjacent, SHA-256 each pair
+// Algorithm matches Python SDK batch.py build_merkle_tree():
+// 1. Preserve original order (NO sorting — order matters for proof verification)
+// 2. Pair adjacent, SHA-256 each pair (odd element duplicated)
 // 3. Repeat until one root
 func BuildMerkleRoot(hashes []string) string {
 	if len(hashes) == 0 {
@@ -40,7 +40,6 @@ func BuildMerkleRoot(hashes []string) string {
 
 	layer := make([]string, len(hashes))
 	copy(layer, hashes)
-	sort.Strings(layer)
 
 	for len(layer) > 1 {
 		var next []string
