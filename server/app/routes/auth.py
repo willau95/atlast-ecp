@@ -70,8 +70,11 @@ async def verify_api_key(x_api_key: str | None) -> tuple[str, str]:
 
 class RegisterRequest(BaseModel):
     did: str
-    public_key: str | None = None
+    public_key: str  # Required: Ed25519 public key hex (64 chars)
     ecp_version: str = "0.1"
+    # Ownership proof: required when re-registering an existing DID
+    ownership_sig: str | None = None  # ed25519 signature over "register:{did}:{timestamp}"
+    ownership_ts: int | None = None   # Unix ms timestamp used in signature
 
 
 class RegisterResponse(BaseModel):
@@ -80,41 +83,83 @@ class RegisterResponse(BaseModel):
     message: str
 
 
+def _verify_ownership_sig(public_key_hex: str, did: str, sig: str, ts: int) -> bool:
+    """Verify Ed25519 ownership signature over 'register:{did}:{ts}'."""
+    try:
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+        message = f"register:{did}:{ts}".encode()
+        sig_bytes = bytes.fromhex(sig.replace("ed25519:", ""))
+        pub_bytes = bytes.fromhex(public_key_hex)
+        public_key = Ed25519PublicKey.from_public_bytes(pub_bytes)
+        public_key.verify(sig_bytes, message)
+        return True
+    except Exception:
+        return False
+
+
 @router.post("/v1/agents/register", response_model=RegisterResponse)
 async def register_agent(req: RegisterRequest, request: Request):
     """
     Register a new agent and return an API key.
-    Idempotent: if agent already exists, returns a new API key (old ones stay valid).
+
+    New DID: public_key required, no ownership proof needed.
+    Existing DID: ownership_sig + ownership_ts required to prove key ownership.
+    This prevents DID hijacking (anyone registering keys for DIDs they don't own).
     """
     # Validate DID format
     if not req.did or not req.did.startswith("did:ecp:"):
         raise HTTPException(status_code=422, detail="Invalid DID format. Expected: did:ecp:{hex}")
+
+    # Validate public_key format (Ed25519 = 32 bytes = 64 hex chars)
+    if not req.public_key or len(req.public_key) < 32:
+        raise HTTPException(status_code=422, detail="public_key required (Ed25519 hex)")
 
     session = await get_session()
     if session is None:
         raise HTTPException(status_code=503, detail="Database not available")
 
     from sqlalchemy import select
+    import time as _time
 
     async with session:
-        # Upsert agent
+        # Check if agent already exists
         result = await session.execute(
             select(Agent).where(Agent.did == req.did)
         )
         agent = result.scalar_one_or_none()
 
-        if not agent:
+        if agent:
+            # ── Existing DID: require ownership proof ──
+            if not req.ownership_sig or not req.ownership_ts:
+                raise HTTPException(
+                    status_code=403,
+                    detail="DID already registered. Provide ownership_sig and ownership_ts to prove key ownership.",
+                )
+
+            # Check timestamp freshness (within 5 minutes)
+            now_ms = int(_time.time() * 1000)
+            if abs(now_ms - req.ownership_ts) > 300_000:
+                raise HTTPException(status_code=403, detail="Ownership timestamp expired (>5min)")
+
+            # Verify signature against registered public key
+            registered_pk = agent.public_key
+            if not registered_pk:
+                raise HTTPException(status_code=403, detail="Agent has no registered public key — cannot verify ownership")
+
+            if not _verify_ownership_sig(registered_pk, req.did, req.ownership_sig, req.ownership_ts):
+                raise HTTPException(status_code=403, detail="Ownership signature verification failed")
+
+            agent.last_seen = datetime.now(timezone.utc)
+            logger.info("agent_re_registered", did=req.did)
+        else:
+            # ── New DID: register with public key ──
             agent = Agent(
                 did=req.did,
                 public_key=req.public_key,
                 ecp_version=req.ecp_version,
             )
             session.add(agent)
-        else:
-            # Update public key if provided
-            if req.public_key:
-                agent.public_key = req.public_key
-            agent.last_seen = datetime.now(timezone.utc)
+            logger.info("agent_registered_new", did=req.did)
 
         # Generate new API key
         raw_key = _generate_api_key()
@@ -126,7 +171,6 @@ async def register_agent(req: RegisterRequest, request: Request):
         session.add(api_key)
         await session.commit()
 
-        logger.info("agent_registered", did=req.did)
         return RegisterResponse(
             agent_did=req.did,
             agent_api_key=raw_key,

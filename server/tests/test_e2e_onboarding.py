@@ -178,20 +178,20 @@ async def test_full_onboarding_journey(unique_did, record_hashes):
 
 
 @pytest.mark.anyio
-async def test_register_idempotent(unique_did):
-    """Registering the same DID twice returns a new key (idempotent)."""
+async def test_register_existing_did_requires_ownership(unique_did):
+    """Re-registering an existing DID without ownership proof returns 403."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         r1 = await client.post("/v1/agents/register", json={
-            "did": unique_did, "public_key": "ed25519:abc123", "ecp_version": "0.9.0",
-        })
-        r2 = await client.post("/v1/agents/register", json={
-            "did": unique_did, "public_key": "ed25519:abc123", "ecp_version": "0.9.0",
+            "did": unique_did, "public_key": "a" * 64, "ecp_version": "0.9.0",
         })
         assert r1.status_code == 200
-        assert r2.status_code == 200
-        # Both succeed, but keys are different
-        assert r1.json()["agent_api_key"] != r2.json()["agent_api_key"]
+        # Second registration without ownership proof → 403
+        r2 = await client.post("/v1/agents/register", json={
+            "did": unique_did, "public_key": "a" * 64, "ecp_version": "0.9.0",
+        })
+        assert r2.status_code == 403
+        assert "ownership" in r2.json()["detail"].lower()
 
 
 @pytest.mark.anyio

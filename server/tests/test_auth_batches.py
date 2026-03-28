@@ -30,7 +30,7 @@ class TestAgentRegistration:
         """Without DB, register returns 503."""
         resp = client.post("/v1/agents/register", json={
             "did": "did:ecp:test123",
-            "public_key": "abc123",
+            "public_key": "a" * 64,
         })
         assert resp.status_code == 503
 
