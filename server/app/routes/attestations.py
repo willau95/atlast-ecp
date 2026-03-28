@@ -38,9 +38,16 @@ def _format_attestation(row: Attestation) -> dict:
     }
 
 
+import re
+
+_BATCH_ID_RE = re.compile(r"^(batch_[a-f0-9]{16}|sb_[a-f0-9]{16})$")
+
+
 @router.get("/v1/attestations/{batch_id}")
 async def get_attestation(batch_id: str):
     """Look up attestation details for a specific batch."""
+    if not _BATCH_ID_RE.match(batch_id):
+        raise HTTPException(status_code=400, detail="Invalid batch_id format")
     session = await get_session()
     if session is None:
         # DB not configured — fallback to LLaChat proxy

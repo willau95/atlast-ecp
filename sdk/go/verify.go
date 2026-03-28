@@ -70,7 +70,9 @@ func ComputeChainHash(r Record) string {
 // 3. Repeat until one root
 func BuildMerkleRoot(hashes []string) string {
 	if len(hashes) == 0 {
-		return ""
+		// Match Python/TS: sha256("empty") with sha256: prefix
+		h := sha256.Sum256([]byte("empty"))
+		return fmt.Sprintf("sha256:%x", h)
 	}
 	if len(hashes) == 1 {
 		return hashes[0]
@@ -99,7 +101,7 @@ func BuildMerkleRoot(hashes []string) string {
 // VerifyMerkleRoot checks if hashes produce the claimed root.
 func VerifyMerkleRoot(hashes []string, claimedRoot string) bool {
 	if len(hashes) == 0 {
-		return claimedRoot == ""
+		return claimedRoot == BuildMerkleRoot(nil)
 	}
 	return BuildMerkleRoot(hashes) == claimedRoot
 }

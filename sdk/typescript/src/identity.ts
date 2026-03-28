@@ -29,7 +29,7 @@ export function loadOrCreateIdentity(agentId: string): ECPIdentity {
 
   const keyPair = generateKeyPair();
   const identity: ECPIdentity = {
-    did: generateDID(),
+    did: generateDID(keyPair.publicKey),
     agent_id: agentId,
     public_key: keyPair.publicKey,
     private_key: keyPair.privateKey,

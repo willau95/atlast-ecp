@@ -13,8 +13,8 @@ func TestBuildBatchEmpty(t *testing.T) {
 	if b.RecordCount != 0 {
 		t.Errorf("empty batch record count: want 0, got %d", b.RecordCount)
 	}
-	if b.MerkleRoot != "" {
-		t.Errorf("empty batch merkle root: want '', got %q", b.MerkleRoot)
+	if !strings.HasPrefix(b.MerkleRoot, "sha256:") {
+		t.Errorf("empty batch merkle root should be sha256 hash, got %q", b.MerkleRoot)
 	}
 	if !strings.HasPrefix(b.ID, "batch_") {
 		t.Errorf("batch ID should start with 'batch_', got %q", b.ID)

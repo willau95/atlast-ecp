@@ -9,10 +9,10 @@ router = APIRouter()
 
 
 def _require_internal_token(token: str | None):
-    if settings.ENVIRONMENT == "production":
-        import secrets
-        if not token or not secrets.compare_digest(token, settings.LLACHAT_INTERNAL_TOKEN):
-            raise HTTPException(status_code=401, detail="Invalid internal token")
+    import secrets
+    if not token or not settings.LLACHAT_INTERNAL_TOKEN or \
+       not secrets.compare_digest(token, settings.LLACHAT_INTERNAL_TOKEN):
+        raise HTTPException(status_code=401, detail="Invalid internal token")
 
 
 @router.get("/v1/internal/cron-status", tags=["Internal"])

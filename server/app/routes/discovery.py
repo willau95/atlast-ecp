@@ -24,9 +24,6 @@ async def ecp_discovery():
             "attestations": "/v1/attestations",
             "attestation_detail": "/v1/attestations/{batch_id}",
             "metrics": "/metrics",
-            "anchor_trigger": "/v1/internal/anchor-now",
-            "anchor_status": "/v1/internal/anchor-status",
-            "cron_status": "/v1/internal/cron-status",
         },
         "eas": {
             "chain": settings.EAS_CHAIN,

@@ -42,7 +42,13 @@ export function generateId(prefix: string = 'rec'): string {
   return `${prefix}_${randomBytes(6).toString('hex')}`;
 }
 
-export function generateDID(): string {
+export function generateDID(publicKeyHex?: string): string {
+  if (publicKeyHex) {
+    // Deterministic: sha256(publicKeyHex)[:32] — matches Python/Go SDK
+    const hash = createHash('sha256').update(publicKeyHex).digest('hex');
+    return `did:ecp:${hash.substring(0, 32)}`;
+  }
+  // Fallback: random (for cases where public key not yet available)
   const id = randomBytes(16).toString('hex');
   return `did:ecp:${id}`;
 }

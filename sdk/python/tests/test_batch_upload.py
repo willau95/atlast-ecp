@@ -112,7 +112,8 @@ class TestEnsureAgentRegistered:
             result = _ensure_agent_registered({"did": "did:ecp:x", "pub_key": "pk"})
         assert result is False
         state = json.loads(state_file.read_text())
-        assert state["agent_registered"] is True  # optimistic
+        # Registration failure should NOT mark as registered — allows retry next batch
+        assert state.get("agent_registered") is not True
 
 
 class TestRunBatch:

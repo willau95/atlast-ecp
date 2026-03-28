@@ -1,6 +1,9 @@
 package ecp
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestBuildMerkleRootSingle(t *testing.T) {
 	root := BuildMerkleRoot([]string{"sha256:abc"})
@@ -11,8 +14,8 @@ func TestBuildMerkleRootSingle(t *testing.T) {
 
 func TestBuildMerkleRootEmpty(t *testing.T) {
 	root := BuildMerkleRoot(nil)
-	if root != "" {
-		t.Errorf("Empty should return empty, got %s", root)
+	if !strings.HasPrefix(root, "sha256:") {
+		t.Errorf("Empty should return sha256 hash of 'empty', got %s", root)
 	}
 }
 

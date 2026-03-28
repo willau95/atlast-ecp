@@ -225,7 +225,8 @@ class TestMetricsEndpointOutput:
         from app.routes.metrics import anchor_total
         anchor_total.labels(status="success").inc()
 
-        resp = test_client.get("/metrics")
+        from app.config import settings
+        resp = test_client.get("/metrics", headers={"X-Internal-Token": settings.LLACHAT_INTERNAL_TOKEN})
 
         assert resp.status_code == 200
         body = resp.text

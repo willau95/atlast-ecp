@@ -48,11 +48,10 @@ api_request_latency = Histogram(
 
 @router.get("/metrics")
 async def metrics(x_internal_token: str = Header(None, alias="X-Internal-Token")):
-    """Prometheus metrics endpoint. Requires internal token in production."""
-    if settings.ENVIRONMENT == "production":
-        if not x_internal_token or not settings.LLACHAT_INTERNAL_TOKEN or \
-           not secrets.compare_digest(x_internal_token, settings.LLACHAT_INTERNAL_TOKEN):
-            raise HTTPException(status_code=401, detail="Internal token required")
+    """Prometheus metrics endpoint. Requires internal token."""
+    if not x_internal_token or not settings.LLACHAT_INTERNAL_TOKEN or \
+       not secrets.compare_digest(x_internal_token, settings.LLACHAT_INTERNAL_TOKEN):
+        raise HTTPException(status_code=401, detail="Internal token required")
     return PlainTextResponse(
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST,

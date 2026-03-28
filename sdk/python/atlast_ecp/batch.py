@@ -231,9 +231,7 @@ def _ensure_agent_registered(identity: dict) -> bool:
     except Exception:
         pass
 
-    # All retries failed — optimistic: don't block indefinitely
-    state["agent_registered"] = True
-    _save_batch_state(state)
+    # All retries failed — keep False so next batch run retries registration
     return False
 
 

@@ -103,15 +103,17 @@ Adds tamper-proof chaining. Modifying any record breaks the chain.
   "action": "llm_call",
   "in_hash": "sha256:...",
   "out_hash": "sha256:...",
-  "prev": "rec_previous_record1",
-  "chain_hash": "sha256:..."
+  "chain": {
+    "prev": "rec_previous_record1",
+    "hash": "sha256:..."
+  }
 }
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `prev` | string | ID of previous record. `"genesis"` for first. |
-| `chain_hash` | string | SHA-256 of canonical JSON (with `chain_hash` and `sig` zeroed) |
+| `chain.prev` | string | ID of previous record. `"genesis"` for first. |
+| `chain.hash` | string | SHA-256 of canonical JSON (with `chain.hash` and `sig` zeroed) |
 
 ### 2.4 Identity Extension (Optional — Level 4)
 
@@ -133,7 +135,7 @@ Adds cryptographic identity and signature verification.
 | Field | Type | Description |
 |-------|------|-------------|
 | `agent` | DID string | `did:ecp:{sha256(pubkey)[:32]}` |
-| `sig` | string | Ed25519 signature over `chain_hash`. Format: `ed25519:{hex}` |
+| `sig` | string | Ed25519 signature over `chain.hash`. Format: `ed25519:{hex}` |
 
 ### 2.5 Anchor Extension (Optional — Level 5)
 
@@ -215,8 +217,8 @@ This ensures identical content always produces the same hash, regardless of impl
 
 | Version | Format | Status |
 |---------|--------|--------|
-| `0.1` | Nested (`step.type`, `step.in_hash`, `chain.prev`) | Legacy, still valid |
-| `1.0` | Flat (`action`, `in_hash`, `prev`) | Current |
+| `0.1` | Nested (`step.type`, `step.in_hash`, `chain.prev`, `chain.hash`) | Legacy, still valid |
+| `1.0` | Flat (`action`, `in_hash`, `chain.prev`, `chain.hash`) | Current |
 
 Readers MUST accept both v0.1 and v1.0 records. Writers SHOULD produce v1.0.
 

@@ -190,7 +190,7 @@ def verify_record(record_dict: dict) -> dict:
                 local_did = identity.get("did", "")
                 pub_key = identity.get("crypto_pub_key") or identity.get("pub_key")
                 if agent_did == local_did and pub_key:
-                    signature_ok = verify_signature(pub_key, sig, actual_hash)
+                    signature_ok = verify_signature(pub_key, sig, expected_hash)
                     if not signature_ok:
                         errors.append("Signature verification failed against local identity")
         except Exception:
@@ -218,9 +218,11 @@ def verify_record_with_key(record_dict: dict, public_key_hex: str) -> dict:
     result = verify_record(record_dict)
 
     sig = record_dict.get("sig", "unverified")
-    chain_hash = record_dict.get("chain", {}).get("hash", "")
+    # Use independently recomputed hash for signature verification (defensive)
+    from .record import compute_chain_hash
+    expected_hash = compute_chain_hash(record_dict)
 
-    sig_ok = verify_signature(public_key_hex, sig, chain_hash)
+    sig_ok = verify_signature(public_key_hex, sig, expected_hash)
     result["signature_ok"] = sig_ok
 
     if not sig_ok:

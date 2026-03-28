@@ -9,9 +9,12 @@ Thread-safe. Fail-Open. Never raises.
 """
 
 import json
+import logging
 import threading
 import time
 from typing import Any, Optional
+
+_logger = logging.getLogger("atlast_ecp")
 
 from .identity import get_or_create_identity, sign
 from .record import create_record, create_minimal_record, record_to_dict, hash_content, ECPRecord
@@ -136,8 +139,9 @@ def record(
 
         return rec.id
 
-    except Exception:
+    except Exception as _exc:
         # Fail-Open: recording failure NEVER affects the caller
+        _logger.warning("ecp record() failed: %s", _exc, exc_info=True)
         return None
 
 
@@ -227,7 +231,8 @@ def record_minimal(
         save_vault(rec["id"], _serialize_for_hash(input_content), _serialize_for_hash(output_content))
 
         return rec["id"]
-    except Exception:
+    except Exception as _exc:
+        _logger.warning("ecp record_minimal() failed: %s", _exc, exc_info=True)
         return None
 
 
@@ -308,7 +313,8 @@ def record_minimal_v2(
         )
 
         return rec["id"]
-    except Exception:
+    except Exception as _exc:
+        _logger.warning("ecp record_minimal_v2() failed: %s", _exc, exc_info=True)
         return None
 
 

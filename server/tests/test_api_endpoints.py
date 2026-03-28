@@ -222,8 +222,14 @@ class TestInternalEndpoints:
         r = client.post("/v1/internal/anchor-now")
         assert r.status_code == 401
 
-    def test_cron_status_no_auth_in_test(self, client):
+    def test_cron_status_requires_auth(self, client):
+        # Without token → 401
         r = client.get("/v1/internal/cron-status")
+        assert r.status_code == 401
+
+    def test_cron_status_with_auth(self, client):
+        from app.config import settings
+        r = client.get("/v1/internal/cron-status", headers={"X-Internal-Token": settings.LLACHAT_INTERNAL_TOKEN})
         assert r.status_code == 200
         data = r.json()
         assert data["status"] in ["healthy", "degraded"]
@@ -233,15 +239,21 @@ class TestInternalEndpoints:
 # ── Metrics ───────────────────────────────────────────────────────────────
 
 class TestMetrics:
-    def test_metrics_endpoint(self, client):
+    def test_metrics_requires_auth(self, client):
         r = client.get("/metrics")
+        assert r.status_code == 401
+
+    def test_metrics_endpoint(self, client):
+        from app.config import settings
+        r = client.get("/metrics", headers={"X-Internal-Token": settings.LLACHAT_INTERNAL_TOKEN})
         assert r.status_code == 200
         assert "ecp_anchor_total" in r.text
         assert "ecp_webhook_total" in r.text
         assert "ecp_merkle_verify_total" in r.text
 
     def test_metrics_content_type(self, client):
-        r = client.get("/metrics")
+        from app.config import settings
+        r = client.get("/metrics", headers={"X-Internal-Token": settings.LLACHAT_INTERNAL_TOKEN})
         assert "text/plain" in r.headers.get("content-type", "")
 
 
