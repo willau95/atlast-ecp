@@ -368,7 +368,9 @@ def cmd_register(args: list[str]):
 
     identity = get_or_create_identity()
     did = identity["did"]
-    pub_key = identity.get("pub_key", "")
+    # Prefer crypto_pub_key (Ed25519) over legacy pub_key (sha256-based)
+    # This ensures the server stores the correct key for signature verification
+    pub_key = identity.get("crypto_pub_key") or identity.get("pub_key", "")
 
     print(f"\n🔗 Registering Agent...")
 

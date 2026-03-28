@@ -146,6 +146,7 @@ def generate_proof(
             "session_id": session_id,
         },
         "entries": entries,
+        "records": entries,  # Alias: 'records' = 'entries' (user-friendly name)
         "verification": {
             "how_to_verify": [
                 "1. For each entry, recompute SHA-256 of content → must match in_hash/out_hash",
@@ -182,7 +183,7 @@ def verify_proof(proof: dict) -> dict:
         }
     """
     issues = []
-    entries = proof.get("entries", [])
+    entries = proof.get("entries") or proof.get("records", [])
     pub_key = proof.get("agent", {}).get("public_key", "")
 
     chain_ok = 0
@@ -288,7 +289,7 @@ def format_proof_report(proof: dict, verification: Optional[dict] = None) -> str
                 lines.append(f"      ❌ {issue}")
 
     # Show entries
-    for i, entry in enumerate(proof.get("entries", [])):
+    for i, entry in enumerate(proof.get("entries") or proof.get("records", [])):
         record = entry.get("record", {})
         step = record.get("step", {})
         meta = record.get("meta", {})
