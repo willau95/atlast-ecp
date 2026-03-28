@@ -15,7 +15,7 @@ import structlog
 
 from ..config import settings
 from ..db.database import get_session
-from ..db.models import Batch, APIKey
+from ..db.models import Agent, Batch, APIKey
 from .auth import verify_api_key
 
 logger = structlog.get_logger()
@@ -124,6 +124,36 @@ async def upload_batch(
             )
         # Non-production: accept without auth for local development
         logger.warning("batch_upload_no_api_key_dev", did=req.agent_did)
+
+    # Server-side signature verification (if agent has registered public_key)
+    if api_key and req.sig and req.sig.startswith("ed25519:"):
+        try:
+            _session = await get_session()
+            if _session is not None:
+                from sqlalchemy import select
+                async with _session:
+                    agent_row = (await _session.execute(
+                        select(Agent).where(Agent.did == req.agent_did)
+                    )).scalar_one_or_none()
+                    if agent_row and agent_row.public_key:
+                        try:
+                            from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+                            sig_bytes = bytes.fromhex(req.sig[len("ed25519:"):])
+                            pub_bytes = bytes.fromhex(agent_row.public_key)
+                            public_key = Ed25519PublicKey.from_public_bytes(pub_bytes)
+                            public_key.verify(sig_bytes, req.merkle_root.encode())
+                        except ImportError:
+                            pass  # No cryptography package — skip verification
+                        except Exception:
+                            logger.warning("batch_sig_invalid", did=req.agent_did)
+                            raise HTTPException(
+                                status_code=400,
+                                detail="Signature verification failed against registered public key",
+                            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning("sig_verify_check_failed", error=str(e))
 
     # Per-agent rate limit
     if not _check_agent_rate(req.agent_did, rate_tier):
