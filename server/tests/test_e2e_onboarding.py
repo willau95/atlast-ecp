@@ -15,6 +15,7 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 
 os.environ.setdefault("ENVIRONMENT", "development")
+os.environ.setdefault("LLACHAT_INTERNAL_TOKEN", "test-internal-token-for-e2e")
 os.environ["ECP_WEBHOOK_URL"] = ""  # disable webhook during tests
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
@@ -214,9 +215,8 @@ async def test_anchor_rejects_no_token():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post("/v1/internal/anchor-now")
-        # In dev mode, no token required (returns 200)
-        # In production, returns 401/422
-        assert resp.status_code in (200, 401, 422)
+        # Token is always required now (all environments)
+        assert resp.status_code == 401
 
 
 @pytest.mark.anyio

@@ -212,12 +212,15 @@ class TestAttestationsList:
 # ── Internal Endpoints ────────────────────────────────────────────────────
 
 class TestInternalEndpoints:
-    def test_anchor_status_no_auth_in_test(self, client):
-        """In test env (non-production), no auth required."""
+    def test_anchor_status_requires_auth(self, client):
+        """Internal endpoints require auth in all environments."""
         r = client.get("/v1/internal/anchor-status")
-        assert r.status_code == 200
-        data = r.json()
-        assert data["service"] == "ecp-anchor"
+        assert r.status_code == 401
+
+    def test_anchor_now_requires_auth(self, client):
+        """anchor-now requires auth in all environments."""
+        r = client.post("/v1/internal/anchor-now")
+        assert r.status_code == 401
 
     def test_cron_status_no_auth_in_test(self, client):
         r = client.get("/v1/internal/cron-status")

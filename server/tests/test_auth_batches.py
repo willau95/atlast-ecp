@@ -80,10 +80,10 @@ class TestBatchUpload:
         })
         assert resp.status_code in (200, 500)
 
-    def test_get_batch_no_db(self, client):
-        """GET /v1/batches/{id} without DB returns 503."""
+    def test_get_batch_requires_auth(self, client):
+        """GET /v1/batches/{id} without API key returns 401."""
         resp = client.get("/v1/batches/batch_nonexistent")
-        assert resp.status_code == 503
+        assert resp.status_code == 401
 
 
 # ── Auth Me ─────────────────────────────────────────────────────────────────

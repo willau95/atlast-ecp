@@ -361,10 +361,10 @@ async def _anchor_pending():
 @router.post("/v1/internal/anchor-now")
 async def anchor_now(x_internal_token: str = Header(None, alias="X-Internal-Token")):
     """Manual trigger for anchoring. Can also be called by Railway cron."""
-    # Allow unauthenticated in dev, require token in production
-    if settings.ENVIRONMENT == "production":
-        if not x_internal_token or not secrets.compare_digest(x_internal_token, settings.LLACHAT_INTERNAL_TOKEN):
-            raise HTTPException(status_code=401, detail="Invalid internal token")
+    # Require internal token in all environments
+    if not x_internal_token or not settings.LLACHAT_INTERNAL_TOKEN or \
+       not secrets.compare_digest(x_internal_token, settings.LLACHAT_INTERNAL_TOKEN):
+        raise HTTPException(status_code=401, detail="Invalid internal token")
 
     result = await _anchor_pending()
     return {"status": "ok", **result}
@@ -373,9 +373,9 @@ async def anchor_now(x_internal_token: str = Header(None, alias="X-Internal-Toke
 @router.get("/v1/internal/anchor-status")
 async def anchor_status(x_internal_token: str = Header(None, alias="X-Internal-Token")):
     """Check anchor service status."""
-    if settings.ENVIRONMENT == "production":
-        if not x_internal_token or not secrets.compare_digest(x_internal_token, settings.LLACHAT_INTERNAL_TOKEN):
-            raise HTTPException(status_code=401, detail="Invalid internal token")
+    if not x_internal_token or not settings.LLACHAT_INTERNAL_TOKEN or \
+       not secrets.compare_digest(x_internal_token, settings.LLACHAT_INTERNAL_TOKEN):
+        raise HTTPException(status_code=401, detail="Invalid internal token")
 
     return {
         "service": "ecp-anchor",

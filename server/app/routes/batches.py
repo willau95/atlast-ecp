@@ -217,7 +217,16 @@ async def get_batch(
     x_api_key: str = Header(None, alias="X-API-Key"),
     x_agent_key: str = Header(None, alias="X-Agent-Key"),
 ):
-    """Get batch status by ID."""
+    """Get batch status by ID. Requires API key — returns only own batches."""
+    api_key = x_api_key or x_agent_key
+    if not api_key:
+        raise HTTPException(status_code=401, detail="API key required")
+
+    try:
+        agent_did, _ = await verify_api_key(api_key)
+    except HTTPException:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
     session = await get_session()
     if session is None:
         raise HTTPException(status_code=503, detail="Database not available")
@@ -231,6 +240,10 @@ async def get_batch(
 
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+
+    # Verify ownership
+    if batch.agent_did != agent_did:
+        raise HTTPException(status_code=403, detail="Cannot access another agent's batch")
 
     return {
         "batch_id": batch.batch_id,
