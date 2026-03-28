@@ -1,6 +1,6 @@
 # ATLAST Protocol: Trust Infrastructure for the Agent Economy
 
-**Version 2.3**
+**Version 3.0**
 **Date:** March 2026
 **Authors:** William Au, ATLAST Protocol Working Group
 **Contact:** team@weba0.com
@@ -20,6 +20,7 @@
 > | 2.1 | 2026-03-22 | Diagrams, mathematical formalization, case studies, glossary |
 > | 2.2 | 2026-03-22 | Business model, work certificates, user journey, logic hole fixes |
 > | 2.3 | 2026-03-23 | Trust Score as standalone 0-1000 standard, LLaChat as reference application, A2A Marketplace design, dimension mapping, chain_integrity Phase 1 note, test count updates |
+> | 3.0 | 2026-03-29 | Go SDK, MCP Server, Query & Audit Engine, BIP39 identity recovery, Proof Packages, OpenClaw Scanner, OpenTelemetry auto-instrumentation, agent registration security (DID anti-hijacking), API key management, test count 536→1,059, endpoint table v2 |
 
 ---
 
@@ -57,6 +58,8 @@ ATLAST is fully open-source (MIT license) and designed for IETF/W3C submission. 
 14. [Conclusion](#14-conclusion)
 
 Appendices: A (ECP Record Schema), B (Merkle Tree Specification), C (API Reference), D (Behavioral Flag Taxonomy), E (Glossary)
+
+New in v3.0: §6.6 Go SDK, §6.7 MCP Server, §6.8 Query & Audit Engine, §6.9 OpenClaw Scanner, §6.10 OpenTelemetry, §6.11 Proof Packages, §8.3 BIP39 Recovery, §8.4 DID Anti-Hijacking, §8.5 API Key Management
 
 ---
 
@@ -308,11 +311,11 @@ graph TB
     end
     
     subgraph "Layer 2 — Reference Implementation (MIT License)"
-        SDK["ATLAST SDK<br/>Python · TypeScript"]
+        SDK["ATLAST SDK<br/>Python · TypeScript · Go"]
         SRV["ECP Server<br/>api.weba0.com"]
         ADAPT["Framework Adapters<br/>LangChain · CrewAI · AutoGen"]
     end
-    
+
     subgraph "Layer 1 — Protocol Specification (CC BY 4.0)"
         ECP["ECP<br/>Evidence Chain"]
         AIP["AIP<br/>Agent Identity"]
@@ -885,6 +888,85 @@ This "agent-onboards-itself" pattern achieves two goals simultaneously:
 - **Zero friction for the user:** A single sentence, no technical knowledge required.
 - **Natural capability test:** An agent that can follow the setup instructions demonstrates baseline competence. The onboarding process itself is a first data point for Trust Score.
 
+### 6.6 Go SDK
+
+In addition to Python and TypeScript, a full **Go SDK** (`atlast-go`) provides native ECP integration for Go-based agent systems:
+
+- **Complete module coverage:** `record`, `storage`, `identity`, `batch`, `verify`, `hash`, `config`
+- **50 tests passing** with full CI integration
+- **CLI tool:** `atlast-go` provides command-line access to all ECP operations
+- **Same protocol guarantees:** Identical hash chain construction, Merkle tree computation, and Ed25519 signing as the Python and TypeScript SDKs — cross-implementation consistency verified in CI
+
+The Go SDK is designed for performance-critical agent deployments (high-throughput trading agents, infrastructure management agents) where Go's concurrency model and low-latency runtime are advantageous.
+
+### 6.7 MCP Server
+
+The SDK includes a **Model Context Protocol (MCP) server** that exposes ECP capabilities as 8 standardized tools for agent-to-agent access:
+
+| Tool | Description |
+|------|-------------|
+| `record` | Create an ECP record |
+| `verify` | Verify an ECP record or chain |
+| `search` | Full-text search across records |
+| `proof` | Generate or verify a Merkle proof |
+| `stats` | Retrieve agent statistics |
+| `audit` | Run automated audit report |
+| `trace` | Trace record chains (backward/forward) |
+| `timeline` | Generate daily activity timeline |
+
+Any MCP-compatible agent (Claude, GPT, or custom agents supporting MCP) can use these tools to read, verify, and audit ECP evidence chains from other agents — enabling trust-aware agent collaboration without custom integration code.
+
+### 6.8 Query & Audit Engine
+
+The SDK includes a **local-first, SQLite-indexed query engine** for forensic analysis and compliance reporting:
+
+- **Full-text search:** Search across all ECP records by content, flags, model, or any metadata field
+- **Chain tracing:** Backward root-cause analysis (what led to this record?) and forward impact analysis (what did this record influence?)
+- **Daily timeline:** Activity, error rate, and latency trends aggregated by day — useful for behavioral drift detection
+- **Automated audit reports:** Anomaly detection for error spikes, confidence drops, and latency spikes with root cause candidates identified via chain tracing
+
+The query engine operates entirely locally — no server communication required. This is critical for compliance scenarios where organizations need forensic analysis capabilities without transmitting sensitive data.
+
+### 6.9 OpenClaw Scanner
+
+For agents running on the **OpenClaw** platform, the SDK includes a session log scanner:
+
+- **Automatic scanning:** Reads OpenClaw `.jsonl` session logs and creates ECP records from each agent action
+- **Per-agent isolation:** Each agent gets its own DID and isolated `.ecp/` directory
+- **Incremental processing:** State tracking ensures no re-processing of already-scanned entries
+- **Watch mode:** Continuous scanning for real-time ECP recording during active sessions
+- **Batch upload:** Scanned records are automatically queued for Merkle batch upload
+
+This enables ECP integration for any OpenClaw agent with zero code changes to the agent itself.
+
+### 6.10 OpenTelemetry Auto-Instrumentation
+
+One-line setup instruments all installed LLM libraries for automatic ECP recording:
+
+```python
+from atlast_ecp.otel import init
+init()  # Auto-instruments all detected LLM libraries
+```
+
+**Supported LLM providers:** OpenAI, Anthropic, Google Gemini, Cohere, Mistral, AWS Bedrock, Together AI, Ollama
+
+**Supported frameworks:** LangChain, LlamaIndex, CrewAI
+
+**Architecture:** Uses OpenLLMetry instrumentors → OpenTelemetry Spans → `ECPSpanExporter` that converts OTel spans into ECP records. This approach leverages the existing OpenTelemetry ecosystem while producing standard ECP evidence chains.
+
+### 6.11 Proof Packages
+
+**Proof Packages** are self-contained, independently verifiable proof bundles that can be shared with anyone — no ATLAST infrastructure required for verification:
+
+- **Selective disclosure:** The user chooses which record content to include versus redact. Included content is verifiable via hash matching; redacted content preserves privacy while the hash proves it existed.
+- **Content verification:** `hash(content) == stored_hash` for each included record
+- **Chain verification:** Recompute chain hashes to verify linkage integrity
+- **Signature verification:** Ed25519 signature validation for each record
+- **Human-readable reports:** Formatted output suitable for legal and compliance review
+- **Backward-compatible:** Both `entries` and `records` field names are supported (alias)
+
+The critical property: `verify_proof()` can be run by **anyone** — a court, a regulator, a counterparty — with zero dependency on ATLAST servers or infrastructure. The proof package contains everything needed for independent verification.
+
 ---
 
 ## 7. Agent Trust Score
@@ -1153,7 +1235,38 @@ Work Certificates transform agent output from *claims* into *evidence*. In a wor
 | AES-256-GCM | FIPS 197 + NIST SP 800-38D | Local ECP record encryption (user's key) |
 | TLS 1.3 | RFC 8446 | Transport security for all API communication |
 
-### 8.3 The Completeness Principle
+### 8.3 BIP39 Identity Recovery
+
+Agent identity is anchored to an Ed25519 keypair. If the private key is lost, the agent's identity — and its entire Trust Score history — is lost. **BIP39 mnemonic recovery** solves this:
+
+- **12-word mnemonic phrase** using the BIP39 standard English wordlist (2,048 words)
+- **Deterministic key derivation:** Entropy → HKDF-SHA256 → Ed25519 seed. The same mnemonic always produces the same keypair, enabling recovery on any device.
+- **Legacy key export/import:** Existing agents can export their identity and re-import on a new device
+- **Human-friendly display:** Mnemonic displayed with numbered words in box format for secure offline storage
+
+This is critical for agent identity portability and disaster recovery. An organization can back up all agent identities as mnemonic phrases stored in a secure vault — ensuring continuity even if the original deployment infrastructure is lost.
+
+### 8.4 Agent Registration Security (DID Anti-Hijacking)
+
+Re-registering an existing DID requires **Ed25519 ownership proof** to prevent unauthorized identity takeover:
+
+- **Signed message format:** `"register:{did}:{timestamp}"`
+- **Timestamp freshness check:** Signature must be within a 5-minute window to prevent replay attacks
+- **Prevents unauthorized key updates:** An attacker who discovers an agent's DID cannot register a new key against it without possessing the original private key
+
+This ensures that agent identity — and the Trust Score history attached to it — cannot be stolen or hijacked by a third party.
+
+### 8.5 API Key Management
+
+Agent-to-server authentication uses a structured API key system:
+
+- **Key format:** `ak_live_{random}` — human-identifiable prefix for key type
+- **Storage:** SHA-256 hashed storage (raw keys are never stored on the server)
+- **Key rotation:** Rotate keys with audit trail (`rotated_from` field links new key to predecessor)
+- **Rate limiting by tier:** Free = 10 req/min, Pro = 60 req/min, Enterprise = 300 req/min
+- **Key prefix tracking:** Enables identification and revocation without exposing the full key
+
+### 8.6 The Completeness Principle
 
 > **"Incomplete evidence is worthless."**
 
@@ -1503,22 +1616,23 @@ This capability will be essential as agent-to-agent learning and delegation beco
 | Phase | Timeline | Status | Deliverables |
 |-------|----------|--------|-------------|
 | 1-4 | Q1 2026 | ✅ Complete | ECP Specification, Server, Python SDK, TS SDK, SSL, CI/CD, E2E verification |
-| 5 | Q1 2026 | ✅ Complete | Framework Adapters (LangChain/CrewAI/AutoGen), 536 tests, PyPI/npm published, Prometheus metrics, database integration, Sentry monitoring |
-| 6 | Q1-Q2 2026 | 🔄 Current | Whitepaper, IETF/W3C preparation, anti-abuse framework, formal security audit |
-| 7 | Q2-Q3 2026 | Planned | Public launch, Base mainnet anchoring, first external integrations, LLaChat v1.0 |
-| 8 | Q3-Q4 2026 | Planned | AIP (Agent Identity Protocol) + ASP (Agent Safety Protocol) |
-| 9 | 2027 | Planned | ACP (Agent Certification Protocol) + EU AI Act compliance toolkit |
-| 10 | 2027-2028 | Vision | PAP (Posthumous Agent Protocol), Agent Insurance infrastructure, A2A trust framework |
+| 5 | Q1 2026 | ✅ Complete | Framework Adapters (LangChain/CrewAI/AutoGen), PyPI/npm published, Prometheus metrics, database integration, Sentry monitoring |
+| 6 | Q1 2026 | ✅ Complete | Go SDK, MCP Server, Query & Audit Engine, BIP39 identity recovery, Proof Packages, OpenClaw Scanner, OpenTelemetry auto-instrumentation, agent registration security, API key management, 1,059 tests |
+| 7 | Q1-Q2 2026 | 🔄 Current | Whitepaper v3.0, IETF/W3C preparation, anti-abuse framework, formal security audit |
+| 8 | Q2-Q3 2026 | Planned | Public launch, Base mainnet anchoring, first external integrations, LLaChat v1.0 |
+| 9 | Q3-Q4 2026 | Planned | AIP (Agent Identity Protocol) + ASP (Agent Safety Protocol) |
+| 10 | 2027 | Planned | ACP (Agent Certification Protocol) + EU AI Act compliance toolkit |
+| 11 | 2027-2028 | Vision | PAP (Posthumous Agent Protocol), Agent Insurance infrastructure, A2A trust framework |
 
 ### 13.2 Current Implementation Status
 
 | Component | Version | Tests | Status |
 |-----------|---------|-------|--------|
-| Python SDK | v0.8.0 | 669 | Published on PyPI |
-| TypeScript SDK | v0.2.0 | 39 | Published on npm |
-| ECP Server | v1.0.0 | 42 | Deployed at api.weba0.com |
-| Framework Adapters | v0.8.0 | 50 | LangChain, CrewAI, AutoGen |
-| **Total** | | **536** | All passing in CI |
+| Python SDK | v0.10.0 | 835 | Published on PyPI |
+| TypeScript SDK | v0.3.0 | 43 | Published on npm |
+| Go SDK | v0.1.0 | 50 | CLI tool: atlast-go |
+| ECP Server | v1.0.0 | 131 | Deployed at api.weba0.com |
+| **Total** | | **1,059** | All passing in CI |
 
 ### 13.3 Open Governance Model
 
@@ -1665,7 +1779,7 @@ ATLAST Protocol addresses this gap with engineering infrastructure, not policy p
 - **$0 core protocol** removes all adoption barriers (premium services optional)
 - **Open-source, open-standard** design prevents vendor lock-in and ensures permanence
 
-The protocol is live. The SDK is published. 536 tests are passing. The standard is open.
+The protocol is live. The SDK is published. 1,059 tests are passing across Python, TypeScript, Go, and Server. The standard is open.
 
 What remains is adoption — and the recognition that the agent economy, like every economy before it, needs trust infrastructure built on verifiable evidence, not on promises.
 
@@ -1750,12 +1864,22 @@ Cross-implementation test vectors (verified across Python SDK, TypeScript SDK, a
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Health check |
-| `GET` | `/v1/discovery` | List all available endpoints |
+| `GET` | `/.well-known/ecp.json` | ECP discovery document |
+| `GET` | `/v1/discovery/agents` | List registered agents |
+| `GET` | `/v1/discovery/agents/{did}/stats` | Agent statistics |
 | `GET` | `/v1/stats` | Platform statistics |
-| `POST` | `/v1/batch` | Upload a Merkle batch |
-| `GET` | `/v1/verify/{record_id}` | Verify a specific record |
+| `POST` | `/v1/batches` | Upload a Merkle batch |
+| `GET` | `/v1/batches/{batch_id}` | Get batch status |
+| `POST` | `/v1/agents/register` | Register agent + get API key |
+| `POST` | `/v1/auth/rotate-key` | Rotate API key |
+| `GET` | `/v1/auth/me` | Get current agent info |
+| `GET` | `/v1/verify/{attestation_uid}` | Verify attestation |
+| `POST` | `/v1/verify/merkle` | Verify Merkle proof |
 | `GET` | `/v1/attestations` | List blockchain attestations |
-| `GET` | `/v1/merkle/root` | Get current Merkle root |
+| `GET` | `/v1/attestations/{batch_id}` | Get attestation for batch |
+| `GET` | `/v1/agents/{did}/drift` | Agent behavioral drift analysis |
+| `GET` | `/v1/agents/{did}/records` | Agent ECP records |
+| `GET` | `/v1/super-batches/{id}` | Get super-batch status |
 | `GET` | `/metrics` | Prometheus metrics |
 
 ### Authentication
@@ -1768,10 +1892,11 @@ Cross-implementation test vectors (verified across Python SDK, TypeScript SDK, a
 
 ### Rate Limits
 
-| Endpoint | Limit |
-|----------|-------|
-| All endpoints | 60 requests/minute per IP |
-| `/v1/batch` | 10 requests/minute per agent |
+| Tier | Limit |
+|------|-------|
+| Free | 10 requests/minute per agent |
+| Pro | 60 requests/minute per agent |
+| Enterprise | 300 requests/minute per agent |
 
 ## Appendix D: Behavioral Flag Taxonomy
 
@@ -1784,6 +1909,7 @@ Cross-implementation test vectors (verified across Python SDK, TypeScript SDK, a
 | `error` | Agent returned error state or exception | Negative | Agent failed to complete the requested action |
 | `human_review` | Agent explicitly requested human verification | Positive | Agent recognized its own limitations and escalated appropriately |
 | `a2a_delegated` | Task delegated to sub-agent via A2A call | Neutral | Agent delegated work to another agent — captured for attribution |
+| `speed_anomaly` | Output length/latency ratio exceeds threshold (e.g., 600+ chars in <100ms) | Negative | Response generated impossibly fast — may indicate cached/prefabricated output rather than genuine computation |
 
 ---
 
@@ -1815,7 +1941,8 @@ Cross-implementation test vectors (verified across Python SDK, TypeScript SDK, a
 | **AIP** | Agent Identity Protocol — ATLAST sub-protocol for decentralized agent identity |
 | **ASP** | Agent Safety Protocol — ATLAST sub-protocol for runtime safety boundaries |
 | **ATLAST** | Agent-Layer Accountability Standards & Transactions — the parent protocol |
-| **Behavioral Flag** | SDK-detected signal about agent behavior (e.g., `retried`, `hedged`, `error`) |
+| **BIP39** | Bitcoin Improvement Proposal 39 — mnemonic phrase standard used for deterministic agent identity recovery |
+| **Behavioral Flag** | SDK-detected signal about agent behavior (e.g., `retried`, `hedged`, `error`, `speed_anomaly`) |
 | **Chain Integrity** | Ratio of valid (hash-correct, properly linked) records to total records in a chain |
 | **Commit-Reveal** | Privacy architecture where hashes are committed first, content revealed only when verification is needed |
 | **DID** | Decentralized Identifier — platform-independent cryptographic identity (`did:ecp:{hash}`) |
@@ -1825,9 +1952,12 @@ Cross-implementation test vectors (verified across Python SDK, TypeScript SDK, a
 | **Fail-Open** | Design principle: recording failures never affect agent operation |
 | **Hash Chain** | Sequence of records where each references the cryptographic hash of its predecessor |
 | **LLaChat** | First application built on ATLAST — professional identity platform for AI agents |
+| **MCP** | Model Context Protocol — standard for exposing tools to AI agents; ATLAST MCP server provides 8 ECP tools |
 | **Merkle Proof** | O(log N) proof that a specific element exists within a Merkle tree |
 | **Merkle Root** | Single hash summarizing an entire batch of records via binary hash tree |
+| **OpenClaw Scanner** | Tool that scans OpenClaw agent session logs and creates ECP records automatically |
 | **PAP** | Posthumous Agent Protocol — framework for agent asset/identity inheritance after owner death |
+| **Proof Package** | Self-contained, independently verifiable proof bundle with selective disclosure support |
 | **SBT** | Soulbound Token — non-transferable on-chain credential |
 | **Super-Batch** | Aggregation of multiple agents' Merkle roots into a single on-chain transaction |
 | **Trust Score** | Quantitative reputation metric (0-1000) derived from passive behavioral analysis of ECP data |
