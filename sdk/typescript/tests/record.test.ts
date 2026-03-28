@@ -26,8 +26,8 @@ describe('record', () => {
     const r1 = createRecord({ agentId: 'test', input: 'a', output: 'b' });
     const r2 = createRecord({ agentId: 'test', input: 'c', output: 'd' });
 
-    expect(r2.chain.prev).toBe(r1.chain.hash);
-    expect(getChainHead()).toBe(r2.chain.hash);
+    expect(r2.chain.prev).toBe(r1.id);
+    expect(getChainHead()).toBe(r2.id);
   });
 
   it('detects high latency', () => {

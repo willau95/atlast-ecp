@@ -5,14 +5,14 @@
 import { sha256, hashRecord, generateId, signData } from './crypto';
 import type { ECPRecord, ECPIdentity } from './types';
 
-let lastHash = 'genesis';
+let lastId = 'genesis';
 
-export function setChainHead(hash: string): void {
-  lastHash = hash;
+export function setChainHead(id: string): void {
+  lastId = id;
 }
 
 export function getChainHead(): string {
-  return lastHash;
+  return lastId;
 }
 
 export interface CreateRecordOptions {
@@ -54,7 +54,7 @@ export function createRecord(opts: CreateRecordOptions): ECPRecord {
     delegation_depth: opts.delegationDepth,
     metadata: opts.metadata,
     chain: {
-      prev: lastHash,
+      prev: lastId,
       hash: '',
     },
   };
@@ -72,6 +72,6 @@ export function createRecord(opts: CreateRecordOptions): ECPRecord {
     record.sig = signData(opts.identity.private_key, record.chain.hash);
   }
 
-  lastHash = record.chain.hash;
+  lastId = record.id;
   return record;
 }
