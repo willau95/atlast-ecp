@@ -97,7 +97,7 @@ async def init_db():
         return
 
     async_url = _get_async_url(settings.DATABASE_URL)
-    _engine = create_async_engine(async_url, echo=False, pool_size=5, max_overflow=10)
+    _engine = create_async_engine(async_url, echo=False, pool_size=10, max_overflow=20, pool_recycle=1800)
     _session_factory = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 
     # Import all models so Base.metadata knows about them

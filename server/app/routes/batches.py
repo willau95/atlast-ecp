@@ -33,13 +33,25 @@ _agent_rate_buckets: dict[str, list[float]] = {}
 _RATE_LIMITS = {"free": 10, "pro": 60, "enterprise": 300}
 
 
+_last_gc = _time.time()
+_GC_INTERVAL = 300  # Clean stale buckets every 5 minutes
+
+
 def _check_agent_rate(agent_did: str, tier: str = "free") -> bool:
     """Returns True if request is allowed, False if rate limited."""
+    global _last_gc
     limit = _RATE_LIMITS.get(tier, 10)
     now = _time.time()
     window = 60.0  # 1 minute
 
     with _agent_rate_lock:
+        # Periodic GC: remove agents with no recent activity
+        if now - _last_gc > _GC_INTERVAL:
+            stale = [k for k, v in _agent_rate_buckets.items() if not v or now - v[-1] > window]
+            for k in stale:
+                del _agent_rate_buckets[k]
+            _last_gc = now
+
         if agent_did not in _agent_rate_buckets:
             _agent_rate_buckets[agent_did] = []
 
@@ -124,6 +136,34 @@ async def upload_batch(
 
     # Generate batch_id
     batch_id = f"batch_{secrets.token_hex(8)}"
+
+    # Deduplication: reject if identical merkle_root from same agent within 5 minutes
+    session = await get_session()
+    if session is not None:
+        try:
+            from sqlalchemy import select, and_
+            from datetime import timedelta
+            from ..db.models import Batch as BatchModel
+            async with session:
+                cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+                dup = await session.execute(
+                    select(BatchModel.batch_id).where(
+                        and_(
+                            BatchModel.agent_did == req.agent_did,
+                            BatchModel.merkle_root == req.merkle_root,
+                            BatchModel.created_at >= cutoff,
+                        )
+                    ).limit(1)
+                )
+                existing = dup.scalar_one_or_none()
+                if existing:
+                    return BatchUploadResponse(
+                        batch_id=existing,
+                        status="duplicate",
+                        message="Identical batch already submitted within the last 5 minutes.",
+                    )
+        except Exception as e:
+            logger.warning("dedup_check_failed", error=str(e))
 
     # Store in DB
     session = await get_session()

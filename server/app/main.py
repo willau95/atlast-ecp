@@ -171,6 +171,8 @@ async def security_headers(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    response.headers["X-API-Version"] = "1.0.0"
     # X-Request-ID
     req_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
     response.headers["X-Request-ID"] = req_id

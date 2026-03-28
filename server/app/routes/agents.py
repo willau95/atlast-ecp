@@ -91,22 +91,31 @@ async def list_agents(
     if session is None:
         raise HTTPException(status_code=503, detail="Database not available")
     
-    from sqlalchemy import select, func
+    from sqlalchemy import select, func, outerjoin
     async with session:
-        q = select(Agent).order_by(Agent.created_at.desc()).limit(limit)
+        # Single query with LEFT JOIN to avoid N+1
+        q = (
+            select(
+                Agent.did,
+                Agent.created_at,
+                func.count(Batch.id).label("batch_count"),
+            )
+            .outerjoin(Batch, Agent.did == Batch.agent_did)
+            .group_by(Agent.did, Agent.created_at)
+            .order_by(Agent.created_at.desc())
+            .limit(limit)
+        )
         result = await session.execute(q)
-        agents = result.scalars().all()
+        rows = result.all()
         
-        # Get batch counts
-        agent_stats = []
-        for a in agents:
-            count_q = select(func.count()).select_from(Batch).where(Batch.agent_did == a.did)
-            batch_count = (await session.execute(count_q)).scalar() or 0
-            agent_stats.append({
-                "did": a.did,
-                "created_at": a.created_at.isoformat() if a.created_at else None,
-                "batch_count": batch_count,
-            })
+        agent_stats = [
+            {
+                "did": row.did,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "batch_count": row.batch_count,
+            }
+            for row in rows
+        ]
     
     return {"agents": agent_stats, "total": len(agent_stats)}
 

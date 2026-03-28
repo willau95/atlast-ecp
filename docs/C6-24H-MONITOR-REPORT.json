@@ -3,23 +3,108 @@
   "target": "https://api.weba0.com",
   "started_at": "2026-03-26T08:39:46.726415+00:00",
   "interval_s": 300,
-  "total_checks": 33,
-  "total_pass": 33,
-  "total_fail": 0,
-  "uptime_pct": 100.0,
-  "avg_response_time_s": 0.745,
-  "max_response_time_s": 1.001,
-  "failures": [],
+  "total_checks": 288,
+  "total_pass": 286,
+  "total_fail": 2,
+  "uptime_pct": 99.31,
+  "avg_response_time_s": 0.778,
+  "max_response_time_s": 10.878,
+  "failures": [
+    {
+      "timestamp": "2026-03-26T21:51:59.910239+00:00",
+      "all_ok": false,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.703,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.688,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.688,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 3.307,
+          "ok": false,
+          "error": null,
+          "slow": true
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T00:12:24.532090+00:00",
+      "all_ok": false,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": null,
+          "expected_status": 200,
+          "response_time_s": 10.878,
+          "ok": false,
+          "error": "",
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.822,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.821,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.818,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    }
+  ],
   "checks": [
     {
-      "timestamp": "2026-03-26T08:39:46.726750+00:00",
+      "timestamp": "2026-03-27T04:33:18.892981+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.547,
+          "response_time_s": 0.894,
           "ok": true,
           "error": null,
           "slow": false
@@ -28,7 +113,7 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.555,
+          "response_time_s": 0.888,
           "ok": true,
           "error": null,
           "slow": false
@@ -37,7 +122,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.557,
+          "response_time_s": 0.894,
           "ok": true,
           "error": null,
           "slow": false
@@ -46,7 +131,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.549,
+          "response_time_s": 0.88,
           "ok": true,
           "error": null,
           "slow": false
@@ -54,14 +139,14 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T08:44:47.327082+00:00",
+      "timestamp": "2026-03-27T04:38:19.842291+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.879,
+          "response_time_s": 0.7,
           "ok": true,
           "error": null,
           "slow": false
@@ -70,37 +155,13 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.85,
+          "response_time_s": 0.71,
           "ok": true,
           "error": null,
           "slow": false
         },
         {
           "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.875,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.846,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T08:49:48.326081+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
           "response_time_s": 0.686,
@@ -109,10 +170,34 @@
           "slow": false
         },
         {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.679,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T04:43:20.670385+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.903,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.662,
+          "response_time_s": 0.864,
           "ok": true,
           "error": null,
           "slow": false
@@ -121,7 +206,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.677,
+          "response_time_s": 0.885,
           "ok": true,
           "error": null,
           "slow": false
@@ -130,7 +215,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.664,
+          "response_time_s": 0.865,
           "ok": true,
           "error": null,
           "slow": false
@@ -138,14 +223,14 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T08:54:49.075519+00:00",
+      "timestamp": "2026-03-27T04:48:21.608024+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.761,
+          "response_time_s": 0.628,
           "ok": true,
           "error": null,
           "slow": false
@@ -154,7 +239,7 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.735,
+          "response_time_s": 0.604,
           "ok": true,
           "error": null,
           "slow": false
@@ -163,7 +248,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.725,
+          "response_time_s": 0.616,
           "ok": true,
           "error": null,
           "slow": false
@@ -172,7 +257,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.735,
+          "response_time_s": 0.616,
           "ok": true,
           "error": null,
           "slow": false
@@ -180,14 +265,14 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T08:59:49.884967+00:00",
+      "timestamp": "2026-03-27T04:53:22.279061+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.784,
+          "response_time_s": 0.827,
           "ok": true,
           "error": null,
           "slow": false
@@ -196,7 +281,469 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.756,
+          "response_time_s": 0.778,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.809,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.773,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T04:58:23.152581+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.706,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.705,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.713,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.688,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T05:03:23.917469+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.696,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.679,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.679,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.678,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T05:08:24.659115+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.864,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.84,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.84,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.839,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T05:13:25.561970+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.734,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.851,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.735,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.81,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T05:18:26.464977+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.631,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.595,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.648,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.579,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T05:23:27.147873+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.803,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.78,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.797,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.782,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T05:28:27.989773+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.606,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.645,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.645,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.588,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T05:33:28.685954+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.68,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.703,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.703,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.702,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T05:38:29.447546+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.663,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.638,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.635,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.638,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T05:43:30.175373+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.769,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.747,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.762,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.746,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T05:48:31.122712+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.755,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.754,
           "ok": true,
           "error": null,
           "slow": false
@@ -214,7 +761,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.694,
+          "response_time_s": 0.665,
           "ok": true,
           "error": null,
           "slow": false
@@ -222,266 +769,14 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T09:04:50.727039+00:00",
+      "timestamp": "2026-03-27T05:53:31.939939+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.722,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.685,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.687,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.685,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T09:09:51.477283+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.615,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.601,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.612,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.628,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T09:14:52.251002+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.796,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.768,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.767,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.763,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T09:19:53.088021+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.743,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.721,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.757,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.714,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T09:24:53.909273+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.831,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.811,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.803,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.802,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T09:29:54.807911+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.71,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.697,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.698,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.675,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T09:34:55.572920+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.911,
+          "response_time_s": 0.891,
           "ok": true,
           "error": null,
           "slow": false
@@ -499,7 +794,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.888,
+          "response_time_s": 0.867,
           "ok": true,
           "error": null,
           "slow": false
@@ -508,7 +803,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.863,
+          "response_time_s": 0.843,
           "ok": true,
           "error": null,
           "slow": false
@@ -516,14 +811,14 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T09:39:56.589331+00:00",
+      "timestamp": "2026-03-27T05:58:32.864597+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.629,
+          "response_time_s": 0.835,
           "ok": true,
           "error": null,
           "slow": false
@@ -532,7 +827,7 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.606,
+          "response_time_s": 0.837,
           "ok": true,
           "error": null,
           "slow": false
@@ -541,7 +836,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.608,
+          "response_time_s": 0.805,
           "ok": true,
           "error": null,
           "slow": false
@@ -550,7 +845,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.603,
+          "response_time_s": 0.848,
           "ok": true,
           "error": null,
           "slow": false
@@ -558,14 +853,14 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T09:44:57.284534+00:00",
+      "timestamp": "2026-03-27T06:03:33.775227+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.936,
+          "response_time_s": 1.043,
           "ok": true,
           "error": null,
           "slow": false
@@ -574,7 +869,7 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.988,
+          "response_time_s": 1.021,
           "ok": true,
           "error": null,
           "slow": false
@@ -583,7 +878,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.988,
+          "response_time_s": 1.02,
           "ok": true,
           "error": null,
           "slow": false
@@ -592,7 +887,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.987,
+          "response_time_s": 1.02,
           "ok": true,
           "error": null,
           "slow": false
@@ -600,14 +895,14 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T09:49:58.534850+00:00",
+      "timestamp": "2026-03-27T06:08:34.875981+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.774,
+          "response_time_s": 1.137,
           "ok": true,
           "error": null,
           "slow": false
@@ -616,7 +911,7 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.763,
+          "response_time_s": 1.112,
           "ok": true,
           "error": null,
           "slow": false
@@ -625,7 +920,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.764,
+          "response_time_s": 1.114,
           "ok": true,
           "error": null,
           "slow": false
@@ -634,7 +929,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.773,
+          "response_time_s": 1.114,
           "ok": true,
           "error": null,
           "slow": false
@@ -642,14 +937,14 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T09:54:59.386465+00:00",
+      "timestamp": "2026-03-27T06:13:36.063596+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.645,
+          "response_time_s": 0.842,
           "ok": true,
           "error": null,
           "slow": false
@@ -658,7 +953,7 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.654,
+          "response_time_s": 0.776,
           "ok": true,
           "error": null,
           "slow": false
@@ -667,7 +962,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.653,
+          "response_time_s": 0.786,
           "ok": true,
           "error": null,
           "slow": false
@@ -676,7 +971,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.653,
+          "response_time_s": 0.775,
           "ok": true,
           "error": null,
           "slow": false
@@ -684,14 +979,308 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T10:00:00.100990+00:00",
+      "timestamp": "2026-03-27T06:18:36.949678+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.758,
+          "response_time_s": 0.705,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.676,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.676,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.674,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T06:23:37.692300+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.749,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.732,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.731,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.715,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T06:28:38.524987+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.846,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.851,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.87,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.807,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T06:33:39.469662+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.924,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.898,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.898,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.896,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T06:38:40.421781+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.706,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.709,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.728,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.714,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T06:43:41.205618+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.794,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.782,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.868,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.784,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T06:48:42.138192+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.707,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.71,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.725,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.688,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T06:53:42.919844+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.771,
           "ok": true,
           "error": null,
           "slow": false
@@ -709,7 +1298,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.743,
+          "response_time_s": 0.807,
           "ok": true,
           "error": null,
           "slow": false
@@ -718,7 +1307,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.73,
+          "response_time_s": 0.745,
           "ok": true,
           "error": null,
           "slow": false
@@ -726,14 +1315,14 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T10:05:00.926287+00:00",
+      "timestamp": "2026-03-27T06:58:43.780848+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.659,
+          "response_time_s": 0.695,
           "ok": true,
           "error": null,
           "slow": false
@@ -742,7 +1331,7 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.639,
+          "response_time_s": 0.679,
           "ok": true,
           "error": null,
           "slow": false
@@ -751,7 +1340,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.639,
+          "response_time_s": 0.677,
           "ok": true,
           "error": null,
           "slow": false
@@ -760,7 +1349,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.637,
+          "response_time_s": 0.678,
           "ok": true,
           "error": null,
           "slow": false
@@ -768,7 +1357,595 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T10:10:01.630723+00:00",
+      "timestamp": "2026-03-27T07:03:44.601591+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 1.018,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.977,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.973,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.972,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T07:08:45.685095+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.713,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.682,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.682,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.647,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T07:13:46.432470+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 1.003,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.982,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.981,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.981,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T07:18:47.471550+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.805,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.785,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.785,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.784,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T07:23:48.309049+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.908,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.836,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.846,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.833,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T07:28:49.262564+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.749,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.725,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.724,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.722,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T07:33:50.356521+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 1.11,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 1.252,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 1.252,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 1.252,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T07:38:51.689555+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.727,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.705,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.705,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.697,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T07:43:52.450361+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.711,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.692,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.714,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.69,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T07:48:53.223961+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 1.019,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 1.003,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 1.017,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 1.001,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T07:53:54.297121+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.77,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.737,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.755,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.736,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T07:58:55.103304+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.704,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.699,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.699,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.642,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T08:03:55.853763+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.899,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.876,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.876,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.874,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T08:08:56.795950+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.761,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.611,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.858,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.725,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T08:13:57.724320+00:00",
       "all_ok": true,
       "checks": [
         {
@@ -784,7 +1961,7 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.877,
+          "response_time_s": 0.92,
           "ok": true,
           "error": null,
           "slow": false
@@ -793,7 +1970,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.876,
+          "response_time_s": 0.92,
           "ok": true,
           "error": null,
           "slow": false
@@ -802,7 +1979,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.876,
+          "response_time_s": 0.867,
           "ok": true,
           "error": null,
           "slow": false
@@ -810,14 +1987,14 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T10:15:02.576440+00:00",
+      "timestamp": "2026-03-27T08:18:58.729037+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.811,
+          "response_time_s": 0.729,
           "ok": true,
           "error": null,
           "slow": false
@@ -826,7 +2003,7 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.775,
+          "response_time_s": 0.741,
           "ok": true,
           "error": null,
           "slow": false
@@ -835,7 +2012,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.775,
+          "response_time_s": 0.739,
           "ok": true,
           "error": null,
           "slow": false
@@ -844,7 +2021,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.774,
+          "response_time_s": 0.716,
           "ok": true,
           "error": null,
           "slow": false
@@ -852,14 +2029,14 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T10:20:03.449148+00:00",
+      "timestamp": "2026-03-27T08:23:59.567181+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.799,
+          "response_time_s": 1.008,
           "ok": true,
           "error": null,
           "slow": false
@@ -868,7 +2045,7 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.74,
+          "response_time_s": 0.979,
           "ok": true,
           "error": null,
           "slow": false
@@ -877,7 +2054,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.765,
+          "response_time_s": 1.009,
           "ok": true,
           "error": null,
           "slow": false
@@ -886,7 +2063,7 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.738,
+          "response_time_s": 0.993,
           "ok": true,
           "error": null,
           "slow": false
@@ -894,14 +2071,14 @@
       ]
     },
     {
-      "timestamp": "2026-03-26T10:25:04.324570+00:00",
+      "timestamp": "2026-03-27T08:29:00.672546+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.754,
+          "response_time_s": 0.886,
           "ok": true,
           "error": null,
           "slow": false
@@ -910,7 +2087,7 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.701,
+          "response_time_s": 0.871,
           "ok": true,
           "error": null,
           "slow": false
@@ -919,451 +2096,31 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.7,
+          "response_time_s": 0.864,
           "ok": true,
           "error": null,
           "slow": false
         },
         {
           "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.699,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T10:30:05.119286+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 1.001,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.97,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.97,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.949,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T10:35:06.175931+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.712,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.686,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.684,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.686,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T10:40:06.941732+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.893,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.833,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.833,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.833,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T10:45:07.897804+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.725,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.706,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.706,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.706,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T10:50:08.646411+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.838,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.835,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.835,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.835,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T10:55:09.513272+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.623,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.642,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.658,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.666,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T11:00:10.212732+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.677,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.659,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.663,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.663,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T11:05:10.943672+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.732,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.641,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.656,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.64,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T11:10:11.719846+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.737,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.706,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.706,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.705,
-          "ok": true,
-          "error": null,
-          "slow": false
-        }
-      ]
-    },
-    {
-      "timestamp": "2026-03-26T11:15:12.506312+00:00",
-      "all_ok": true,
-      "checks": [
-        {
-          "endpoint": "/health",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.881,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
           "response_time_s": 0.854,
           "ok": true,
           "error": null,
           "slow": false
-        },
-        {
-          "endpoint": "/v1/discovery/agents",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.853,
-          "ok": true,
-          "error": null,
-          "slow": false
-        },
-        {
-          "endpoint": "/.well-known/ecp.json",
-          "status": 200,
-          "expected_status": 200,
-          "response_time_s": 0.622,
-          "ok": true,
-          "error": null,
-          "slow": false
         }
       ]
     },
     {
-      "timestamp": "2026-03-26T11:20:13.442482+00:00",
+      "timestamp": "2026-03-27T08:34:01.610989+00:00",
       "all_ok": true,
       "checks": [
         {
           "endpoint": "/health",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.746,
+          "response_time_s": 0.895,
           "ok": true,
           "error": null,
           "slow": false
@@ -1372,7 +2129,7 @@
           "endpoint": "/v1/stats",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.728,
+          "response_time_s": 0.866,
           "ok": true,
           "error": null,
           "slow": false
@@ -1381,7 +2138,7 @@
           "endpoint": "/v1/discovery/agents",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.717,
+          "response_time_s": 0.887,
           "ok": true,
           "error": null,
           "slow": false
@@ -1390,7 +2147,49 @@
           "endpoint": "/.well-known/ecp.json",
           "status": 200,
           "expected_status": 200,
-          "response_time_s": 0.722,
+          "response_time_s": 0.882,
+          "ok": true,
+          "error": null,
+          "slow": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-03-27T08:39:02.639073+00:00",
+      "all_ok": true,
+      "checks": [
+        {
+          "endpoint": "/health",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.71,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/stats",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.689,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/v1/discovery/agents",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.703,
+          "ok": true,
+          "error": null,
+          "slow": false
+        },
+        {
+          "endpoint": "/.well-known/ecp.json",
+          "status": 200,
+          "expected_status": 200,
+          "response_time_s": 0.661,
           "ok": true,
           "error": null,
           "slow": false
@@ -1398,5 +2197,7 @@
       ]
     }
   ],
-  "last_check": "2026-03-26T11:20:13.442482+00:00"
+  "last_check": "2026-03-27T08:39:02.639073+00:00",
+  "completed_at": "2026-03-27T08:44:03.500648+00:00",
+  "status": "PASS"
 }
