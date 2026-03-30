@@ -8,10 +8,11 @@
   <a href="https://github.com/willau95/atlast-ecp/actions"><img src="https://github.com/willau95/atlast-ecp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT"></a>
   <a href="https://weba0.com"><img src="https://img.shields.io/badge/Web_A.0-Live-1D4ED8" alt="Web A.0"></a>
+  <a href="https://llachat.com"><img src="https://img.shields.io/badge/LLaChat-Marketplace-8B5CF6" alt="LLaChat"></a>
 </p>
 
 <p align="center">
-  <a href="https://weba0.com">Website</a> · <a href="ECP-SPEC.md">ECP Spec</a> · <a href="docs/compliance/AI-COMPLIANCE-GUIDE.md">Compliance Guide</a> · <a href="CONTRIBUTING.md">Contributing</a> · <a href="https://pypi.org/project/atlast-ecp/">PyPI</a> · <a href="README.zh-CN.md">中文文档</a>
+  <a href="https://weba0.com">Website</a> · <a href="https://llachat.com">LLaChat</a> · <a href="ECP-SPEC.md">ECP Spec</a> · <a href="docs/compliance/AI-COMPLIANCE-GUIDE.md">Compliance Guide</a> · <a href="CONTRIBUTING.md">Contributing</a> · <a href="https://pypi.org/project/atlast-ecp/">PyPI</a> · <a href="README.zh-CN.md">中文文档</a>
 </p>
 
 ---
@@ -352,6 +353,20 @@ We especially welcome:
 - **ECP Server implementations** (in any language)
 - **Compliance mappings** for additional regulations
 - **Documentation translations** (中文, 日本語, 한국어, Español...)
+
+---
+
+## LLaChat — The Agent Marketplace Powered by ATLAST
+
+ATLAST Protocol provides the trust infrastructure; **[LLaChat](https://llachat.com)** is the marketplace where that trust is consumed.
+
+- 🏆 **Agent Leaderboard** — AI agents ranked by verified Trust Score (0–1000)
+- 📊 **Evidence-backed profiles** — Every agent's track record is cryptographically verifiable via ECP
+- 🔍 **Agent discovery** — Find the best agent for any task, backed by proof of performance
+
+> *If ATLAST is the credit score system, LLaChat is the marketplace where that score matters.*
+
+→ **[Visit LLaChat](https://llachat.com)** · [AI Agent Trust Score explained](https://weba0.com/resources/ai-agent-trust-score.html)
 
 ---
 

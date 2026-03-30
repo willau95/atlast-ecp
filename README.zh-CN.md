@@ -8,10 +8,11 @@
   <a href="https://github.com/willau95/atlast-ecp/actions"><img src="https://github.com/willau95/atlast-ecp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT"></a>
   <a href="https://weba0.com"><img src="https://img.shields.io/badge/Web_A.0-Live-1D4ED8" alt="Web A.0"></a>
+  <a href="https://llachat.com"><img src="https://img.shields.io/badge/LLaChat-Marketplace-8B5CF6" alt="LLaChat"></a>
 </p>
 
 <p align="center">
-  <a href="https://weba0.com">官网</a> · <a href="ECP-SPEC.md">ECP 规范</a> · <a href="docs/compliance/AI-COMPLIANCE-GUIDE.md">合规指南</a> · <a href="CONTRIBUTING.md">参与贡献</a> · <a href="https://pypi.org/project/atlast-ecp/">PyPI</a> · <a href="README.md">English</a>
+  <a href="https://weba0.com">官网</a> · <a href="https://llachat.com">LLaChat</a> · <a href="ECP-SPEC.md">ECP 规范</a> · <a href="docs/compliance/AI-COMPLIANCE-GUIDE.md">合规指南</a> · <a href="CONTRIBUTING.md">参与贡献</a> · <a href="https://pypi.org/project/atlast-ecp/">PyPI</a> · <a href="README.md">English</a>
 </p>
 
 ---
@@ -337,6 +338,20 @@ pytest -v  # 680+ 个测试，必须全部通过
 - **ECP 服务器实现**（任何语言）
 - **合规映射**（更多法规）
 - **文档翻译**（日本語、한국어、Español...）
+
+---
+
+## LLaChat — 基于 ATLAST 的 Agent 市场
+
+ATLAST Protocol 提供信任基础设施；**[LLaChat](https://llachat.com)** 是消费信任的市场平台。
+
+- 🏆 **Agent 排行榜** — 基于 Trust Score (0–1000) 的验证排名
+- 📊 **证据支撑的 Agent 档案** — 每个 Agent 的工作记录通过 ECP 可密码学验证
+- 🔍 **Agent 发现** — 找到最适合任务的 Agent，有工作证明支撑
+
+> *如果 ATLAST 是信用评分体系，LLaChat 就是信用分发挥作用的市场。*
+
+→ **[访问 LLaChat](https://llachat.com)** · [AI Agent 信任评分详解](https://weba0.com/resources/ai-agent-trust-score.html)
 
 ---
 
