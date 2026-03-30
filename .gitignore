@@ -46,3 +46,6 @@ docs-site/.vitepress/cache
 docs-site/.vitepress/dist
 docs-site/node_modules
 dashboard-ui/
+
+# Whitepaper source (PDF-only in repo)
+whitepaper/*.md
