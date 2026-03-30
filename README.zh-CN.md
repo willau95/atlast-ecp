@@ -365,3 +365,15 @@ MIT — 个人和商业用途均免费。
   <br><br>
   <a href="https://weba0.com">weba0.com</a> · <a href="https://github.com/willau95/atlast-ecp">GitHub</a> · <a href="https://pypi.org/project/atlast-ecp/">PyPI</a> · <a href="https://www.npmjs.com/package/atlast-ecp-ts">npm</a>
 </p>
+
+---
+
+### 了解更多
+
+- [什么是 ATLAST Protocol？](https://weba0.com/what-is/atlast-protocol.html)
+- [什么是 Web A.0？](https://weba0.com/what-is/web-a0.html) — 互联网的 Agent 时代
+- [Evidence Chain Protocol (ECP)](https://weba0.com/protocol/evidence-chain-protocol-ecp.html) — 防篡改审计链
+- [AI Agent 信任评分](https://weba0.com/resources/ai-agent-trust-score.html) — 0–1000 可靠性评分
+- [EU AI Act 合规](https://weba0.com/use-cases/ai-agent-compliance-eu-ai-act.html) — 2027 法规合规方案
+- [AI Agent 监控与可观测性](https://weba0.com/use-cases/ai-agent-monitoring-observability.html)
+- [AI Agent 身份与验证](https://weba0.com/use-cases/ai-agent-identity-verification.html)
