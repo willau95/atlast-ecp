@@ -242,6 +242,92 @@ ECP is integration-agnostic. Reference implementations exist for:
 
 ---
 
+## 9. Session-Level Aggregation (Optional Extension)
+
+Individual ECP records provide per-action behavioral signals. This section defines an optional `session_summary` record type that aggregates those signals into a cacheable, sessionlevel view and chains summaries to enable cross-session drift detection.
+
+### 9.1 Session Summary Record
+
+```json
+{
+  "ecp": "1.0",
+  "id": "sess_<hex32>",
+  "type": "session_summary",
+  "agent": "did:ecp:...",
+  "session_start": 1741766400000,
+  "session_end": 1741769000000,
+  "record_count": 47,
+  "flag_totals": {
+    "retried": 3,
+    "incomplete": 1,
+    "hedged": 12,
+    "error": 0,
+    "human_review": 2,
+    "a2a_delegated": 5,
+    "speed_anomaly": 1,
+    "high_latency": 4
+  },
+  "delivery_score": 0.894,
+  "calibration_flag_rate": 0.255,
+  "prev_session": "sess_<hex32_of_preceding_session>"
+}
+```
+
+**Field reference:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `ecp` | string | ✓ | ECP record version (always `"1.0"`) |
+| `id` | string | ✓ | `sess_` prefix + 32 hex chars (SHA-256 of agent + session_start) |
+| `type` | string | ✓ | Always `"session_summary"` |
+| `agent` | string | | DID of the agent (if identity extension used) |
+| `session_start` | integer | ✓ | Unix epoch milliseconds — first record timestamp in session |
+| `session_end` | integer | ✓ | Unix epoch milliseconds — last record timestamp in session |
+| `record_count` | integer | ✓ | Total ECP records included in this session |
+| `flag_totals` | object | ✓ | Count of each behavioral flag across all session records |
+| `delivery_score` | float | ✓ | Session-level reliability metric (see §9.2) |
+| `calibration_flag_rate` | float | ✓ | Hedging rate as a fraction of record_count (see §9.2) |
+| `prev_session` | string | | `id` of the immediately preceding session summary, enabling drift chains |
+
+### 9.2 Derived Metrics
+
+**Delivery score** measures the fraction of actions completed without failure:
+
+```
+delivery_score = 1 - (flag_totals.retried + flag_totals.incomplete + flag_totals.error) / record_count
+```
+
+Range: `[0.0, 1.0]`. A score of `1.0` means no retries, incomplete actions, or errors in the session.
+
+**Calibration flag rate** measures the agent's hedging frequency:
+
+```
+calibration_flag_rate = flag_totals.hedged / record_count
+```
+
+This is a **neutral signal** — neither inherently good nor bad. Appropriate hedging rate varies by task type and domain. Operators SHOULD interpret this value in context rather than applying a universal threshold.
+
+### 9.3 Cross-Session Drift Detection
+
+Linking session summaries via `prev_session` enables O(n) drift queries where n = number of sessions (rather than rescanning all raw records).
+
+Example: to detect a declining delivery score over 30 sessions, walk the `prev_session` chain and compute the slope of `delivery_score` values. A monotonic downward trend signals behavioral regression even if no single session crosses a flag threshold.
+
+```
+session[30] → session[29] → ... → session[1]
+delivery_score: [0.94, 0.93, 0.91, 0.89, ..., 0.71]
+```
+
+### 9.4 Implementation Notes
+
+- `session_summary` records are **optional**. Their presence does not alter existing ECP record format or validation rules.
+- Writers SHOULD emit a `session_summary` after closing a session (all records finalized).
+- Readers MUST NOT reject a record batch that includes `session_summary` records.
+- The `delivery_score` formula is intentionally minimal and implementation-agnostic — it uses only fields already present in §3 behavioral flags.
+- `session_summary` records MAY be submitted to the ATLAST server alongside regular records. The server SHOULD store them under the same agent identity but MUST NOT use them to recompute or override individual record flags.
+
+---
+
 ## References
 
 - [ATLAST Protocol](https://github.com/willau95/atlast-ecp) — Reference implementation
