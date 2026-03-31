@@ -2,6 +2,13 @@
 
 All notable changes to the ATLAST ECP SDK and Server.
 
+## [Unreleased]
+
+### Added
+- **Spec §9 Session-Level Aggregation**: optional `session_summary` record type for aggregating per-action behavioral flags into cacheable session-level metrics (`delivery_score`, `calibration_flag_rate`) and chaining summaries via `prev_session` for cross-session drift detection. Closes #3.
+
+---
+
 ## [0.10.0-post] — 2026-03-25 (Post-release Fixes)
 
 ### Fixed
