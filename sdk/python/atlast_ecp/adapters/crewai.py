@@ -146,14 +146,13 @@ class ATLASTCrewCallback:
     def _do_record(self, input_content, output_content, action="llm_call",
                    agent_name=None, model=None, latency_ms=0,
                    delegation_depth=0):
-        """Create and save an ECP record. Fail-Open."""
+        """Create and save a full ECP record with chain hash + signature. Fail-Open."""
         try:
-            from atlast_ecp.core import record_minimal
-            rid = record_minimal(
+            from atlast_ecp.core import record
+            rid = record(
                 input_content=input_content,
                 output_content=output_content,
-                agent=agent_name or self.agent,
-                action=action,
+                step_type=action,
                 model=model,
                 latency_ms=latency_ms,
                 session_id=self.session_id,

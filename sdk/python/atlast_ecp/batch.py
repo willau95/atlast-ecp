@@ -118,9 +118,13 @@ def get_merkle_proof(hashes: list[str], index: int) -> list[dict]:
 def collect_batch(since_ts: Optional[int] = None) -> tuple[list[dict], list[str]]:
     """
     Collect all ECP records since last batch.
-    Returns (records, record_hashes).
+    Returns (records, record_hashes) — sorted by timestamp ascending.
+    Only includes records that have a valid chain hash (required for Merkle tree).
     """
     records = load_records(limit=10000)
+
+    # Filter to records with valid chain hashes (required for Merkle leaves)
+    records = [r for r in records if r.get("chain", {}).get("hash")]
 
     if since_ts:
         records = [
@@ -128,12 +132,11 @@ def collect_batch(since_ts: Optional[int] = None) -> tuple[list[dict], list[str]
             if isinstance(r.get("ts", 0), (int, float)) and r.get("ts", 0) > since_ts
         ]
 
-    # Use each record's chain hash as the Merkle leaf
-    hashes = [
-        r.get("chain", {}).get("hash", "")
-        for r in records
-        if r.get("chain", {}).get("hash")
-    ]
+    # Sort by timestamp ascending so batch cursor advances correctly
+    records.sort(key=lambda r: r.get("ts", 0) if isinstance(r.get("ts", 0), (int, float)) else 0)
+
+    # Extract chain hashes as Merkle leaves
+    hashes = [r.get("chain", {}).get("hash", "") for r in records]
 
     return records, hashes
 
@@ -371,6 +374,15 @@ def run_batch(flush: bool = False):
             avg_latency = int(sum(latencies) / len(latencies)) if latencies else 0
             batch_ts = int(time.time() * 1000)  # Unix ms
 
+            # Compute the max record timestamp for cursor advancement
+            # This ensures we only skip records that were actually included in this batch,
+            # not future records that exceed MAX_RECORDS_PER_BATCH.
+            record_timestamps = [
+                r.get("ts", 0) for r in records
+                if isinstance(r.get("ts", 0), (int, float))
+            ]
+            max_record_ts = max(record_timestamps) if record_timestamps else batch_ts
+
             # Get identity and sign
             identity = get_or_create_identity()
             agent_did = identity["did"]
@@ -422,7 +434,7 @@ def run_batch(flush: bool = False):
                 batch_result["uploaded"] = True
                 _save_batch_state({
                     **state,
-                    "last_batch_ts": batch_ts,
+                    "last_batch_ts": max_record_ts,
                     "last_merkle_root": merkle_root,
                     "last_attestation_uid": attestation_uid,
                     "total_batches": state.get("total_batches", 0) + 1,
