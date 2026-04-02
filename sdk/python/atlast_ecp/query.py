@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from .storage import ECP_DIR, RECORDS_DIR, load_record_by_id, load_vault
+from .storage import ECP_DIR, RECORDS_DIR, VAULT_DIR, load_record_by_id, load_vault  # noqa: F401 — VAULT_DIR used by tests
 
 INDEX_DB = ECP_DIR / "search.db"
 
