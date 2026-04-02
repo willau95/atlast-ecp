@@ -68,11 +68,11 @@ class TestLangChainAdapter:
         records = load_records(limit=10)
         assert len(records) >= 1
         rec = records[-1]
-        assert rec["agent"] == "test-lc"
-        assert rec["action"] == "llm_call"
-        assert rec["meta"]["model"] == "gpt-4"
-        assert rec["meta"]["tokens_in"] == 10
-        assert rec["meta"]["tokens_out"] == 5
+        assert rec["agent"].startswith("did:ecp:")  # DID auto-generated from identity
+        assert rec["step"]["type"] == "llm_call"
+        assert rec["step"]["model"] == "gpt-4"
+        assert rec["step"]["tokens_in"] == 10
+        assert rec["step"]["tokens_out"] == 5
 
     def test_chat_model_start_end(self):
         handler = self._get_handler(agent="test-chat")
@@ -117,7 +117,7 @@ class TestLangChainAdapter:
         assert handler.record_count == 1
         records = load_records(limit=10)
         rec = records[-1]
-        assert "error" in rec.get("meta", {}).get("flags", [])
+        assert "error" in rec.get("step", {}).get("flags", [])
 
     def test_tool_start_end(self):
         handler = self._get_handler(agent="test-tool")
@@ -136,7 +136,7 @@ class TestLangChainAdapter:
         assert handler.record_count == 1
         records = load_records(limit=10)
         rec = records[-1]
-        assert rec["action"] == "tool_call"
+        assert rec["step"]["type"] == "tool_call"
 
     def test_tool_error(self):
         handler = self._get_handler(agent="test-tool-err")
@@ -259,8 +259,8 @@ class TestCrewAIAdapter:
         assert cb.record_count == 1
         records = load_records(limit=10)
         rec = records[-1]
-        assert rec["agent"] == "test-crew/researcher"
-        assert rec["action"] == "llm_call"
+        assert rec["agent"].startswith("did:ecp:")  # DID auto-generated from identity
+        assert rec["step"]["type"] == "llm_call"
 
     def test_dict_output(self):
         cb = self._get_callback(agent="test-dict")
@@ -286,7 +286,7 @@ class TestCrewAIAdapter:
 
         assert cb.record_count == 1
         records = load_records(limit=10)
-        assert records[-1]["action"] == "tool_call"
+        assert records[-1]["step"]["type"] == "tool_call"
 
     def test_step_callback_agent_finish(self):
         cb = self._get_callback(agent="test-finish")
@@ -500,7 +500,7 @@ class TestLangChainEdgeCases:
         assert handler.record_count == 1
         records = load_records(limit=10)
         rec = records[-1]
-        assert rec["action"] == "tool_call"
+        assert rec["step"]["type"] == "tool_call"
 
     def test_retriever_end_with_non_document_objects(self):
         """on_retriever_end handles docs without page_content attribute."""
@@ -608,7 +608,7 @@ class TestLangChainEdgeCases:
         records = load_records(limit=10)
         rec = records[-1]
         # Model comes from invocation_params
-        assert rec["meta"]["model"] in ("claude-haiku-4-5", "unknown")
+        assert rec["step"]["model"] in ("claude-haiku-4-5", "unknown")
 
     def test_model_extraction_from_serialized_kwargs_model(self):
         """Model extracted from serialized.kwargs.model (not model_name)."""
@@ -629,7 +629,7 @@ class TestLangChainEdgeCases:
         handler.on_llm_end(response=mock_resp, run_id=run_id)
 
         records = load_records(limit=10)
-        assert records[-1]["meta"]["model"] == "gpt-3.5-turbo"
+        assert records[-1]["step"]["model"] == "gpt-3.5-turbo"
 
     def test_concurrent_calls_cleanup(self):
         """After all calls complete, _inflight dict is empty."""
@@ -715,7 +715,7 @@ class TestCrewAIEdgeCases:
         records = load_records(limit=10)
         rec = records[-1]
         # When agent is None/falsy, should use base agent name
-        assert rec["agent"] == "base-crew"
+        assert rec["agent"].startswith("did:ecp:")  # DID auto-generated from identity
 
     def test_task_output_with_output_attr(self):
         """TaskOutput with .output instead of .raw is handled."""
