@@ -32,7 +32,7 @@ from .verify import (
 )
 from .config import get_api_url, get_api_key, load_config, save_config
 
-__version__ = "0.11.0"
+__version__ = "0.11.1"
 __all__ = [
     # Core
     "wrap",
