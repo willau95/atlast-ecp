@@ -23,7 +23,6 @@ Usage:
 """
 
 import hashlib
-from typing import Optional
 
 
 # ─── Signature Verification ───────────────────────────────────────────────────

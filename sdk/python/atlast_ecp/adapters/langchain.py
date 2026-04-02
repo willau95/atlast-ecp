@@ -25,21 +25,20 @@ Fail-Open: adapter errors never affect your agent.
 from __future__ import annotations
 
 import time
-import json
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from uuid import UUID
 
 # LangChain is an optional dependency — import at runtime
 try:
     from langchain_core.callbacks import BaseCallbackHandler  # type: ignore[import-untyped]
-    from langchain_core.outputs import LLMResult, ChatResult  # type: ignore[import-untyped]
+    from langchain_core.outputs import LLMResult, ChatResult  # noqa: F401  # type: ignore[import-untyped]
 
     HAS_LANGCHAIN = True
 except ImportError:
     try:
         # Fallback for older langchain versions
         from langchain.callbacks.base import BaseCallbackHandler  # type: ignore[import-untyped,no-redef]
-        from langchain.schema import LLMResult  # type: ignore[import-untyped,no-redef]
+        from langchain.schema import LLMResult  # noqa: F401  # type: ignore[import-untyped,no-redef]
 
         HAS_LANGCHAIN = True
     except ImportError:

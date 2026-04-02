@@ -24,7 +24,6 @@ Streaming support:
 """
 
 import time
-import threading
 from typing import Optional
 from functools import wraps
 

@@ -18,11 +18,10 @@ import threading
 import time
 import urllib.request
 import urllib.error
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from .storage import load_records, count_records, enqueue_for_upload, get_upload_queue, clear_upload_queue
+from .storage import load_records, enqueue_for_upload, get_upload_queue, clear_upload_queue
 from .identity import get_or_create_identity, sign as sign_data
 
 def _batch_ecp_dir() -> Path:
@@ -198,7 +197,6 @@ def _ensure_agent_registered(identity: dict) -> bool:
             "ecp_version": "0.1",
         }).encode("utf-8")
 
-        last_error: Optional[Exception] = None
         for attempt in range(3):
             try:
                 req = urllib.request.Request(
@@ -229,9 +227,8 @@ def _ensure_agent_registered(identity: dict) -> bool:
                     return True
                 if 400 <= e.code < 500:
                     break  # Permanent client error — don't retry
-                last_error = e
-            except (urllib.error.URLError, TimeoutError, OSError) as e:
-                last_error = e
+            except (urllib.error.URLError, TimeoutError, OSError):
+                pass
 
             if attempt < 2:
                 time.sleep(2 ** attempt)
@@ -300,7 +297,6 @@ def upload_merkle_root(
     if agent_api_key:
         headers["X-Agent-Key"] = agent_api_key
 
-    last_error: Optional[Exception] = None
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(
@@ -318,10 +314,9 @@ def upload_merkle_root(
             if 400 <= e.code < 500:
                 return None
             # 5xx = transient — retry with backoff
-            last_error = e
-        except (urllib.error.URLError, TimeoutError, OSError) as e:
+        except (urllib.error.URLError, TimeoutError, OSError):
             # Connection refused, DNS failure, timeout — retry
-            last_error = e
+            pass
         except Exception:
             return None  # Unknown error — Fail-Open, don't retry
 

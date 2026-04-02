@@ -233,7 +233,6 @@ def _get_tools() -> list[dict]:
 def _tool_ecp_verify(record_id: str) -> dict:
     try:
         from .storage import load_record_by_id
-        from .record import sha256
 
         record = load_record_by_id(record_id)
         if not record:
@@ -332,7 +331,6 @@ def _tool_ecp_recent_records(limit: int = 5) -> dict:
 
 def _tool_ecp_certify(title: str, description: str = "") -> dict:
     try:
-        import os
         import urllib.request
         from .identity import get_or_create_identity
         from .storage import load_records
@@ -545,7 +543,6 @@ def run_stdio_server():
             FutureWarning, stacklevel=2,
         )
         _WARNED = True
-    import sys
 
     def send(obj: dict):
         sys.stdout.write(json.dumps(obj) + "\n")

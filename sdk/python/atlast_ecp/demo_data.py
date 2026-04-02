@@ -27,7 +27,6 @@ import hashlib
 import random
 import uuid
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 
 from .storage import ECP_DIR, RECORDS_DIR, VAULT_DIR, init_storage
 

@@ -8,15 +8,13 @@ Design: stateful singleton managing identity, chain, and async recording.
 Thread-safe. Fail-Open. Never raises.
 """
 
-import json
 import logging
 import threading
-import time
 from typing import Any, Optional
 
 _logger = logging.getLogger("atlast_ecp")
 
-from .identity import get_or_create_identity, sign
+from .identity import get_or_create_identity
 from .record import create_record, create_minimal_record, record_to_dict, hash_content, ECPRecord
 from .storage import save_record, save_vault
 from .signals import detect_flags

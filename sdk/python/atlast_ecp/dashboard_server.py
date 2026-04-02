@@ -135,10 +135,10 @@ def start_dashboard(port: int = DEFAULT_PORT, open_browser: bool = True):
     server = HTTPServer(("127.0.0.1", port), DashboardHandler)
     url = f"http://127.0.0.1:{port}"
 
-    print(f"\n  📊 ATLAST ECP Dashboard")
+    print("\n  📊 ATLAST ECP Dashboard")
     print(f"  Running at: {url}")
-    print(f"  Data: ~/.ecp/ (local only, nothing leaves your machine)")
-    print(f"  Press Ctrl+C to stop\n")
+    print("  Data: ~/.ecp/ (local only, nothing leaves your machine)")
+    print("  Press Ctrl+C to stop\n")
 
     if open_browser:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()

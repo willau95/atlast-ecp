@@ -28,7 +28,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import signal
 import socket
 import subprocess
 import sys
@@ -487,15 +486,15 @@ def run_proxy(port: int = 8340, agent: str = "proxy"):
     proxy = ATLASTProxy(port=port, agent=agent)
     app = proxy.create_app()
 
-    print(f"\n🔗 ATLAST Proxy — Evidence Chain Protocol")
+    print("\n🔗 ATLAST Proxy — Evidence Chain Protocol")
     print(f"   Listening: http://localhost:{port}")
     print(f"   Agent: {agent}")
-    print(f"   Records: ~/.ecp/records/")
-    print(f"\n   Set your LLM client to use this proxy:")
+    print("   Records: ~/.ecp/records/")
+    print("\n   Set your LLM client to use this proxy:")
     print(f"     OPENAI_BASE_URL=http://localhost:{port}")
     print(f"     ANTHROPIC_BASE_URL=http://localhost:{port}")
-    print(f"\n   Or use: atlast run python my_agent.py")
-    print(f"\n   Press Ctrl+C to stop.\n")
+    print("\n   Or use: atlast run python my_agent.py")
+    print("\n   Press Ctrl+C to stop.\n")
 
     web.run_app(app, host="127.0.0.1", port=port, print=None)
 
@@ -569,10 +568,10 @@ def run_with_proxy(command_args: list[str]):
     loop.call_soon_threadsafe(loop.stop)
 
     print(f"\n{'─' * 50}")
-    print(f"🔗 ATLAST ECP Summary")
+    print("🔗 ATLAST ECP Summary")
     print(f"   Records created: {proxy.record_count}")
     print(f"   Duration: {duration:.1f}s")
-    print(f"   Storage: ~/.ecp/records/")
-    print(f"   View: atlast log")
+    print("   Storage: ~/.ecp/records/")
+    print("   View: atlast log")
 
     sys.exit(exit_code)

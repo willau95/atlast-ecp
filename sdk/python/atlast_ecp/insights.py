@@ -22,10 +22,9 @@ Privacy: runs entirely locally. No data leaves your device.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from collections import Counter, defaultdict
-from typing import Any, Optional
+from typing import Optional
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -39,7 +38,7 @@ def _get_ts(rec: dict) -> Optional[int]:
     iso = rec.get("timestamp")
     if iso and isinstance(iso, str):
         try:
-            from datetime import datetime, timezone
+            from datetime import datetime
             dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
             return int(dt.timestamp() * 1000)
         except Exception:
@@ -183,7 +182,6 @@ def analyze_trends(records: list[dict], bucket: str = "day") -> dict:
 
     from datetime import datetime, timezone
 
-    bucket_ms = 86400000 if bucket == "day" else 3600000  # ms
     buckets: dict[str, dict] = {}
 
     for rec in records:
@@ -457,7 +455,7 @@ def format_report(insights: dict) -> str:
     lines.append("=" * 50)
 
     s = insights["summary"]
-    lines.append(f"\n📊 Summary")
+    lines.append("\n📊 Summary")
     lines.append(f"   Records: {s['total_records']}")
     lines.append(f"   Agents:  {s['unique_agents']} ({', '.join(s.get('agents', [])[:5])})")
     lines.append(f"   Period:  {s['time_span_hours']}h")
@@ -468,31 +466,31 @@ def format_report(insights: dict) -> str:
 
     actions = s.get("action_breakdown", {})
     if actions:
-        lines.append(f"\n📋 Actions")
+        lines.append("\n📋 Actions")
         for action, count in actions.items():
             lines.append(f"   {action}: {count}")
 
     models = insights.get("model_usage", [])
     if models:
-        lines.append(f"\n🤖 Model Usage")
+        lines.append("\n🤖 Model Usage")
         for m in models:
             lines.append(f"   {m['model']}: {m['calls']} calls ({m['percentage']}%)")
 
     latency = insights.get("latency_by_model", {})
     if latency:
-        lines.append(f"\n⏱️  Latency by Model")
+        lines.append("\n⏱️  Latency by Model")
         for model, stats in latency.items():
             lines.append(f"   {model}: avg {stats['avg_ms']}ms, p90 {stats['p90_ms']}ms, max {stats['max_ms']}ms")
 
     flags = insights.get("flags", {})
     if flags:
-        lines.append(f"\n🚩 Flags Detected")
+        lines.append("\n🚩 Flags Detected")
         for flag, info in flags.items():
             lines.append(f"   {flag}: {info['count']} ({info['percentage']}%)")
 
     recs = insights.get("recommendations", [])
     if recs:
-        lines.append(f"\n💡 Recommendations")
+        lines.append("\n💡 Recommendations")
         for r in recs:
             lines.append(f"   {r}")
 
@@ -511,7 +509,7 @@ def format_performance_report(perf: dict) -> str:
     lines.append(f"   Success:    {perf['success_rate']*100:.1f}%")
     lines.append(f"   Throughput: {perf['throughput_per_min']}/min")
     if perf["by_model"]:
-        lines.append(f"\n   By Model:")
+        lines.append("\n   By Model:")
         for m, s in perf["by_model"].items():
             lines.append(f"     {m}: {s['count']} calls, avg {s['avg_ms']}ms, p95 {s['p95_ms']}ms")
     lines.append("")
@@ -576,7 +574,7 @@ def cmd_insights(args: list[str]):
                    agent_filter in r.get("agent", "")]
         if not records:
             print(f"⚠️  No records found for agent: {agent_filter}")
-            print(f"   Available agents:")
+            print("   Available agents:")
             all_records = load_records(limit=limit)
             agents = set(r.get("agent", "unknown") for r in all_records)
             for a in sorted(agents):

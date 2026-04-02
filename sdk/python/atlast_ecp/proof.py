@@ -38,7 +38,6 @@ import json
 import hashlib
 import time
 from typing import Optional
-from pathlib import Path
 
 
 def generate_proof(
@@ -284,7 +283,7 @@ def format_proof_report(proof: dict, verification: Optional[dict] = None) -> str
                      f"{v['content_redacted']} redacted")
         lines.append(f"    Signatures:    {v['signature_verified']} verified")
         if v["issues"]:
-            lines.append(f"    Issues:")
+            lines.append("    Issues:")
             for issue in v["issues"]:
                 lines.append(f"      ❌ {issue}")
 
@@ -299,7 +298,7 @@ def format_proof_report(proof: dict, verification: Optional[dict] = None) -> str
         model = step.get("model") or meta.get("model", "—")
         tokens_out = step.get("tokens_out") or meta.get("tokens_out", "—")
         latency = step.get("latency_ms") or meta.get("latency_ms", 0)
-        session = step.get("session_id") or meta.get("session_id", "—")
+        step.get("session_id") or meta.get("session_id", "—")
         flags = step.get("flags") or meta.get("flags", [])
 
         lines.append("")

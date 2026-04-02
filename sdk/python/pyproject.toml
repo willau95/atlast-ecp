@@ -61,3 +61,19 @@ Documentation = "https://github.com/willau95/atlast-ecp/blob/main/ECP-SPEC.md"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["atlast_ecp*"]
+
+[tool.setuptools.package-data]
+atlast_ecp = ["bip39_english.txt", "dashboard_assets/**"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+ignore = ["E402", "E702"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"adapters/*.py" = ["F401"]
+"adapters/langchain.py" = ["F401"]
+"otel_exporter.py" = ["F401"]
+"verify.py" = ["F401"]

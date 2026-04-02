@@ -12,7 +12,7 @@ import json
 import logging
 import urllib.request
 import urllib.error
-from typing import Any, Optional
+from typing import Optional
 
 logger = logging.getLogger("atlast_ecp.webhook")
 

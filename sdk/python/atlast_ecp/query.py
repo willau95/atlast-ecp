@@ -11,14 +11,12 @@ Design: CLI-first, --json for agent consumption, human-readable by default.
 """
 
 import json
-import re
 import sqlite3
 import time
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 from typing import Optional
 
-from .storage import ECP_DIR, RECORDS_DIR, VAULT_DIR, load_record_by_id, load_vault
+from .storage import ECP_DIR, RECORDS_DIR, load_record_by_id, load_vault
 
 INDEX_DB = ECP_DIR / "search.db"
 
@@ -411,8 +409,8 @@ def _print_timeline(results: list[dict], since: str, until: str):
     print(f"  {'─'*12} {'─'*8} {'─'*8} {'─'*6} {'─'*10} {'─'*9}")
 
     for d in results:
-        err_indicator = "⚠️ " if d["error_rate"] > 10 else "  "
-        conf = f"{d['avg_confidence']:.2f}" if d.get("avg_confidence") is not None else "  -"
+        "⚠️ " if d["error_rate"] > 10 else "  "
+        f"{d['avg_confidence']:.2f}" if d.get("avg_confidence") is not None else "  -"
         print(f"  {d['date']:<12} {d['total']:>8} {d['errors']:>8} {d['error_rate']:>5.1f}% {d['avg_latency_ms']:>8}ms {d['sessions']:>9}")
 
     total_records = sum(d["total"] for d in results)
@@ -470,7 +468,6 @@ def audit(
     sessions = len(set(r.get("session_id") or "" for r in records if r.get("session_id")))
 
     # Chain integrity
-    chain_breaks = 0
     for i, r in enumerate(records):
         if i == 0:
             continue
@@ -591,12 +588,12 @@ def _print_audit(report: dict):
     health_icon = {"healthy": "✅", "warning": "⚠️", "degraded": "🔴"}.get(report["health"], "?")
 
     print(f"\n{'='*60}")
-    print(f"  📋 ATLAST ECP Audit Report")
+    print("  📋 ATLAST ECP Audit Report")
     print(f"  Period: {p['from']} → {p['to']} ({p['days']} days)")
     print(f"  Health: {health_icon} {report['health'].upper()}")
     print(f"{'='*60}\n")
 
-    print(f"  📊 Summary")
+    print("  📊 Summary")
     print(f"    Records:      {s['total_records']:,}")
     print(f"    Errors:        {s['total_errors']:,} ({s['error_rate_pct']}%)")
     print(f"    Sessions:      {s['sessions']:,}")
@@ -616,16 +613,16 @@ def _print_audit(report: dict):
 
     root_causes = report.get("root_causes", [])
     if root_causes:
-        print(f"  🔍 Root Cause Candidates:\n")
+        print("  🔍 Root Cause Candidates:\n")
         for rc in root_causes:
             print(f"    [{rc['date']}] {rc['anomaly']} — chain depth {rc['chain_depth']}")
             print(f"      Trace: {' → '.join(rc['chain_ids'][:5])}")
         print()
 
     if not anomalies:
-        print(f"  ✅ No anomalies detected. Agent behavior is consistent.\n")
+        print("  ✅ No anomalies detected. Agent behavior is consistent.\n")
 
-    print(f"  📝 Evidence: All records are locally stored and chain-linked.")
-    print(f"     Run 'atlast trace <record_id>' for detailed chain analysis.")
-    print(f"     Run 'atlast search <keyword>' to find specific records.")
+    print("  📝 Evidence: All records are locally stored and chain-linked.")
+    print("     Run 'atlast trace <record_id>' for detailed chain analysis.")
+    print("     Run 'atlast search <keyword>' to find specific records.")
     print(f"{'='*60}\n")

@@ -123,9 +123,9 @@ def cmd_verify(args: list[str]):
     expected_hash = compute_chain_hash(record)
     actual_hash = chain.get("hash", "")
     if expected_hash == actual_hash:
-        print(f"  ✅ Chain hash verified")
+        print("  ✅ Chain hash verified")
     else:
-        print(f"  ❌ Chain hash mismatch — record may have been tampered")
+        print("  ❌ Chain hash mismatch — record may have been tampered")
         chain_ok = False
 
     # 1b. Chain link check (prev record exists?)
@@ -136,13 +136,13 @@ def cmd_verify(args: list[str]):
         else:
             print(f"  ✅ Chain link: → {prev_id}")
     elif prev_id == "genesis":
-        print(f"  ✅ Genesis record (first in chain)")
+        print("  ✅ Genesis record (first in chain)")
 
     # 2. Signature check
     if record.get("sig") and record["sig"] != "unverified":
         print(f"  ✅ Signature present: {record['sig'][:32]}...")
     else:
-        print(f"  ⚠️  Signature: unverified (cryptography package not installed)")
+        print("  ⚠️  Signature: unverified (cryptography package not installed)")
 
     # 3. On-chain anchor
     anchor = record.get("anchor", {})
@@ -151,14 +151,14 @@ def cmd_verify(args: list[str]):
         print(f"  ✅ On-chain: EAS Base — {uid[:20]}...")
         print(f"     https://base.easscan.org/attestation/view/{uid}")
     else:
-        print(f"  ⏳ On-chain: Pending next Merkle batch (runs hourly)")
+        print("  ⏳ On-chain: Pending next Merkle batch (runs hourly)")
 
     # 4. Summary
     print()
     if chain_ok:
-        print(f"  🟢 VERIFIED — Record integrity confirmed")
+        print("  🟢 VERIFIED — Record integrity confirmed")
     else:
-        print(f"  🔴 INTEGRITY ISSUE — Chain may be broken")
+        print("  🔴 INTEGRITY ISSUE — Chain may be broken")
 
     server_url = get_api_url()
     if server_url:
@@ -247,7 +247,7 @@ def cmd_stats(args: list[str]):
     total = count_records()
     signals = compute_trust_signals(records)
 
-    print(f"\n📊 ATLAST Trust Signals\n")
+    print("\n📊 ATLAST Trust Signals\n")
 
     from .identity import get_or_create_identity
     identity = get_or_create_identity()
@@ -275,7 +275,7 @@ def cmd_stats(args: list[str]):
     if server_url:
         print(f"  Full profile: {server_url.replace('/v1', '')}  (register to publish)")
     else:
-        print(f"  Run 'atlast register' to publish your profile to an ECP server")
+        print("  Run 'atlast register' to publish your profile to an ECP server")
     print()
 
 
@@ -322,7 +322,7 @@ def cmd_flush(args: list[str]):
     # Resolve key: CLI > env > config > batch_state
     resolved_key = key or get_api_key()
 
-    from .batch import trigger_batch_upload, _load_batch_state, _save_batch_state
+    from .batch import _load_batch_state, _save_batch_state
 
     if resolved_key:
         state = _load_batch_state()
@@ -338,20 +338,21 @@ def cmd_flush(args: list[str]):
     if result is None:
         print("ℹ️  No records to upload.")
     elif result.get("uploaded"):
-        batch_id = result.get("batch_id", "")
-        print(f"✅ Uploaded successfully! Batch: {batch_id}")
+        batch_id = result.get("attestation_uid") or result.get("batch_id") or "—"
+        print("✅ Uploaded successfully!")
+        print(f"   Attestation: {batch_id}")
         print(f"   Merkle root: {result.get('merkle_root', '')[:50]}...")
         print(f"   Records: {result.get('record_count', 0)}")
     elif result.get("queued"):
-        print(f"⚠️  Upload queued (server unreachable or agent not registered).")
+        print("⚠️  Upload queued (server unreachable or agent not registered).")
         print(f"   Merkle root: {result.get('merkle_root', '')[:50]}...")
         print(f"   Records: {result.get('record_count', 0)}")
         if not resolved_key:
-            print(f"\n   💡 Tip: Run 'atlast register' first to get an API key.")
-            print(f"           Then: 'atlast flush --key <your_key>'")
+            print("\n   💡 Tip: Run 'atlast register' first to get an API key.")
+            print("           Then: 'atlast flush --key <your_key>'")
     else:
         print(f"❌ Upload failed: {result.get('error', 'unknown')}")
-        print(f"   Records are safely stored locally in ~/.ecp/records/")
+        print("   Records are safely stored locally in ~/.ecp/records/")
 
 
 def cmd_register(args: list[str]):
@@ -372,7 +373,7 @@ def cmd_register(args: list[str]):
     # This ensures the server stores the correct key for signature verification
     pub_key = identity.get("crypto_pub_key") or identity.get("pub_key", "")
 
-    print(f"\n🔗 Registering Agent...")
+    print("\n🔗 Registering Agent...")
 
     body: dict = {
         "did": did,
@@ -408,7 +409,7 @@ def cmd_register(args: list[str]):
         if claim_url:
             print(f"  ✓ Claim URL: {claim_url}")
         print()
-        print(f"  Next: Send this claim URL to your owner to activate your profile.")
+        print("  Next: Send this claim URL to your owner to activate your profile.")
 
         # Save to local config
         config_data = {"agent_did": did, "endpoint": base_url}
@@ -425,7 +426,7 @@ def cmd_register(args: list[str]):
                 print(f"  🌐 Profile: {server_url.replace('/v1', '')}/agent/{did}")
         else:
             print(f"  ⚠️  Backend not available yet (non-fatal): {e}")
-            print(f"  📁 Local recording continues. Register later with: atlast register")
+            print("  📁 Local recording continues. Register later with: atlast register")
     print()
 
 
@@ -453,7 +454,7 @@ def cmd_certify(args: list[str]):
     records = load_records(limit=100)
     record_ids = [r["id"] for r in records if r.get("id", "").startswith("rec_")]
 
-    print(f"\n📜 Creating Work Certificate")
+    print("\n📜 Creating Work Certificate")
     print(f"  Agent: {did}")
     print(f"  Task: {title}")
     print(f"  Records: {len(record_ids)}")
@@ -484,13 +485,13 @@ def cmd_certify(args: list[str]):
         )
         resp = urllib.request.urlopen(req, timeout=10)
         result = json.loads(resp.read())
-        print(f"\n  ✅ Certificate issued!")
+        print("\n  ✅ Certificate issued!")
         print(f"  🆔 {result.get('cert_id')}")
         print(f"  📊 Trust Score: {result.get('trust_score_at_issue')}")
         print(f"  🔗 Verify: {result.get('verify_url')}")
     except Exception as e:
         print(f"\n  ⚠️  Certificate creation failed: {e}")
-        print(f"  📁 Local records are intact. Try again later.")
+        print("  📁 Local records are intact. Try again later.")
     print()
 
 
@@ -516,7 +517,7 @@ def cmd_init(args: list[str]):
     non_interactive = "--non-interactive" in args or not sys.stdin.isatty()
     do_upgrade = "--upgrade" in args
 
-    print(f"\n🔗 ATLAST ECP initialized")
+    print("\n🔗 ATLAST ECP initialized")
     print(f"  Storage: {ECP_DIR}/records/ (local, private)")
 
     if not skip_identity:
@@ -527,7 +528,8 @@ def cmd_init(args: list[str]):
         if do_upgrade and not identity.get("verified"):
             try:
                 from nacl.signing import SigningKey
-                import json, stat
+                import json
+                import stat
                 sk = SigningKey.generate()
                 pub = sk.verify_key.encode().hex()
                 priv = sk.encode().hex()
@@ -544,7 +546,7 @@ def cmd_init(args: list[str]):
                     pass
                 print(f"  ⬆️  Upgraded to Ed25519! (DID unchanged: {old_did})")
             except ImportError:
-                print(f"  ⚠️  Cannot upgrade: install PyNaCl first (pip install pynacl)")
+                print("  ⚠️  Cannot upgrade: install PyNaCl first (pip install pynacl)")
 
         print(f"  Agent DID: {identity['did']}")
         print(f"  Key type: {'ed25519' if identity.get('verified') else 'fallback'}")
@@ -553,30 +555,30 @@ def cmd_init(args: list[str]):
         mnemonic = identity.get("_mnemonic")
         if mnemonic:
             from .recovery import format_mnemonic_display
-            print(f"\n  🔑 RECOVERY PHRASE — write this down and store safely:")
+            print("\n  🔑 RECOVERY PHRASE — write this down and store safely:")
             for line in format_mnemonic_display(mnemonic).split("\n"):
                 print(f"  {line}")
-            print(f"\n  ⚠️  This is the ONLY way to recover your identity if lost.")
-            print(f"  ⚠️  It will NOT be shown again.\n")
+            print("\n  ⚠️  This is the ONLY way to recover your identity if lost.")
+            print("  ⚠️  It will NOT be shown again.\n")
         
         # Ask for vault backup location
         if not non_interactive and mnemonic:
             _ask_backup_location()
         
         # Auto-register with server
-        print(f"\n  🌐 Registering with ATLAST server...")
+        print("\n  🌐 Registering with ATLAST server...")
         try:
             _auto_register(identity)
         except Exception as e:
             print(f"  ⚠️  Registration skipped: {e}")
-            print(f"  📁 Local recording works. Register later: atlast register")
+            print("  📁 Local recording works. Register later: atlast register")
         
-        print(f"\n  ✅ Ready! Create your first record:")
-        print(f"     from atlast_ecp.core import record")
-        print(f'     record("your input", "your output")')
+        print("\n  ✅ Ready! Create your first record:")
+        print("     from atlast_ecp.core import record")
+        print('     record("your input", "your output")')
     else:
-        print(f"  Identity: skipped (run 'atlast init' to create DID)")
-        print(f"\n  Next: echo '{{\"in\":\"prompt\",\"out\":\"response\"}}' | atlast record")
+        print("  Identity: skipped (run 'atlast init' to create DID)")
+        print("\n  Next: echo '{\"in\":\"prompt\",\"out\":\"response\"}' | atlast record")
     print()
 
 
@@ -588,8 +590,8 @@ def _ask_backup_location():
     locations = detect_backup_locations()
     available = [loc for loc in locations if loc["available"]]
     
-    print(f"  📁 Where should evidence content be backed up?")
-    print(f"     (Encrypted backup ensures recovery if this computer is lost)\n")
+    print("  📁 Where should evidence content be backed up?")
+    print("     (Encrypted backup ensures recovery if this computer is lost)\n")
     
     for i, loc in enumerate(available):
         print(f"     [{i + 1}] {loc['name']:<16} ({loc['path']})")
@@ -597,24 +599,24 @@ def _ask_backup_location():
     print(f"     [{len(available) + 2}] Skip (not recommended)")
     
     try:
-        choice = input(f"\n  > ").strip()
+        choice = input("\n  > ").strip()
         idx = int(choice) - 1
         
         if idx < len(available):
             path = available[idx]["path"]
         elif idx == len(available):
-            path = input(f"  Enter path: ").strip()
+            path = input("  Enter path: ").strip()
             if not path:
-                print(f"  ⏭  Skipped. Set later: atlast config set vault_backup_path /your/path")
+                print("  ⏭  Skipped. Set later: atlast config set vault_backup_path /your/path")
                 return
         else:
-            print(f"  ⏭  Skipped. Set later: atlast config set vault_backup_path /your/path")
+            print("  ⏭  Skipped. Set later: atlast config set vault_backup_path /your/path")
             return
         
         save_config({"vault_backup_path": path})
         print(f"\n  ✅ Vault backup: {path} (AES-256-GCM encrypted)")
     except (ValueError, EOFError, KeyboardInterrupt):
-        print(f"\n  ⏭  Skipped. Set later: atlast config set vault_backup_path /your/path")
+        print("\n  ⏭  Skipped. Set later: atlast config set vault_backup_path /your/path")
 
 
 def _auto_register(identity: dict):
@@ -653,10 +655,10 @@ def _auto_register(identity: dict):
 
 def cmd_recover(args: list[str]):
     """atlast recover — restore identity from 12-word recovery phrase"""
-    from .recovery import mnemonic_to_private_key, mnemonic_to_entropy, entropy_to_ed25519_seed
+    from .recovery import mnemonic_to_entropy, entropy_to_ed25519_seed
     from .storage import init_storage
     
-    print(f"\n🔄 ATLAST Identity Recovery\n")
+    print("\n🔄 ATLAST Identity Recovery\n")
     
     # Get mnemonic
     if args:
@@ -697,7 +699,6 @@ def cmd_recover(args: list[str]):
     did = f"did:ecp:{hashlib.sha256(pub_hex.encode()).hexdigest()[:32]}"
     
     # Also try legacy path (first 16 bytes as direct key)
-    legacy_priv_partial = entropy
     
     print(f"  ✅ Identity recovered: {did}")
     
@@ -723,12 +724,12 @@ def cmd_recover(args: list[str]):
     print(f"  ✅ Identity saved to {ifile}")
     
     # Try to pull records from server
-    print(f"\n  🔄 Syncing records from server...")
+    print("\n  🔄 Syncing records from server...")
     try:
         _sync_records_from_server(did, identity)
     except Exception as e:
         print(f"  ⚠️  Could not sync from server: {e}")
-        print(f"  📁 Local identity restored. Records can be synced later.")
+        print("  📁 Local identity restored. Records can be synced later.")
     
     # Try vault restore
     from .config import get_vault_backup_path
@@ -742,14 +743,13 @@ def cmd_recover(args: list[str]):
         except Exception as e:
             print(f"  ⚠️  Vault restore failed: {e}")
     
-    print(f"\n  ✅ Recovery complete. You can continue recording.\n")
+    print("\n  ✅ Recovery complete. You can continue recording.\n")
 
 
 def _sync_records_from_server(did: str, identity: dict):
     """Pull records from server for this DID."""
     import urllib.request
     from .config import get_api_url, get_api_key
-    from .storage import RECORDS_DIR
     
     server_url = get_api_url()
     api_key = get_api_key()
@@ -785,7 +785,7 @@ def _sync_records_from_server(did: str, identity: dict):
             print(f"  ✅ Downloaded {saved} new records ({len(records)} total on server)")
     except Exception as e:
         if "404" in str(e):
-            print(f"  ℹ️  Server endpoint not available yet (records sync coming soon)")
+            print("  ℹ️  Server endpoint not available yet (records sync coming soon)")
         else:
             raise
 
@@ -802,8 +802,8 @@ def cmd_backup_key(args: list[str]):
         print("  ❌ No private key found in identity.")
         return
     
-    print(f"\n  ⚠️  This will display your secret recovery phrase.")
-    print(f"  ⚠️  Anyone with these words can control your agent identity.\n")
+    print("\n  ⚠️  This will display your secret recovery phrase.")
+    print("  ⚠️  Anyone with these words can control your agent identity.\n")
     
     if sys.stdin.isatty():
         try:
@@ -822,10 +822,10 @@ def cmd_backup_key(args: list[str]):
         # For new identities, we can derive mnemonic from private key
         # by reversing: priv_key → seed, but HKDF is one-way
         # So for new identities created with BIP39, the mnemonic was shown at init only
-        print(f"\n  ℹ️  This identity was created with recovery phrase support.")
-        print(f"  ℹ️  The phrase was shown during 'atlast init'.")
-        print(f"  ℹ️  If you lost it, you'll need to create a new identity.\n")
-        print(f"  💡 For legacy identities, we can export a recovery phrase.")
+        print("\n  ℹ️  This identity was created with recovery phrase support.")
+        print("  ℹ️  The phrase was shown during 'atlast init'.")
+        print("  ℹ️  If you lost it, you'll need to create a new identity.\n")
+        print("  💡 For legacy identities, we can export a recovery phrase.")
         return
     
     # Legacy identity: export from private key
@@ -834,8 +834,8 @@ def cmd_backup_key(args: list[str]):
     print(f"\n  🔑 RECOVERY PHRASE for {identity['did']}:")
     for line in format_mnemonic_display(words).split("\n"):
         print(f"  {line}")
-    print(f"\n  ⚠️  LEGACY KEY: This phrase encodes the first 16 bytes of your private key.")
-    print(f"  ⚠️  Recovery will recreate a compatible identity.\n")
+    print("\n  ⚠️  LEGACY KEY: This phrase encodes the first 16 bytes of your private key.")
+    print("  ⚠️  Recovery will recreate a compatible identity.\n")
 
 
 def cmd_backup(args: list[str]):
@@ -869,7 +869,7 @@ def cmd_backup(args: list[str]):
     if errors == 0:
         from .config import save_config
         save_config({"vault_backup_path": path})
-        print(f"  ✅ Backup path saved to config\n")
+        print("  ✅ Backup path saved to config\n")
     else:
         print(f"  ⚠️  {errors} entries failed to backup\n")
 
@@ -878,7 +878,6 @@ def cmd_record(args: list[str]):
     """atlast record — create an ECP record from stdin or flags"""
     from .record import create_minimal_record, create_record
     from .storage import save_record
-    import os
 
     agent = "default"
     action = "llm_call"
@@ -955,7 +954,6 @@ def cmd_push(args: list[str]):
         args_clean = [a for a in args if a != "--retry"]
         # Set endpoint/key if provided
         import os
-        from .config import get_api_url, get_api_key
         for i, a in enumerate(args_clean):
             if a == "--endpoint" and i + 1 < len(args_clean):
                 os.environ["ATLAST_API_URL"] = args_clean[i + 1]
@@ -996,7 +994,14 @@ def cmd_proxy(args: list[str]):
         from .proxy import run_proxy
         run_proxy(port=port, agent=agent)
     except ImportError:
-        print("Proxy requires aiohttp. Install with: pip install atlast-ecp[proxy]")
+        print("Error: aiohttp required for zero-code proxy.")
+        print("")
+        print("  Install with:  pip install atlast-ecp[proxy]")
+        print("  Or install all: pip install atlast-ecp[all]")
+        print("")
+        print("  Alternative (no extra install):")
+        print("    from atlast_ecp import wrap")
+        print("    client = wrap(openai.OpenAI())  # 1 line, zero deps")
         sys.exit(1)
 
 
@@ -1010,7 +1015,14 @@ def cmd_run(args: list[str]):
         from .proxy import run_with_proxy
         run_with_proxy(args)
     except ImportError:
-        print("Proxy requires aiohttp. Install with: pip install atlast-ecp[proxy]")
+        print("Error: aiohttp required for 'atlast run'.")
+        print("")
+        print("  Install with:  pip install atlast-ecp[proxy]")
+        print("  Or install all: pip install atlast-ecp[all]")
+        print("")
+        print("  Alternative (no extra install):")
+        print("    from atlast_ecp import wrap")
+        print("    client = wrap(openai.OpenAI())  # 1 line, zero deps")
         sys.exit(1)
 
 
@@ -1058,7 +1070,7 @@ def cmd_proof(args: list[str]):
         print(f"   Content: {proof['summary']['content_included']} included, "
               f"{proof['summary']['content_redacted']} redacted")
         print(f"   Verification: {'✅ VALID' if verification['valid'] else '❌ ISSUES'}")
-        print(f"\n   Share this file. Recipient verifies with:")
+        print("\n   Share this file. Recipient verifies with:")
         print(f"   $ atlast verify --proof {output_file}")
     else:
         print(format_proof_report(proof, verification))
@@ -1126,13 +1138,13 @@ def cmd_inspect(args: list[str]):
 
     # Chain info
     if chain:
-        print(f"\n🔗 Chain")
+        print("\n🔗 Chain")
         print(f"  Prev:     {chain.get('prev', '?')}")
         print(f"  Hash:     {chain.get('hash', '?')[:40]}...")
         print(f"  Sig:      {record.get('sig', 'none')[:40]}...")
 
     # Content + Hash verification
-    print(f"\n📄 Content (from local vault)")
+    print("\n📄 Content (from local vault)")
     print("-" * 60)
 
     if not vault:
@@ -1169,16 +1181,16 @@ def cmd_inspect(args: list[str]):
         print(f"  └{'─'*56}┘")
 
         if in_match and out_match:
-            print(f"\n  🟢 CONTENT VERIFIED — hashes match original content")
-            print(f"     sha256(input)  == record.in_hash  ✅")
-            print(f"     sha256(output) == record.out_hash ✅")
-            print(f"     Content has NOT been tampered with.")
+            print("\n  🟢 CONTENT VERIFIED — hashes match original content")
+            print("     sha256(input)  == record.in_hash  ✅")
+            print("     sha256(output) == record.out_hash ✅")
+            print("     Content has NOT been tampered with.")
         else:
-            print(f"\n  🔴 CONTENT MISMATCH — content may have been altered!")
+            print("\n  🔴 CONTENT MISMATCH — content may have been altered!")
             if not in_match:
-                print(f"     sha256(input)  != record.in_hash  ❌")
+                print("     sha256(input)  != record.in_hash  ❌")
             if not out_match:
-                print(f"     sha256(output) != record.out_hash ❌")
+                print("     sha256(output) != record.out_hash ❌")
 
     print()
 
@@ -1281,11 +1293,19 @@ def _cmd_discover(args: list[str]):
     if caps:
         print(f"\n  Capabilities: {', '.join(caps)}")
 
-    endpoints = data.get("endpoints", [])
+    endpoints = data.get("endpoints", {})
     if endpoints:
-        print(f"\n  Endpoints ({len(endpoints)}):")
-        for ep in endpoints:
-            print(f"    {ep.get('method', '?'):6s} {ep.get('path', '?')}")
+        if isinstance(endpoints, dict):
+            print(f"\n  Endpoints ({len(endpoints)}):")
+            for name, path in endpoints.items():
+                print(f"    {name:20s} {path}")
+        elif isinstance(endpoints, list):
+            print(f"\n  Endpoints ({len(endpoints)}):")
+            for ep in endpoints:
+                if isinstance(ep, dict):
+                    print(f"    {ep.get('method', '?'):6s} {ep.get('path', '?')}")
+                else:
+                    print(f"    {ep}")
 
     auth = data.get("auth_methods", [])
     if auth:
@@ -1440,9 +1460,9 @@ def cmd_demo(args: list[str]):
     print(f"🎲 Generating {days} days of realistic demo data...")
     count = generate_demo_data(days=days)
     print(f"✅ Generated {count} records across {days} days")
-    print(f"   Agent: did:ecp:demo_research_agent_001")
-    print(f"   Scenario: Market research agent with drift + error spike around day 30-34")
-    print(f"\n   Now run: atlast dashboard")
+    print("   Agent: did:ecp:demo_research_agent_001")
+    print("   Scenario: Market research agent with drift + error spike around day 30-34")
+    print("\n   Now run: atlast dashboard")
 
 
 def cmd_dashboard(args: list[str]):

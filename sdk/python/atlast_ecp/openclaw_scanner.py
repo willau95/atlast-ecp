@@ -16,7 +16,6 @@ import os
 import warnings
 
 _WARNED = False
-import sys
 import time
 import hashlib
 from pathlib import Path
