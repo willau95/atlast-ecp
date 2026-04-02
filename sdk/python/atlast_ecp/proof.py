@@ -16,10 +16,10 @@ or note "content redacted" for records where content is withheld.
 Usage:
     # Generate proof
     atlast proof --session sprint-42 --include-content -o proof.json
-    
+
     # Verify (recipient — no atlast install needed, just python3)
     python3 -c "import json,hashlib; ..."  # inline verification
-    
+
     # Or with atlast installed:
     atlast verify --proof proof.json
 

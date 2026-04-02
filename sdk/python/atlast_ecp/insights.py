@@ -414,7 +414,7 @@ def analyze_records(records: list[dict], top_n: int = 10) -> dict:
     error_rate = len(error_records) / total * 100 if total else 0
     if error_rate > 5:
         recommendations.append(f"⚠️  High error rate: {error_rate:.1f}% of records have errors. Check your prompts or API reliability.")
-    
+
     high_lat_rate = len(high_latency_records) / total * 100 if total else 0
     if high_lat_rate > 10:
         recommendations.append(f"🐌 {high_lat_rate:.1f}% of calls have high latency. Consider using a faster model or reducing prompt size.")

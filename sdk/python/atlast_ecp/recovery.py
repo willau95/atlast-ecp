@@ -49,28 +49,28 @@ def _hkdf_sha256(ikm: bytes, salt: bytes, info: bytes, length: int = 32) -> byte
 def entropy_to_mnemonic(entropy: bytes) -> list[str]:
     """
     Convert 16 bytes of entropy to 12 BIP39 words.
-    
+
     Standard BIP39: 128 bits entropy + 4 bits checksum = 132 bits = 12 × 11-bit indices.
     """
     if len(entropy) != 16:
         raise ValueError(f"Entropy must be 16 bytes, got {len(entropy)}")
-    
+
     wordlist = _load_wordlist()
-    
+
     # Checksum = first 4 bits of SHA-256(entropy)
     h = hashlib.sha256(entropy).digest()
     checksum_bits = h[0] >> 4  # top 4 bits of first byte
-    
+
     # Convert entropy to bit string (128 bits) + checksum (4 bits) = 132 bits
     bits = int.from_bytes(entropy, 'big')
     bits = (bits << 4) | checksum_bits
-    
+
     # Split into 12 groups of 11 bits
     words = []
     for i in range(11, -1, -1):
         index = (bits >> (i * 11)) & 0x7FF  # 11 bits = 0-2047
         words.append(wordlist[index])
-    
+
     return words
 
 
@@ -81,10 +81,10 @@ def mnemonic_to_entropy(words: list[str]) -> bytes:
     """
     if len(words) != 12:
         raise ValueError(f"Mnemonic must be 12 words, got {len(words)}")
-    
+
     wordlist = _load_wordlist()
     word_to_index = {w: i for i, w in enumerate(wordlist)}
-    
+
     # Convert words to indices
     bits = 0
     for word in words:
@@ -92,25 +92,25 @@ def mnemonic_to_entropy(words: list[str]) -> bytes:
         if word_lower not in word_to_index:
             raise ValueError(f"Invalid BIP39 word: '{word}'")
         bits = (bits << 11) | word_to_index[word_lower]
-    
+
     # Split: 128 bits entropy + 4 bits checksum
     checksum_bits = bits & 0xF
     entropy_int = bits >> 4
     entropy = entropy_int.to_bytes(16, 'big')
-    
+
     # Verify checksum
     h = hashlib.sha256(entropy).digest()
     expected_checksum = h[0] >> 4
     if checksum_bits != expected_checksum:
         raise ValueError("Invalid mnemonic checksum — words may be wrong or in wrong order")
-    
+
     return entropy
 
 
 def entropy_to_ed25519_seed(entropy: bytes) -> bytes:
     """
     Derive a 32-byte Ed25519 seed from 16-byte entropy using HKDF-SHA256.
-    
+
     Deterministic: same entropy always produces the same seed.
     """
     return _hkdf_sha256(
@@ -124,7 +124,7 @@ def entropy_to_ed25519_seed(entropy: bytes) -> bytes:
 def generate_mnemonic() -> tuple[list[str], bytes]:
     """
     Generate a new random mnemonic + entropy.
-    
+
     Returns: (words, entropy)
     """
     entropy = os.urandom(16)  # 128 bits
@@ -135,7 +135,7 @@ def generate_mnemonic() -> tuple[list[str], bytes]:
 def mnemonic_to_private_key(words: list[str]) -> bytes:
     """
     Recover Ed25519 private key (32 bytes) from 12 mnemonic words.
-    
+
     Returns the raw 32-byte seed suitable for Ed25519PrivateKey.from_private_bytes().
     """
     entropy = mnemonic_to_entropy(words)
@@ -146,7 +146,7 @@ def private_key_to_entropy_hash(priv_hex: str) -> str:
     """
     Compute the entropy hash for an existing private key.
     Used to verify mnemonic matches identity.
-    
+
     Note: For keys created BEFORE recovery feature, we cannot reverse the
     private key to entropy (it was random, not HKDF-derived). In that case,
     we store the raw private key bytes as "entropy" for mnemonic export,
@@ -158,11 +158,11 @@ def private_key_to_entropy_hash(priv_hex: str) -> str:
 def export_mnemonic_for_legacy_key(priv_hex: str) -> list[str]:
     """
     Export mnemonic for a legacy (pre-recovery) private key.
-    
+
     Since legacy keys weren't derived from BIP39 entropy, we use
     the first 16 bytes of the private key AS the entropy.
     The recovery path will detect this and use direct key restoration.
-    
+
     Returns: 12-word mnemonic
     """
     priv_bytes = bytes.fromhex(priv_hex)
@@ -174,7 +174,7 @@ def export_mnemonic_for_legacy_key(priv_hex: str) -> list[str]:
 def recover_legacy_key(words: list[str]) -> bytes:
     """
     Recover a legacy private key from its mnemonic export.
-    
+
     Legacy keys use first-16-bytes encoding, not HKDF derivation.
     Returns the first 16 bytes — caller must check if identity matches.
     """
@@ -187,7 +187,7 @@ def format_mnemonic_display(words: list[str]) -> str:
     for i in range(0, 12, 3):
         group = [f" {i+j+1:2d}. {words[i+j]:<12}" for j in range(3)]
         lines.append("│" + "".join(group) + "  │")
-    
+
     width = len(lines[0])
     top = "┌" + "─" * (width - 2) + "┐"
     bot = "└" + "─" * (width - 2) + "┘"

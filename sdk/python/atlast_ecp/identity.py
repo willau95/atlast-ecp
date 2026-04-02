@@ -111,23 +111,23 @@ def _maybe_migrate_identity(identity: dict, ifile: Path) -> dict:
 def _create_identity(edir: Path | None = None) -> dict:
     """
     Create a new agent identity with BIP39 recovery support.
-    
+
     New flow (with cryptography):
       1. Generate 16 bytes random entropy
       2. Entropy → BIP39 mnemonic (12 words)
       3. Entropy → HKDF → Ed25519 seed → keypair
       4. Save identity.json (WITHOUT mnemonic — security)
       5. Return identity dict WITH transient '_mnemonic' key (for display only)
-    
+
     Legacy flow (without cryptography):
       Random hex fallback, no mnemonic support.
     """
     edir = Path(edir) if edir else _resolve_ecp_dir()
     ifile = edir / "identity.json"
     edir.mkdir(exist_ok=True)  # ensure dir exists before writing
-    
+
     mnemonic_words = None
-    
+
     if HAS_CRYPTO:
         try:
             from .recovery import generate_mnemonic, entropy_to_ed25519_seed
@@ -166,18 +166,18 @@ def _create_identity(edir: Path | None = None) -> dict:
         "created_at": _now_ms(),
         "verified": HAS_CRYPTO,
     }
-    
+
     # Store entropy hash for recovery verification (NOT the entropy itself)
     if entropy_hash:
         identity["recovery_version"] = 1
         identity["entropy_hash"] = entropy_hash
 
     _secure_write(ifile, json.dumps(identity, indent=2))
-    
+
     # Attach mnemonic transiently (NOT persisted to disk)
     if mnemonic_words:
         identity["_mnemonic"] = mnemonic_words
-    
+
     return identity
 
 

@@ -223,7 +223,7 @@ def search(
 
     cur = db.execute(sql, params)
     rows = cur.fetchall()
-    
+
     results = [dict(row) for row in rows]
     db.close()
 
@@ -286,7 +286,7 @@ def trace(record_id: str, direction: str = "back", limit: int = 50, as_json: boo
                 else:
                     break
             else:
-                
+
                 entry = dict(row)
                 chain.append(entry)
                 current_id = entry.get("chain_prev", "")
@@ -301,7 +301,7 @@ def trace(record_id: str, direction: str = "back", limit: int = 50, as_json: boo
                     continue
                 seen.add(cid)
                 rows = db.execute("SELECT * FROM records WHERE chain_prev = ?", (cid,)).fetchall()
-                
+
                 for row in rows:
                     entry = dict(row)
                     chain.append(entry)
@@ -451,7 +451,7 @@ def audit(
     all_records = db.execute(f"""
         SELECT * FROM records WHERE date >= ? {agent_cond} ORDER BY ts
     """, params).fetchall()
-    
+
     records = [dict(r) for r in all_records]
 
     if not records:

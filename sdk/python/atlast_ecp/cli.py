@@ -102,7 +102,7 @@ def cmd_verify(args: list[str]):
 
     if args[0] == "--proof":
         return _cmd_verify_proof(args[1:])
-    
+
 
     record_id = args[0]
     from .storage import load_record_by_id
@@ -550,7 +550,7 @@ def cmd_init(args: list[str]):
 
         print(f"  Agent DID: {identity['did']}")
         print(f"  Key type: {'ed25519' if identity.get('verified') else 'fallback'}")
-        
+
         # Show recovery phrase for NEW identities
         mnemonic = identity.get("_mnemonic")
         if mnemonic:
@@ -560,11 +560,11 @@ def cmd_init(args: list[str]):
                 print(f"  {line}")
             print("\n  ⚠️  This is the ONLY way to recover your identity if lost.")
             print("  ⚠️  It will NOT be shown again.\n")
-        
+
         # Ask for vault backup location
         if not non_interactive and mnemonic:
             _ask_backup_location()
-        
+
         # Auto-register with server
         print("\n  🌐 Registering with ATLAST server...")
         try:
@@ -572,7 +572,7 @@ def cmd_init(args: list[str]):
         except Exception as e:
             print(f"  ⚠️  Registration skipped: {e}")
             print("  📁 Local recording works. Register later: atlast register")
-        
+
         print("\n  ✅ Ready! Create your first record:")
         print("     from atlast_ecp.core import record")
         print('     record("your input", "your output")')
@@ -586,22 +586,22 @@ def _ask_backup_location():
     """Interactive prompt to choose vault backup location."""
     from .vault_backup import detect_backup_locations
     from .config import save_config
-    
+
     locations = detect_backup_locations()
     available = [loc for loc in locations if loc["available"]]
-    
+
     print("  📁 Where should evidence content be backed up?")
     print("     (Encrypted backup ensures recovery if this computer is lost)\n")
-    
+
     for i, loc in enumerate(available):
         print(f"     [{i + 1}] {loc['name']:<16} ({loc['path']})")
     print(f"     [{len(available) + 1}] Custom path")
     print(f"     [{len(available) + 2}] Skip (not recommended)")
-    
+
     try:
         choice = input("\n  > ").strip()
         idx = int(choice) - 1
-        
+
         if idx < len(available):
             path = available[idx]["path"]
         elif idx == len(available):
@@ -612,7 +612,7 @@ def _ask_backup_location():
         else:
             print("  ⏭  Skipped. Set later: atlast config set vault_backup_path /your/path")
             return
-        
+
         save_config({"vault_backup_path": path})
         print(f"\n  ✅ Vault backup: {path} (AES-256-GCM encrypted)")
     except (ValueError, EOFError, KeyboardInterrupt):
@@ -623,11 +623,11 @@ def _auto_register(identity: dict):
     """Auto-register agent with ATLAST server during init."""
     import urllib.request
     from .config import get_api_url, save_config
-    
+
     server_url = get_api_url()
     did = identity["did"]
     pub_key = identity.get("crypto_pub_key") or identity["pub_key"]
-    
+
     payload = json.dumps({"did": did, "public_key": pub_key}).encode()
     req = urllib.request.Request(
         f"{server_url}/agents/register",
@@ -635,7 +635,7 @@ def _auto_register(identity: dict):
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    
+
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
@@ -657,9 +657,9 @@ def cmd_recover(args: list[str]):
     """atlast recover — restore identity from 12-word recovery phrase"""
     from .recovery import mnemonic_to_entropy, entropy_to_ed25519_seed
     from .storage import init_storage
-    
+
     print("\n🔄 ATLAST Identity Recovery\n")
-    
+
     # Get mnemonic
     if args:
         words = " ".join(args).lower().split()
@@ -670,11 +670,11 @@ def cmd_recover(args: list[str]):
         except (EOFError, KeyboardInterrupt):
             print("\n  Cancelled.")
             return
-    
+
     if len(words) != 12:
         print(f"  ❌ Expected 12 words, got {len(words)}")
         return
-    
+
     # Try BIP39 → HKDF path (new identities)
     try:
         from .recovery import mnemonic_to_entropy, entropy_to_ed25519_seed
@@ -682,32 +682,32 @@ def cmd_recover(args: list[str]):
     except ValueError as e:
         print(f"  ❌ Invalid mnemonic: {e}")
         return
-    
+
     seed = entropy_to_ed25519_seed(entropy)
-    
+
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
         from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat, PrivateFormat, NoEncryption
     except ImportError:
         print("  ❌ cryptography package required. pip install cryptography")
         return
-    
+
     import hashlib
     key = Ed25519PrivateKey.from_private_bytes(seed)
     pub_hex = key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw).hex()
     priv_hex = key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption()).hex()
     did = f"did:ecp:{hashlib.sha256(pub_hex.encode()).hexdigest()[:32]}"
-    
+
     # Also try legacy path (first 16 bytes as direct key)
-    
+
     print(f"  ✅ Identity recovered: {did}")
-    
+
     # Save identity
     init_storage()
     from .identity import _resolve_ecp_dir, _now_ms
     edir = _resolve_ecp_dir()
     edir.mkdir(exist_ok=True)
-    
+
     identity = {
         "did": did,
         "pub_key": pub_hex,
@@ -718,11 +718,11 @@ def cmd_recover(args: list[str]):
         "entropy_hash": hashlib.sha256(entropy).hexdigest()[:32],
         "recovered_at": _now_ms(),
     }
-    
+
     ifile = edir / "identity.json"
     ifile.write_text(json.dumps(identity, indent=2))
     print(f"  ✅ Identity saved to {ifile}")
-    
+
     # Try to pull records from server
     print("\n  🔄 Syncing records from server...")
     try:
@@ -730,7 +730,7 @@ def cmd_recover(args: list[str]):
     except Exception as e:
         print(f"  ⚠️  Could not sync from server: {e}")
         print("  📁 Local identity restored. Records can be synced later.")
-    
+
     # Try vault restore
     from .config import get_vault_backup_path
     backup_path = get_vault_backup_path()
@@ -742,7 +742,7 @@ def cmd_recover(args: list[str]):
             print(f"  ✅ Vault restored: {restored} entries ({errors} errors)")
         except Exception as e:
             print(f"  ⚠️  Vault restore failed: {e}")
-    
+
     print("\n  ✅ Recovery complete. You can continue recording.\n")
 
 
@@ -750,30 +750,30 @@ def _sync_records_from_server(did: str, identity: dict):
     """Pull records from server for this DID."""
     import urllib.request
     from .config import get_api_url, get_api_key
-    
+
     server_url = get_api_url()
     api_key = get_api_key()
-    
+
     headers = {"Content-Type": "application/json"}
     if api_key:
         headers["X-API-Key"] = api_key
-    
+
     url = f"{server_url}/agents/{did}/records?limit=10000"
     req = urllib.request.Request(url, headers=headers)
-    
+
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read())
             records = data.get("records", [])
-            
+
             if not records:
                 print(f"  ℹ️  No records found on server for {did}")
                 return
-            
+
             from .storage import ECP_DIR
             records_dir = ECP_DIR / "records"
             records_dir.mkdir(parents=True, exist_ok=True)
-            
+
             saved = 0
             for rec in records:
                 rid = rec.get("id") or rec.get("record_id", f"rec_{saved}")
@@ -781,7 +781,7 @@ def _sync_records_from_server(did: str, identity: dict):
                 if not rfile.exists():
                     rfile.write_text(json.dumps(rec, indent=2))
                     saved += 1
-            
+
             print(f"  ✅ Downloaded {saved} new records ({len(records)} total on server)")
     except Exception as e:
         if "404" in str(e):
@@ -794,17 +794,17 @@ def cmd_backup_key(args: list[str]):
     """atlast backup-key — display recovery phrase for current identity"""
     from .identity import get_or_create_identity
     from .recovery import export_mnemonic_for_legacy_key, format_mnemonic_display
-    
+
     identity = get_or_create_identity()
     priv_hex = identity.get("priv_key")
-    
+
     if not priv_hex:
         print("  ❌ No private key found in identity.")
         return
-    
+
     print("\n  ⚠️  This will display your secret recovery phrase.")
     print("  ⚠️  Anyone with these words can control your agent identity.\n")
-    
+
     if sys.stdin.isatty():
         try:
             confirm = input("  Type 'yes' to continue: ").strip()
@@ -814,7 +814,7 @@ def cmd_backup_key(args: list[str]):
         except (EOFError, KeyboardInterrupt):
             print("\n  Cancelled.")
             return
-    
+
     # Check if this is a BIP39-derived identity or legacy
     if identity.get("recovery_version") == 1:
         # New identity: we need to regenerate mnemonic from entropy
@@ -827,10 +827,10 @@ def cmd_backup_key(args: list[str]):
         print("  ℹ️  If you lost it, you'll need to create a new identity.\n")
         print("  💡 For legacy identities, we can export a recovery phrase.")
         return
-    
+
     # Legacy identity: export from private key
     words = export_mnemonic_for_legacy_key(priv_hex)
-    
+
     print(f"\n  🔑 RECOVERY PHRASE for {identity['did']}:")
     for line in format_mnemonic_display(words).split("\n"):
         print(f"  {line}")
@@ -842,30 +842,30 @@ def cmd_backup(args: list[str]):
     """atlast backup [--vault] [--path /dir] — backup vault to encrypted storage"""
     from .identity import get_or_create_identity
     from .config import get_vault_backup_path
-    
+
     path = None
     for i, a in enumerate(args):
         if a == "--path" and i + 1 < len(args):
             path = args[i + 1]
-    
+
     if not path:
         path = get_vault_backup_path()
-    
+
     if not path:
         print("  ❌ No backup path. Use --path or: atlast config set vault_backup_path /your/path")
         return
-    
+
     identity = get_or_create_identity()
     priv_key = identity.get("priv_key")
     if not priv_key:
         print("  ❌ No private key found.")
         return
-    
+
     print(f"\n  📦 Backing up vault to {path}...")
     from .vault_backup import backup_all_vault
     backed, errors = backup_all_vault(backup_path=path, priv_key_hex=priv_key)
     print(f"  ✅ Backed up {backed} entries ({errors} errors)")
-    
+
     if errors == 0:
         from .config import save_config
         save_config({"vault_backup_path": path})
@@ -1338,19 +1338,26 @@ def cmd_search(args: list[str]):
     i = 0
     while i < len(args):
         if args[i] == "--agent" and i + 1 < len(args):
-            agent = args[i + 1]; i += 2
+            agent = args[i + 1]
+            i += 2
         elif args[i] == "--since" and i + 1 < len(args):
-            since = args[i + 1]; i += 2
+            since = args[i + 1]
+            i += 2
         elif args[i] == "--until" and i + 1 < len(args):
-            until = args[i + 1]; i += 2
+            until = args[i + 1]
+            i += 2
         elif args[i] == "--limit" and i + 1 < len(args):
-            limit = int(args[i + 1]); i += 2
+            limit = int(args[i + 1])
+            i += 2
         elif args[i] == "--errors":
-            errors_only = True; i += 1
+            errors_only = True
+            i += 1
         elif args[i] == "--json":
-            as_json = True; i += 1
+            as_json = True
+            i += 1
         else:
-            query.append(args[i]); i += 1
+            query.append(args[i])
+            i += 1
 
     from .query import search
     results = search(" ".join(query), limit=limit, agent=agent, since=since, until=until, errors_only=errors_only, as_json=as_json)
@@ -1392,11 +1399,14 @@ def cmd_audit(args: list[str]):
     i = 0
     while i < len(args):
         if args[i] == "--days" and i + 1 < len(args):
-            days = int(args[i + 1]); i += 2
+            days = int(args[i + 1])
+            i += 2
         elif args[i] == "--agent" and i + 1 < len(args):
-            agent = args[i + 1]; i += 2
+            agent = args[i + 1]
+            i += 2
         elif args[i] == "--json":
-            as_json = True; i += 1
+            as_json = True
+            i += 1
         elif args[i] == "--last" and i + 1 < len(args):
             # --last 60d format
             val = args[i + 1]
@@ -1423,15 +1433,20 @@ def cmd_timeline(args: list[str]):
     i = 0
     while i < len(args):
         if args[i] == "--days" and i + 1 < len(args):
-            days = int(args[i + 1]); i += 2
+            days = int(args[i + 1])
+            i += 2
         elif args[i] == "--since" and i + 1 < len(args):
-            since = args[i + 1]; i += 2
+            since = args[i + 1]
+            i += 2
         elif args[i] == "--until" and i + 1 < len(args):
-            until = args[i + 1]; i += 2
+            until = args[i + 1]
+            i += 2
         elif args[i] == "--agent" and i + 1 < len(args):
-            agent = args[i + 1]; i += 2
+            agent = args[i + 1]
+            i += 2
         elif args[i] == "--json":
-            as_json = True; i += 1
+            as_json = True
+            i += 1
         else:
             i += 1
 
@@ -1472,9 +1487,11 @@ def cmd_dashboard(args: list[str]):
     i = 0
     while i < len(args):
         if args[i] == "--port" and i + 1 < len(args):
-            port = int(args[i + 1]); i += 2
+            port = int(args[i + 1])
+            i += 2
         elif args[i] == "--no-open":
-            open_browser = False; i += 1
+            open_browser = False
+            i += 1
         else:
             i += 1
 

@@ -36,12 +36,12 @@ def _derive_vault_key(priv_key_hex: str, record_id: str) -> bytes:
 def encrypt_vault_entry(record_id: str, content_json: str, priv_key_hex: str) -> bytes:
     """
     Encrypt a vault entry.
-    
+
     Returns: nonce (12B) + ciphertext + tag (16B)
     """
     if not HAS_AESGCM:
         raise RuntimeError("cryptography package required for vault backup")
-    
+
     key = _derive_vault_key(priv_key_hex, record_id)
     nonce = os.urandom(12)
     aesgcm = AESGCM(key)
@@ -52,7 +52,7 @@ def encrypt_vault_entry(record_id: str, content_json: str, priv_key_hex: str) ->
 def decrypt_vault_entry(encrypted: bytes, record_id: str, priv_key_hex: str) -> dict:
     """
     Decrypt a vault entry.
-    
+
     Returns: {"input": "...", "output": "..."}
     Raises: ValueError if key is wrong or data is tampered.
     """
@@ -60,11 +60,11 @@ def decrypt_vault_entry(encrypted: bytes, record_id: str, priv_key_hex: str) -> 
         raise RuntimeError("cryptography package required for vault backup")
     if len(encrypted) < 28:  # 12 nonce + 16 tag minimum
         raise ValueError("Encrypted data too short")
-    
+
     key = _derive_vault_key(priv_key_hex, record_id)
     nonce = encrypted[:12]
     ct = encrypted[12:]
-    
+
     try:
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ct, None)
@@ -81,7 +81,7 @@ def backup_vault_entry(
 ) -> bool:
     """
     Encrypt and save a single vault entry to backup location.
-    
+
     Returns True on success, False on failure (Fail-Open).
     """
     try:
@@ -101,19 +101,19 @@ def restore_vault_entries(
 ) -> tuple[int, int]:
     """
     Restore all vault entries from backup to local ~/.ecp/vault/.
-    
+
     Returns: (restored_count, error_count)
     """
     vault_backup_dir = Path(backup_path) / "ecp-vault"
     if not vault_backup_dir.exists():
         return 0, 0
-    
+
     target_dir = Path(ecp_dir or os.path.expanduser("~/.ecp")) / "vault"
     target_dir.mkdir(parents=True, exist_ok=True)
-    
+
     restored = 0
     errors = 0
-    
+
     for enc_file in vault_backup_dir.glob("*.enc"):
         record_id = enc_file.stem  # filename without .enc
         try:
@@ -124,7 +124,7 @@ def restore_vault_entries(
             restored += 1
         except Exception:
             errors += 1
-    
+
     return restored, errors
 
 
@@ -135,20 +135,20 @@ def backup_all_vault(
 ) -> tuple[int, int]:
     """
     Backup entire vault directory to encrypted backup location.
-    
+
     Returns: (backed_up_count, error_count)
     """
     ecp = Path(ecp_dir or os.path.expanduser("~/.ecp"))
     vault_dir = ecp / "vault"
     if not vault_dir.exists():
         return 0, 0
-    
+
     if not backup_path or not priv_key_hex:
         return 0, 0
-    
+
     backed_up = 0
     errors = 0
-    
+
     for vault_file in vault_dir.glob("*.json"):
         record_id = vault_file.stem
         try:
@@ -159,20 +159,20 @@ def backup_all_vault(
                 errors += 1
         except Exception:
             errors += 1
-    
+
     return backed_up, errors
 
 
 def detect_backup_locations() -> list[dict]:
     """
     Auto-detect available cloud sync folders on the system.
-    
+
     Returns list of {name, path, available} dicts.
     """
     system = platform.system()
     home = Path.home()
     locations = []
-    
+
     # iCloud (macOS)
     if system == "Darwin":
         icloud = home / "Library" / "Mobile Documents" / "com~apple~CloudDocs"
@@ -181,7 +181,7 @@ def detect_backup_locations() -> list[dict]:
             "path": str(icloud / "ATLAST-Backup"),
             "available": icloud.exists(),
         })
-    
+
     # Dropbox
     dropbox = home / "Dropbox"
     locations.append({
@@ -189,7 +189,7 @@ def detect_backup_locations() -> list[dict]:
         "path": str(dropbox / "ATLAST-Backup"),
         "available": dropbox.exists(),
     })
-    
+
     # OneDrive
     onedrive = home / "OneDrive"
     locations.append({
@@ -197,7 +197,7 @@ def detect_backup_locations() -> list[dict]:
         "path": str(onedrive / "ATLAST-Backup"),
         "available": onedrive.exists(),
     })
-    
+
     # Google Drive (various locations)
     for gd_name in ["Google Drive", "My Drive", "GoogleDrive"]:
         gd = home / gd_name
@@ -208,5 +208,5 @@ def detect_backup_locations() -> list[dict]:
                 "available": True,
             })
             break
-    
+
     return locations
