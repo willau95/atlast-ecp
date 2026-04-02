@@ -110,8 +110,12 @@ def _resolve_upstream(request_headers: dict, provider: str) -> str:
                 allowed_domains.add(urlparse(val).netloc)
         parsed = urlparse(explicit)
         if parsed.netloc not in allowed_domains:
-            import structlog
-            structlog.get_logger().warning("proxy_blocked_upstream", url=explicit, allowed=list(allowed_domains))
+            try:
+                import structlog
+                structlog.get_logger().warning("proxy_blocked_upstream", url=explicit, allowed=list(allowed_domains))
+            except ImportError:
+                import logging
+                logging.getLogger(__name__).warning("proxy_blocked_upstream url=%s allowed=%s", explicit, list(allowed_domains))
             # Fall through to env/default instead of using untrusted URL
         else:
             return explicit.rstrip("/")
