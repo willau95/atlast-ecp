@@ -75,6 +75,7 @@ def record(
     session_id: Optional[str] = None,
     delegation_id: Optional[str] = None,
     delegation_depth: Optional[int] = None,
+    metadata: Optional[dict] = None,
 ) -> Optional[str]:
     """
     ECP's single unified interface.
@@ -125,6 +126,8 @@ def record(
 
         # Save locally
         rec_dict = record_to_dict(rec)
+        if metadata:
+            rec_dict["metadata"] = metadata
         save_record(rec_dict, local_summary=local_summary)
 
         # Save raw content to vault using same serialization as hash_content

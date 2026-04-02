@@ -518,5 +518,5 @@ def _load_batch_state() -> dict:
 
 
 def _save_batch_state(state: dict):
-    ECP_DIR.mkdir(exist_ok=True)
+    ECP_DIR.mkdir(parents=True, exist_ok=True)
     BATCH_STATE_FILE.write_text(json.dumps(state, indent=2))

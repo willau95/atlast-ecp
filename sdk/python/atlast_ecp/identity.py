@@ -52,7 +52,7 @@ def get_or_create_identity(agent_name: str | None = None, ecp_dir: str | None = 
     """Load existing identity or generate a new one."""
     edir = Path(ecp_dir) if ecp_dir else _resolve_ecp_dir()
     ifile = edir / "identity.json"
-    edir.mkdir(exist_ok=True)
+    edir.mkdir(parents=True, exist_ok=True)
     if ifile.exists():
         try:
             import json as _json
@@ -124,7 +124,7 @@ def _create_identity(edir: Path | None = None) -> dict:
     """
     edir = Path(edir) if edir else _resolve_ecp_dir()
     ifile = edir / "identity.json"
-    edir.mkdir(exist_ok=True)  # ensure dir exists before writing
+    edir.mkdir(parents=True, exist_ok=True)  # ensure dir exists before writing
 
     mnemonic_words = None
 

@@ -706,7 +706,7 @@ def cmd_recover(args: list[str]):
     init_storage()
     from .identity import _resolve_ecp_dir, _now_ms
     edir = _resolve_ecp_dir()
-    edir.mkdir(exist_ok=True)
+    edir.mkdir(parents=True, exist_ok=True)
 
     identity = {
         "did": did,
