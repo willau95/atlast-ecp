@@ -63,8 +63,8 @@ Create a quick test to confirm everything works:
 
 ```python
 from atlast_ecp.core import record
-rec = record("test input", "test output")
-print(f"✅ ECP record created: {rec.get('id', 'ok')}")
+record("test input", "test output")
+print("✅ ECP record created")
 ```
 
 Then verify:
