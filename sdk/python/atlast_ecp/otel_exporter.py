@@ -49,7 +49,7 @@ _FALLBACK_COMPLETION_TOKEN_KEYS = [
 ]
 
 
-def _get_attr(attributes: dict, primary: str, fallbacks: list | None = None):
+def _get_attr(attributes: dict, primary: str, fallbacks: "list | None" = None):
     """Get attribute with fallback keys."""
     val = attributes.get(primary)
     if val is not None:

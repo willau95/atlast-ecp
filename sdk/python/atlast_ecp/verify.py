@@ -148,7 +148,7 @@ def verify_record(record_dict: dict) -> dict:
         {
             "valid": bool,
             "chain_hash_ok": bool,
-            "signature_ok": bool | None,  # None if no public_key provided
+            "signature_ok": None,  # bool or None  # None if no public_key provided
             "errors": [str]
         }
     """

@@ -48,7 +48,7 @@ def _secure_write(filepath: Path, data: str) -> None:
         pass  # Windows or restricted filesystem — best effort
 
 
-def get_or_create_identity(agent_name: str | None = None, ecp_dir: str | None = None) -> dict:
+def get_or_create_identity(agent_name: "str | None" = None, ecp_dir: "str | None" = None) -> dict:
     """Load existing identity or generate a new one."""
     edir = Path(ecp_dir) if ecp_dir else _resolve_ecp_dir()
     ifile = edir / "identity.json"
@@ -108,7 +108,7 @@ def _maybe_migrate_identity(identity: dict, ifile: Path) -> dict:
     return identity
 
 
-def _create_identity(edir: Path | None = None) -> dict:
+def _create_identity(edir: "Path | None" = None) -> dict:
     """
     Create a new agent identity with BIP39 recovery support.
 

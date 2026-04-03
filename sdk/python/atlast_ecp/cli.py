@@ -142,7 +142,12 @@ def cmd_verify(args: list[str]):
     if record.get("sig") and record["sig"] != "unverified":
         print(f"  ✅ Signature present: {record['sig'][:32]}...")
     else:
-        print("  ⚠️  Signature: unverified (cryptography package not installed)")
+        # Check if we CAN sign now (even if this record wasn't signed at creation)
+        try:
+            import nacl
+            print("  ℹ️  Signature: not signed at creation (records created after setup are signed)")
+        except ImportError:
+            print("  ℹ️  Signature: not signed (install pynacl for signed records)")
 
     # 3. On-chain anchor
     anchor = record.get("anchor", {})
@@ -284,8 +289,13 @@ def cmd_did(args: list[str]):
     """atlast did"""
     from .identity import get_or_create_identity
     identity = get_or_create_identity()
-    print(f"\n  Agent DID: {identity['did']}")
-    print(f"  Key type: {'ed25519 (verified)' if identity.get('verified') else 'fallback (unverified)'}")
+    did = identity['did']
+    did_short = did.split(':')[-1][:8]
+    is_ed25519 = identity.get('verified', False)
+    # Show full DID (this command is explicitly for technical use)
+    print(f"\n  Agent ID: ...{did_short}")
+    print(f"  Full DID: {did}")
+    print(f"  Security: {'Ed25519 ✅' if is_ed25519 else 'fallback (run: atlast doctor --fix)'}")
     print(f"  Created: {identity.get('created_at', 'unknown')}")
     print()
 
@@ -403,14 +413,14 @@ def cmd_register(args: list[str]):
         api_key = result.get("agent_api_key", "")
         claim_url = result.get("claim_url", "")
 
-        print(f"  ✓ Agent registered: {agent_name}")
-        print(f"  ✓ DID: {did}")
+        did_short = did.split(':')[-1][:8]
+        print(f"  ✓ Registered: {agent_name} (ID: ...{did_short})")
         if api_key:
-            print(f"  ✓ API Key: {api_key}  ← (save this, shown once)")
+            print(f"  ✓ API Key saved (starts with: {api_key[:12]}...)")
         if claim_url:
             print(f"  ✓ Claim URL: {claim_url}")
         print()
-        print("  Next: Send this claim URL to your owner to activate your profile.")
+        print("  ✅ Your agent's profile is now live on the ATLAST network.")
 
         # Save to local config
         config_data = {"agent_did": did, "endpoint": base_url}
@@ -421,7 +431,8 @@ def cmd_register(args: list[str]):
     except Exception as e:
         error_str = str(e)
         if "409" in error_str:
-            print(f"  ✓ Agent already registered: {did}")
+            did_short = did.split(':')[-1][:8]
+            print(f"  ✓ Already registered (ID: ...{did_short})")
             server_url = get_api_url()
             if server_url:
                 print(f"  🌐 Profile: {server_url.replace('/v1', '')}/agent/{did}")
@@ -557,7 +568,7 @@ def cmd_init(args: list[str]):
             # Silently try to auto-upgrade to Ed25519
             try:
                 from nacl.signing import SigningKey
-                import stat
+                import stat, json
                 sk = SigningKey.generate()
                 identity["pub_key"] = sk.verify_key.encode().hex()
                 identity["priv_key"] = sk.encode().hex()
