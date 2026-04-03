@@ -91,18 +91,23 @@ def detect_flags(
     latency_ms: Optional[int] = None,
     median_latency_ms: Optional[int] = None,
     is_a2a: bool = False,
+    **kwargs,
 ) -> list[str]:
     """
     Passively detect all applicable behavioral flags from output text.
     Returns sorted list of flag strings matching ECP-SPEC §4.
+
+    Keyword args:
+        has_tool_calls: if True, empty text output is NOT incomplete (agent used tools)
     """
+    has_tool_calls = kwargs.get("has_tool_calls", False)
     flags = []
     text = (output_text or "").strip()
 
     if is_retry:
         flags.append("retried")
 
-    if not text:
+    if not text and not has_tool_calls:
         flags.append("incomplete")
         return sorted(flags)
 

@@ -75,41 +75,67 @@ def scan_session_file(jsonl_path: str, since_ts: Optional[str] = None) -> list[d
                 }
 
             elif role == "assistant" and pending_user:
-                content = msg.get("content", "")
-                if isinstance(content, list):
-                    # Extract text parts, skip thinking blocks
-                    parts = []
-                    for c in content:
+                content_raw = msg.get("content", "")
+                tool_calls = []
+                text_parts = []
+
+                if isinstance(content_raw, list):
+                    for c in content_raw:
                         if isinstance(c, dict):
                             if c.get("type") == "text":
-                                parts.append(c.get("text", ""))
-                            elif c.get("type") == "tool_use":
-                                parts.append(f"[tool:{c.get('name','')}]")
-                    content = " ".join(parts)
+                                text_parts.append(c.get("text", ""))
+                            elif c.get("type") in ("toolCall", "tool_use"):
+                                tool_name = c.get("name") or c.get("arguments", {}).get("name", "tool")
+                                tool_calls.append(tool_name)
+                elif isinstance(content_raw, str):
+                    text_parts.append(content_raw)
 
-                interactions.append({
+                # Build output representation
+                output_parts = []
+                if text_parts:
+                    output_parts.extend(text_parts)
+                if tool_calls:
+                    output_parts.append(f"[tools: {', '.join(tool_calls)}]")
+                content = " ".join(output_parts)
+
+                # Determine if this is a real interaction (not just noise)
+                # Tool calls ARE valid agent work — not incomplete
+                has_text = bool(any(t.strip() for t in text_parts))
+                has_tools = bool(tool_calls)
+                is_error = bool(msg.get("errorMessage"))
+
+                # Skip error-only responses (403, terminated, etc.)
+                if is_error and not has_text and not has_tools:
+                    pending_user = None
+                    continue
+
+                # Extract model directly from assistant message
+                model = msg.get("model", "")
+
+                # Extract token usage directly from assistant message
+                usage = msg.get("usage", {})
+                tokens_in = usage.get("input", 0) or usage.get("input_tokens", 0)
+                tokens_out = usage.get("output", 0) or usage.get("output_tokens", 0)
+
+                interaction = {
                     "input": pending_user["content"],
                     "output": str(content)[:2000],
                     "timestamp": ts,
                     "input_ts": pending_user["timestamp"],
-                })
+                    "model": model if model else None,
+                    "tokens_in": tokens_in,
+                    "tokens_out": tokens_out,
+                    "has_tool_calls": has_tools,
+                }
+                interactions.append(interaction)
                 pending_user = None
 
-        # Extract model/usage from custom cache-ttl entries
+        # Extract model/usage from custom cache-ttl entries (fallback)
         elif entry.get("type") == "custom" and entry.get("customType") == "openclaw.cache-ttl":
             data = entry.get("data", {})
             model_id = data.get("modelId", "")
-            # Attach model info to the most recent interaction
             if interactions and not interactions[-1].get("model"):
                 interactions[-1]["model"] = model_id
-
-        # Extract usage from response metadata
-        elif entry.get("type") == "custom" and "usage" in str(entry.get("data", {})):
-            data = entry.get("data", {})
-            usage = data.get("usage", {})
-            if interactions and usage:
-                interactions[-1]["tokens_in"] = usage.get("input_tokens", 0)
-                interactions[-1]["tokens_out"] = usage.get("output_tokens", 0)
 
     # Compute latency from timestamps
     for ix in interactions:
@@ -199,10 +225,11 @@ def scan_openclaw_agent(
             rid = record(
                 input_content=ix["input"],
                 output_content=ix["output"],
-                model=ix.get("model", "unknown"),
+                model=ix.get("model") or "unknown",
                 tokens_in=ix.get("tokens_in", 0),
                 tokens_out=ix.get("tokens_out", 0),
                 latency_ms=ix.get("latency_ms", 0),
+                has_tool_calls=ix.get("has_tool_calls", False),
             )
             if rid:
                 total_new += 1

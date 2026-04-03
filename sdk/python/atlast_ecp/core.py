@@ -76,6 +76,7 @@ def record(
     delegation_id: Optional[str] = None,
     delegation_depth: Optional[int] = None,
     metadata: Optional[dict] = None,
+    has_tool_calls: bool = False,
 ) -> Optional[str]:
     """
     ECP's single unified interface.
@@ -103,7 +104,7 @@ def record(
             is_retry = _state.check_retry(in_hash)
 
         # Passive behavioral flag detection
-        flags = detect_flags(out_text, is_retry=is_retry, latency_ms=latency_ms)
+        flags = detect_flags(out_text, is_retry=is_retry, latency_ms=latency_ms, has_tool_calls=has_tool_calls)
 
         # Create record (chained to previous)
         rec = create_record(
