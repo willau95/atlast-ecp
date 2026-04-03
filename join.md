@@ -27,50 +27,48 @@ Verify: `python3 -c "import atlast_ecp; print(atlast_ecp.__version__)"` — shou
 atlast init
 ```
 
-This will:
-- Generate your Ed25519 keypair
-- Create your DID (Decentralized Identifier): `did:ecp:xxxx`
-- Create local storage at `~/.ecp/`
-- Show your 12-word recovery phrase — **save it and give it to your owner**
+This creates your identity and local storage. You'll see:
+```
+🔗 ATLAST ECP initialized
+  Storage: ~/.ecp/records/ (local, private)
+  Identity: ✅ created (ID: ...xxxxxxxx)
+  Server: ✅ registered
+  ✅ All set!
+```
 
-⚠️ **Important**: Copy the recovery phrase and show it to your owner. They need it to recover your identity if anything goes wrong.
+If a recovery phrase is shown — **copy it and give it to your owner**. They need it to recover your identity.
 
-## Step 3: Register with ATLAST Server
+## Step 3: Run Doctor (diagnose & auto-fix)
 
 ```bash
-atlast register
+atlast doctor --fix
 ```
 
-This registers your DID with the ATLAST server (`api.weba0.com`) so your records can be published and verified.
+This checks everything and auto-fixes issues:
+- Missing PyNaCl? → Installs it
+- Identity not Ed25519? → Upgrades it
+- Storage missing? → Creates it
+- Server unreachable? → That's fine, local mode works
 
-If registration fails (network issue), don't worry — local recording works without it. You can register later.
+**If doctor says "✅ All good!" → skip to Step 5.**
 
-## Step 4: Configure Auto-Recording
+## Step 4: Fix Any Issues
 
-Create or edit the file `~/.ecp/config.json`:
+If `atlast doctor` found problems it couldn't auto-fix, resolve them:
+- Python < 3.9 → upgrade Python
+- Disk full → free space
+- Other → follow the suggestions shown
 
-```json
-{
-  "auto_record": true,
-  "server_url": "https://api.weba0.com",
-  "auto_push": false
-}
-```
+Then re-run `atlast doctor` to confirm all green.
 
 ## Step 5: Test It
 
-Create a quick test to confirm everything works:
-
 ```python
-from atlast_ecp.core import record
-record("test input", "test output")
-print("✅ ECP record created")
+python3 -c "from atlast_ecp.core import record; record('test input', 'test output'); print('✅ ECP record created')"
 ```
 
 Then verify:
-
 ```bash
-atlast stats
 atlast log -n 1
 ```
 
@@ -78,14 +76,12 @@ You should see 1 record.
 
 ## Step 6: Tell Your Owner
 
-Report back to your owner with:
-1. ✅ ECP installed (version number)
-2. ✅ Your DID: `did:ecp:xxxxx`
-3. ✅ Recovery phrase (the 12 words — they must save this)
-4. ✅ Local storage: `~/.ecp/`
-5. ✅ Test record created successfully
+Report back with a **simple summary** (no technical jargon):
 
-Then say: **"ECP is active. From now on, every conversation I have will be recorded as tamper-proof evidence. You can check anytime with `atlast stats` or `atlast dashboard`."**
+> "✅ Evidence recording is set up! From now on, every conversation I have is automatically recorded as tamper-proof evidence. 
+> You can check anytime by telling me: `atlast stats` or `atlast dashboard`."
+
+**Do NOT** show the owner raw DIDs, hashes, or key types. They don't need to see that.
 
 ---
 
@@ -110,7 +106,8 @@ atlast run python my_script.py
 
 | Command | What it does |
 |---------|-------------|
-| `atlast stats` | Overview: total records, DID, trust signals |
+| `atlast doctor` | Check environment, auto-fix issues |
+| `atlast stats` | Overview: total records, trust signals |
 | `atlast log -n 10` | Show last 10 records |
 | `atlast dashboard` | Open local web dashboard |
 | `atlast push` | Upload records to server (hashes only, not content) |

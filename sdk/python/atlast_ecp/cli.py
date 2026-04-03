@@ -1502,6 +1502,162 @@ def cmd_demo(args: list[str]):
     print("\n   Now run: atlast dashboard")
 
 
+def cmd_doctor(args: list[str]):
+    """atlast doctor — diagnose environment and auto-fix common issues"""
+    import shutil
+    from pathlib import Path
+
+    print("\n🩺 ATLAST Doctor — checking your environment...\n")
+    issues = []
+    fixed = []
+    all_ok = True
+
+    # 1. Python version
+    v = sys.version_info
+    if v >= (3, 9):
+        print(f"  ✅ Python {v.major}.{v.minor}.{v.micro}")
+    else:
+        print(f"  ❌ Python {v.major}.{v.minor}.{v.micro} — need 3.9+")
+        issues.append("Upgrade Python to 3.9 or later")
+        all_ok = False
+
+    # 2. atlast-ecp installed
+    try:
+        from atlast_ecp import __version__ as ver
+        print(f"  ✅ atlast-ecp {ver}")
+    except ImportError:
+        print("  ❌ atlast-ecp not installed")
+        issues.append("Run: pip install atlast-ecp")
+        all_ok = False
+
+    # 3. ECP directory
+    from .storage import ECP_DIR
+    if ECP_DIR.exists():
+        print(f"  ✅ Storage: {ECP_DIR}")
+    else:
+        print(f"  ⚠️  Storage not initialized — fixing...")
+        try:
+            from .storage import init_storage
+            init_storage()
+            print(f"  ✅ Storage: {ECP_DIR} (just created)")
+            fixed.append("Created ~/.ecp/ directory")
+        except Exception as e:
+            print(f"  ❌ Cannot create {ECP_DIR}: {e}")
+            issues.append(f"Cannot create {ECP_DIR}")
+            all_ok = False
+
+    # 4. Identity
+    id_file = ECP_DIR / "identity.json"
+    if id_file.exists():
+        try:
+            identity = json.loads(id_file.read_text())
+            did_short = identity.get("did", "?").split(":")[-1][:8]
+            is_ed25519 = identity.get("verified", False)
+            print(f"  ✅ Identity: ...{did_short} ({'Ed25519' if is_ed25519 else 'fallback'})")
+
+            # Auto-upgrade to Ed25519 if possible
+            if not is_ed25519:
+                try:
+                    from nacl.signing import SigningKey
+                    import stat
+                    sk = SigningKey.generate()
+                    identity["pub_key"] = sk.verify_key.encode().hex()
+                    identity["priv_key"] = sk.encode().hex()
+                    identity["verified"] = True
+                    id_file.write_text(json.dumps(identity, indent=2))
+                    try:
+                        id_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
+                    except OSError:
+                        pass
+                    print(f"  ✅ Auto-upgraded to Ed25519!")
+                    fixed.append("Upgraded identity to Ed25519")
+                except ImportError:
+                    pass  # PyNaCl not available, fallback is fine
+        except Exception:
+            print("  ❌ Identity file corrupted")
+            issues.append("Delete ~/.ecp/identity.json and run: atlast init")
+            all_ok = False
+    else:
+        print("  ⚠️  No identity — fixing...")
+        try:
+            from .identity import get_or_create_identity
+            identity = get_or_create_identity()
+            did_short = identity.get("did", "?").split(":")[-1][:8]
+            print(f"  ✅ Identity: ...{did_short} (just created)")
+            fixed.append("Created new identity")
+        except Exception as e:
+            print(f"  ❌ Cannot create identity: {e}")
+            issues.append("Run: atlast init")
+            all_ok = False
+
+    # 5. PyNaCl (Ed25519 signatures)
+    try:
+        import nacl
+        print(f"  ✅ PyNaCl {nacl.__version__} (strong signatures)")
+    except ImportError:
+        print("  ⚠️  PyNaCl not installed (optional, for stronger signatures)")
+        if "--fix" in args:
+            print("     Installing PyNaCl...")
+            import subprocess
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "pynacl", "-q"])
+                print("  ✅ PyNaCl installed!")
+                fixed.append("Installed PyNaCl")
+            except Exception:
+                print("  ⚠️  Could not auto-install PyNaCl (not critical)")
+
+    # 6. Server connectivity
+    try:
+        from .config import get_api_url
+        server_url = get_api_url()
+        import urllib.request
+        req = urllib.request.Request(f"{server_url}/health", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            print(f"  ✅ Server: {server_url} (online)")
+    except Exception:
+        print(f"  ⚠️  Server: offline (not critical — records are saved locally)")
+
+    # 7. Records count
+    records_dir = ECP_DIR / "records"
+    if records_dir.exists():
+        count = len(list(records_dir.glob("*.json")))
+        print(f"  ✅ Records: {count}")
+    else:
+        print("  ✅ Records: 0 (ready to start)")
+
+    # 8. Disk space
+    try:
+        usage = shutil.disk_usage(str(ECP_DIR))
+        free_gb = usage.free / (1024**3)
+        if free_gb > 1:
+            print(f"  ✅ Disk: {free_gb:.1f} GB free")
+        else:
+            print(f"  ⚠️  Disk: only {free_gb:.2f} GB free")
+            if free_gb < 0.1:
+                issues.append("Disk almost full — free up space")
+                all_ok = False
+    except Exception:
+        pass
+
+    # Summary
+    print()
+    if fixed:
+        print(f"  🔧 Auto-fixed {len(fixed)} issue(s):")
+        for f in fixed:
+            print(f"     • {f}")
+        print()
+
+    if all_ok and not issues:
+        print("  ✅ All good! Your agent is ready to record evidence.\n")
+    elif issues:
+        print(f"  ❌ {len(issues)} issue(s) need attention:")
+        for i in issues:
+            print(f"     • {i}")
+        print()
+        if "--fix" not in args:
+            print("  💡 Run 'atlast doctor --fix' to auto-fix what's possible.\n")
+
+
 def cmd_dashboard(args: list[str]):
     """atlast dashboard [--port 3827] [--no-open] — launch local web dashboard"""
     port = 3827
@@ -1560,6 +1716,10 @@ def main():
         print("    atlast backup-key        Show recovery phrase for current identity")
         print("    atlast backup [--path p] Backup vault to encrypted storage")
         print()
+        print("  Diagnostics:")
+        print("    atlast doctor            Check environment & auto-fix issues")
+        print("    atlast doctor --fix      Auto-fix + install optional deps")
+        print()
         print("  Configuration:")
         print("    atlast config get        Show current config")
         print("    atlast config set <k> <v>  Set config value")
@@ -1615,6 +1775,7 @@ def main():
         "timeline": cmd_timeline,
         "index": cmd_index,
         "dashboard": cmd_dashboard,
+        "doctor": cmd_doctor,
         "demo": cmd_demo,
     }
     commands.update(query_commands)
