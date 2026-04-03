@@ -54,9 +54,12 @@ atlast = "atlast_ecp.cli:main"
 atlast-ecp-mcp = "atlast_ecp.mcp_server:run_stdio_server"
 
 [project.urls]
-Homepage = "https://github.com/willau95/atlast-ecp"
+Homepage = "https://weba0.com"
 Repository = "https://github.com/willau95/atlast-ecp"
-Documentation = "https://github.com/willau95/atlast-ecp/blob/main/ECP-SPEC.md"
+Documentation = "https://weba0.com/protocol/evidence-chain-protocol-ecp.html"
+"What is ATLAST?" = "https://weba0.com/what-is/atlast-protocol.html"
+"What is Web A.0?" = "https://weba0.com/what-is/web-a0.html"
+Changelog = "https://github.com/willau95/atlast-ecp/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["."]
