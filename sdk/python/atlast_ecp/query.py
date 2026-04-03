@@ -558,10 +558,13 @@ def audit(
         db.close()
         return report
 
-    # ── Basic stats ──
+    # ── Basic stats (separating infra from agent errors) ──
     total = len(records)
-    errors = sum(1 for r in records if r.get("error"))
-    error_rate = round(errors / total * 100, 1)
+    infra_errors = sum(1 for r in records if r.get("is_infra"))
+    agent_records = [r for r in records if not r.get("is_infra")]
+    interactions = len(agent_records)
+    agent_errors = sum(1 for r in agent_records if r.get("error"))
+    error_rate = round(agent_errors / interactions * 100, 1) if interactions else 0
     sessions = len(set(r.get("session_id") or "" for r in records if r.get("session_id")))
 
     # Chain integrity
@@ -575,9 +578,9 @@ def audit(
     # ── Anomaly detection ──
     anomalies = []
 
-    # 1. Error spikes: any day with > 20% error rate
+    # 1. Error spikes: any day with > 20% agent error rate (excludes infra)
     daily_stats = {}
-    for r in records:
+    for r in agent_records:
         d = r.get("date", "")
         if d not in daily_stats:
             daily_stats[d] = {"total": 0, "errors": 0, "latencies": [], "confidences": []}
@@ -660,8 +663,12 @@ def audit(
         "period": {"from": since, "to": until, "days": days},
         "summary": {
             "total_records": total,
-            "total_errors": errors,
+            "total_interactions": interactions,
+            "agent_errors": agent_errors,
+            "infra_errors": infra_errors,
             "error_rate_pct": error_rate,
+            "reliability": round((interactions - agent_errors) / interactions, 4) if interactions else 1.0,
+            "availability": round(interactions / total, 4) if total else 1.0,
             "sessions": sessions,
             "active_days": len(daily_stats),
             "avg_latency_ms": round(overall_avg_latency),
@@ -691,8 +698,10 @@ def _print_audit(report: dict):
     print(f"{'='*60}\n")
 
     print("  📊 Summary")
-    print(f"    Records:      {s['total_records']:,}")
-    print(f"    Errors:        {s['total_errors']:,} ({s['error_rate_pct']}%)")
+    print(f"    Interactions:  {s.get('total_interactions', s['total_records']):,}")
+    print(f"    Agent Errors:  {s.get('agent_errors', 0):,} ({s['error_rate_pct']}%)")
+    print(f"    Infra Errors:  {s.get('infra_errors', 0):,}")
+    print(f"    Reliability:   {s.get('reliability', 0)*100:.1f}%")
     print(f"    Sessions:      {s['sessions']:,}")
     print(f"    Active Days:   {s['active_days']}")
     print(f"    Avg Latency:   {s['avg_latency_ms']}ms")

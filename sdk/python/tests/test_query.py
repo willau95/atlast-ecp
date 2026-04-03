@@ -217,7 +217,7 @@ class TestAudit:
         report = audit(days=7, as_json=True)
         assert report["status"] == "complete"
         assert report["summary"]["total_records"] == 10
-        assert report["summary"]["total_errors"] == 1
+        assert report["summary"]["agent_errors"] == 1
         assert "anomalies" in report
         assert "health" in report
 
@@ -238,7 +238,7 @@ class TestAudit:
         audit(days=7, as_json=False)
         captured = capsys.readouterr()
         assert "Audit Report" in captured.out
-        assert "Records" in captured.out
+        assert "Interactions" in captured.out or "Reliability" in captured.out
 
     def test_audit_health_status(self, setup_ecp_dir):
         from atlast_ecp.query import audit
