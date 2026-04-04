@@ -676,25 +676,25 @@ class TestProxySSEReconstructionDeep:
         from atlast_ecp.proxy import _reconstruct_sse_content
         chunks = b'data: {"choices":[{"delta":{"content":""}}]}\n\ndata: {"choices":[{"delta":{"content":"hello"}}]}\n\ndata: [DONE]\n\n'
         result = _reconstruct_sse_content(chunks, "openai")
-        assert result == "hello"
+        assert result["content"] == "hello"
 
     def test_no_content_in_delta(self):
         from atlast_ecp.proxy import _reconstruct_sse_content
         chunks = b'data: {"choices":[{"delta":{"role":"assistant"}}]}\n\ndata: {"choices":[{"delta":{"content":"hi"}}]}\n\ndata: [DONE]\n\n'
         result = _reconstruct_sse_content(chunks, "openai")
-        assert result == "hi"
+        assert result["content"] == "hi"
 
     def test_unicode_in_sse(self):
         from atlast_ecp.proxy import _reconstruct_sse_content
         chunks = 'data: {"choices":[{"delta":{"content":"你好"}}]}\n\ndata: {"choices":[{"delta":{"content":"世界"}}]}\n\ndata: [DONE]\n\n'.encode("utf-8")
         result = _reconstruct_sse_content(chunks, "openai")
-        assert result == "你好世界"
+        assert result["content"] == "你好世界"
 
     def test_multiple_choices_only_first(self):
         from atlast_ecp.proxy import _reconstruct_sse_content
         chunks = b'data: {"choices":[{"index":0,"delta":{"content":"A"}},{"index":1,"delta":{"content":"B"}}]}\n\ndata: [DONE]\n\n'
         result = _reconstruct_sse_content(chunks, "openai")
-        assert "A" in result
+        assert "A" in result["content"]
 
     def test_anthropic_mixed_events(self):
         from atlast_ecp.proxy import _reconstruct_sse_content
@@ -706,7 +706,7 @@ class TestProxySSEReconstructionDeep:
             b'data: {"type":"message_stop"}\n\n'
         )
         result = _reconstruct_sse_content(chunks, "anthropic")
-        assert result == "OK"
+        assert result["content"] == "OK"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -3,15 +3,32 @@ ECP Signals — passive behavioral signal detection.
 All signals are detected locally via rule engine. Never LLM-as-Judge.
 Agent CANNOT control or self-report these flags.
 
-Flags per ECP-SPEC §3:
-  retried        — Agent was asked to redo this task (Negative)
-  hedged         — Output contained uncertainty language (Neutral)
-  incomplete     — Conversation ended without resolution (Negative)
-  high_latency   — Response time > 2x agent's median (Neutral)
-  error          — Agent returned an error state (Negative)
-  human_review   — Agent requested human verification (Positive)
-  a2a_delegated  — Task delegated to sub-agent (Neutral)
-  speed_anomaly  — Output suspiciously fast for its length (Neutral)
+Two categories of flags:
+
+1. FACTUAL FLAGS (v0.17+) — objective observations, no judgment:
+   http_4xx / http_5xx    — HTTP status code ranges
+   streaming              — response used SSE streaming
+   has_tool_calls         — response contains tool_use / function_call
+   tool_continuation      — request contains tool_result (mid-chain)
+   empty_output           — response text content is empty
+   empty_input            — no user message found in request
+   provider_error         — response body is an error from the provider
+   heartbeat              — system heartbeat message (not user interaction)
+   latency_ms_<N>         — raw latency value (attached as metadata, not flag)
+
+2. BEHAVIORAL FLAGS (legacy, still emitted for compatibility):
+   retried        — Agent was asked to redo this task (Negative)
+   hedged         — Output contained uncertainty language (Neutral)
+   incomplete     — Conversation ended without resolution (Negative)
+   high_latency   — Response time > 2x agent's median (Neutral)
+   error          — Agent returned an error state (Negative)
+   human_review   — Agent requested human verification (Positive)
+   a2a_delegated  — Task delegated to sub-agent (Neutral)
+   speed_anomaly  — Output suspiciously fast for its length (Neutral)
+
+Architecture principle (v0.17):
+   SDK emits FACTUAL flags. Server-side scoring_rules decide what they MEAN.
+   e.g., SDK says "http_429" (fact). Server decides "exclude from scoring" (judgment).
 """
 
 import re
@@ -95,15 +112,54 @@ def detect_flags(
 ) -> list[str]:
     """
     Passively detect all applicable behavioral flags from output text.
-    Returns sorted list of flag strings matching ECP-SPEC §4.
+    Returns sorted list of flag strings.
+
+    Emits BOTH factual flags (v0.17+) and legacy behavioral flags (backward compat).
 
     Keyword args:
         has_tool_calls: if True, empty text output is NOT incomplete (agent used tools)
+        http_status: HTTP status code from the upstream response
+        is_heartbeat: True if this is a heartbeat message
+        is_tool_continuation: True if request contains tool_result
+        is_streaming: True if response used SSE streaming
+        is_provider_error: True if response body is a provider error
     """
     has_tool_calls = kwargs.get("has_tool_calls", False)
+    http_status = kwargs.get("http_status")
+    is_heartbeat = kwargs.get("is_heartbeat", False)
+    is_tool_continuation = kwargs.get("is_tool_continuation", False)
+    is_streaming = kwargs.get("is_streaming", False)
+    is_provider_error = kwargs.get("is_provider_error", False)
+
     flags = []
     text = (output_text or "").strip()
 
+    # ── Factual flags (v0.17+) ──
+    if http_status is not None:
+        if 400 <= http_status < 500:
+            flags.append("http_4xx")
+        elif 500 <= http_status < 600:
+            flags.append("http_5xx")
+
+    if is_streaming:
+        flags.append("streaming")
+
+    if has_tool_calls:
+        flags.append("has_tool_calls")
+
+    if is_tool_continuation:
+        flags.append("tool_continuation")
+
+    if not text:
+        flags.append("empty_output")
+
+    if is_heartbeat:
+        flags.append("heartbeat")
+
+    if is_provider_error:
+        flags.append("provider_error")
+
+    # ── Legacy behavioral flags (backward compat) ──
     if is_retry:
         flags.append("retried")
 

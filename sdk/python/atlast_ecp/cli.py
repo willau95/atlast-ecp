@@ -252,6 +252,11 @@ def cmd_stats(args: list[str]):
     total = count_records()
     signals = compute_trust_signals(records)
 
+    # v0.17: Apply scoring rules classification
+    from .scoring_rules import classify_records, calculate_scores
+    classified = classify_records(records)
+    scores = calculate_scores(classified)
+
     print("\n📊 ATLAST Trust Signals\n")
 
     from .identity import get_or_create_identity
@@ -259,23 +264,38 @@ def cmd_stats(args: list[str]):
     did_short = identity['did'].split(':')[-1][:8]
     print(f"  Agent ID: ...{did_short}")
     print(f"  Total records: {total}")
+
+    # Show breakdown
+    excluded = scores.get("excluded", {})
+    hb = excluded.get("heartbeat", 0)
+    se = excluded.get("system_error", 0)
+    ie = excluded.get("infra_error", 0)
+    ti = excluded.get("tool_intermediate", 0)
+    total_excluded = hb + se + ie + ti
+    if total_excluded > 0:
+        parts = []
+        if hb: parts.append(f"{hb} heartbeat")
+        if se: parts.append(f"{se} system")
+        if ie: parts.append(f"{ie} infra")
+        if ti: parts.append(f"{ti} tool-chain")
+        print(f"  Interactions: {scores['interactions']}  (excluded: {', '.join(parts)})")
+    else:
+        print(f"  Interactions: {scores['interactions']}")
     print()
 
     def _bar(rate, width=20):
         filled = int((1 - rate) * width)
         return "█" * filled + "░" * (width - filled)
 
-    retry_r = signals["retried_rate"]
-    hedge_r = signals["hedged_rate"]
-    incomplete_r = signals["incomplete_rate"]
-    error_r = signals["error_rate"]
+    reliability = scores["reliability"]
+    hedge_r = scores["hedge_rate"]
+    error_r = scores["error_rate"]
     chain_i = signals["chain_integrity"]
 
-    print(f"  Reliability     {_bar(retry_r + incomplete_r + error_r)}  "
-          f"{int((1 - retry_r - incomplete_r - error_r) * 100)}%")
+    print(f"  Reliability     {_bar(1 - reliability)}  {int(reliability * 100)}%")
     print(f"  Hedge rate      {hedge_r * 100:.1f}%  (lower = more decisive)")
     print(f"  Chain integrity {'✅ 100%' if chain_i >= 0.999 else f'⚠️ {chain_i*100:.0f}%'}")
-    print(f"  Avg latency     {signals['avg_latency_ms']}ms")
+    print(f"  Avg latency     {scores['avg_latency_ms']}ms")
     print()
     server_url = get_api_url()
     if server_url:

@@ -142,26 +142,28 @@ class TestSSEReconstruction:
             'data: [DONE]\n\n'
         ).encode()
         result = _reconstruct_sse_content(chunks, "openai")
-        assert result == "Hello world"
+        assert isinstance(result, dict)
+        assert result["content"] == "Hello world"
+        assert result["tool_calls"] == []
 
     def test_anthropic_sse(self):
         chunks = (
-            'data: {"type":"content_block_delta","delta":{"text":"Hi"}}\n\n'
-            'data: {"type":"content_block_delta","delta":{"text":" there"}}\n\n'
+            'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hi"}}\n\n'
+            'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":" there"}}\n\n'
             'data: {"type":"message_stop"}\n\n'
         ).encode()
         result = _reconstruct_sse_content(chunks, "anthropic")
-        assert result == "Hi there"
+        assert result["content"] == "Hi there"
 
     def test_empty_chunks(self):
         result = _reconstruct_sse_content(b"", "openai")
-        assert result == ""
+        assert result["content"] == ""
 
     def test_malformed_sse(self):
         chunks = b"not: valid\nsse: data\n"
         result = _reconstruct_sse_content(chunks, "openai")
         # Should not crash, returns something
-        assert isinstance(result, str)
+        assert isinstance(result["content"], str)
 
     def test_openai_sse_with_empty_deltas(self):
         chunks = (
@@ -170,7 +172,42 @@ class TestSSEReconstruction:
             'data: [DONE]\n\n'
         ).encode()
         result = _reconstruct_sse_content(chunks, "openai")
-        assert result == "ok"
+        assert result["content"] == "ok"
+
+    def test_openai_sse_tool_calls(self):
+        """Tool calls in streaming should be extracted."""
+        chunks = (
+            'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"read_file","arguments":""}}]}}]}\n\n'
+            'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"path\\": \\"test.py\\"}"}}]}}]}\n\n'
+            'data: {"choices":[{"finish_reason":"tool_calls"}]}\n\n'
+            'data: [DONE]\n\n'
+        ).encode()
+        result = _reconstruct_sse_content(chunks, "openai")
+        assert result["stop_reason"] == "tool_calls"
+        assert len(result["tool_calls"]) == 1
+        assert result["tool_calls"][0]["name"] == "read_file"
+        assert result["content"] == ""
+
+    def test_anthropic_sse_tool_use(self):
+        """Anthropic tool_use blocks should be extracted."""
+        chunks = (
+            'data: {"type":"content_block_start","content_block":{"type":"tool_use","name":"write_file"}}\n\n'
+            'data: {"type":"content_block_delta","delta":{"type":"input_json_delta","partial_json":"{\\"path\\": \\"x.py\\"}"}}\n\n'
+            'data: {"type":"content_block_stop"}\n\n'
+            'data: {"type":"message_delta","delta":{"stop_reason":"tool_use"}}\n\n'
+        ).encode()
+        result = _reconstruct_sse_content(chunks, "anthropic")
+        assert result["stop_reason"] == "tool_use"
+        assert len(result["tool_calls"]) == 1
+        assert result["tool_calls"][0]["name"] == "write_file"
+
+    def test_sse_error_detection(self):
+        """Provider errors in SSE should be detected."""
+        chunks = (
+            'data: {"type":"error","error":{"type":"invalid_request_error","message":"billing issue"}}\n\n'
+        ).encode()
+        result = _reconstruct_sse_content(chunks, "anthropic")
+        assert result["is_error"] is True
 
 
 # ─── Proxy Class ──────────────────────────────────────────────────────────────

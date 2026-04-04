@@ -230,8 +230,32 @@ def _build_did_name_map() -> dict[str, str]:
     return did_map
 
 
+def _is_excluded_record(flags_json: str) -> bool:
+    """Check if a record should be excluded from scoring based on flags.
+    Uses factual flags (v0.17+) with fallback to legacy classification."""
+    try:
+        flags = json.loads(flags_json) if flags_json else []
+    except (json.JSONDecodeError, TypeError):
+        flags = []
+    flag_set = set(flags)
+    # Excluded: heartbeat, provider_error (system), tool_intermediate (has_tool_calls + empty_output)
+    if "heartbeat" in flag_set:
+        return True
+    if "provider_error" in flag_set:
+        return True
+    # tool_intermediate: has tool_calls AND (empty_output or tool_continuation without substantial text)
+    if ("has_tool_calls" in flag_set or "tool_continuation" in flag_set) and "empty_output" in flag_set:
+        return True
+    return False
+
+
 def list_agents(as_json: bool = False) -> list[dict]:
-    """List all agents found in the records with summary stats."""
+    """List all agents found in the records with summary stats.
+
+    v0.17+: Uses scoring_rules classification to determine what counts as
+    an 'interaction'. Heartbeats, system errors, infra errors, and tool
+    intermediate steps are excluded from scoring.
+    """
     _ensure_index()
     db = _get_db()
     rows = db.execute("""
@@ -244,7 +268,11 @@ def list_agents(as_json: bool = False) -> list[dict]:
                MAX(date) as last_seen,
                AVG(CASE WHEN is_infra = 0 THEN latency_ms END) as avg_latency,
                SUM(tokens_in) as tokens_in,
-               SUM(tokens_out) as tokens_out
+               SUM(tokens_out) as tokens_out,
+               SUM(CASE WHEN flags LIKE '%heartbeat%' THEN 1 ELSE 0 END) as heartbeats,
+               SUM(CASE WHEN flags LIKE '%provider_error%' THEN 1 ELSE 0 END) as system_errors,
+               SUM(CASE WHEN (flags LIKE '%has_tool_calls%' OR flags LIKE '%tool_continuation%')
+                         AND flags LIKE '%empty_output%' THEN 1 ELSE 0 END) as tool_intermediates
         FROM records
         GROUP BY agent
         ORDER BY total DESC
@@ -255,16 +283,31 @@ def list_agents(as_json: bool = False) -> list[dict]:
 
     agents = []
     for row in rows:
-        interactions = row[2] or 0
-        agent_errors = row[3] or 0
+        # v0.17: exclude heartbeats, system_errors, tool_intermediates from interaction count
+        total = row[1] or 0
+        legacy_interactions = row[2] or 0
+        legacy_agent_errors = row[3] or 0
+        heartbeats = row[10] or 0
+        system_errors = row[11] or 0
+        tool_intermediates = row[12] or 0
+        excluded = heartbeats + system_errors + tool_intermediates
+
+        # True interactions = legacy interactions minus newly excluded types
+        interactions = max(0, legacy_interactions - excluded)
+        # Agent errors: only count errors in true interactions
+        agent_errors = max(0, min(legacy_agent_errors, interactions))
+
         did = row[0]
         agents.append({
             "agent": did,
             "agent_name": did_map.get(did, did.split(":")[-1][:12] if did else "unknown"),
-            "total_records": row[1],
+            "total_records": total,
             "interactions": interactions,
             "agent_errors": agent_errors,
             "infra_errors": row[4] or 0,
+            "heartbeats": heartbeats,
+            "system_errors": system_errors,
+            "tool_intermediates": tool_intermediates,
             "reliability": round((interactions - agent_errors) / interactions, 4) if interactions else 1.0,
             "first_seen": row[5],
             "last_seen": row[6],

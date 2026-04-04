@@ -70,16 +70,16 @@ class TestSSEEdgeCases:
         ).encode()
         from atlast_ecp.proxy import _reconstruct_sse_content
         result = _reconstruct_sse_content(chunks, "minimax")
-        assert result == "MiniMax"
+        assert result["content"] == "MiniMax"
 
     def test_anthropic_non_delta_events_skipped(self):
         chunks = (
             'data: {"type":"message_start","message":{}}\n\n'
-            'data: {"type":"content_block_delta","delta":{"text":"Hi"}}\n\n'
+            'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hi"}}\n\n'
         ).encode()
         from atlast_ecp.proxy import _reconstruct_sse_content
         result = _reconstruct_sse_content(chunks, "anthropic")
-        assert result == "Hi"
+        assert result["content"] == "Hi"
 
     def test_invalid_json_in_sse_lines_skipped(self):
         chunks = (
@@ -88,7 +88,7 @@ class TestSSEEdgeCases:
         ).encode()
         from atlast_ecp.proxy import _reconstruct_sse_content
         result = _reconstruct_sse_content(chunks, "openai")
-        assert result == "ok"
+        assert result["content"] == "ok"
 
 
 # ─── _record_ecp ─────────────────────────────────────────────────────────────

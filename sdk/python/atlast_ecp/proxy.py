@@ -154,11 +154,24 @@ def _extract_tokens_from_response(body: bytes, provider: str) -> tuple:
         return None, None
 
 
-def _reconstruct_sse_content(chunks: bytes, provider: str) -> str:
-    """Reconstruct full response content from SSE stream chunks."""
+def _reconstruct_sse_content(chunks: bytes, provider: str) -> dict:
+    """
+    Reconstruct full response content from SSE stream chunks.
+
+    Returns dict with:
+      - content: str — assembled text content
+      - stop_reason: str|None — "end_turn", "tool_use", "stop", "tool_calls", etc.
+      - tool_calls: list[dict] — extracted tool call names and inputs
+      - is_error: bool — whether the response is a provider error
+    """
+    result = {"content": "", "stop_reason": None, "tool_calls": [], "is_error": False}
     try:
         text = chunks.decode("utf-8", errors="replace")
         content_parts = []
+        tool_calls_map: dict[int, dict] = {}  # index → {name, input_json_parts}
+        tool_calls_anthropic: list[dict] = []
+        current_tool_block: dict | None = None
+
         for line in text.split("\n"):
             line = line.strip()
             if not line.startswith("data: "):
@@ -168,23 +181,93 @@ def _reconstruct_sse_content(chunks: bytes, provider: str) -> str:
                 continue
             try:
                 data = json.loads(data_str)
+
+                # Check for error responses
+                if data.get("type") == "error" or data.get("error"):
+                    result["is_error"] = True
+                    error_msg = data.get("error", {})
+                    if isinstance(error_msg, dict):
+                        content_parts.append(json.dumps(data, ensure_ascii=False))
+                    continue
+
                 if provider in ("openai", "minimax"):
-                    # OpenAI streaming format
                     for choice in data.get("choices", []):
                         delta = choice.get("delta", {})
+                        # Text content
                         if "content" in delta and delta["content"]:
                             content_parts.append(delta["content"])
+                        # Tool calls (OpenAI format)
+                        if "tool_calls" in delta:
+                            for tc in delta["tool_calls"]:
+                                idx = tc.get("index", 0)
+                                if idx not in tool_calls_map:
+                                    tool_calls_map[idx] = {"name": "", "input_parts": []}
+                                if tc.get("function", {}).get("name"):
+                                    tool_calls_map[idx]["name"] = tc["function"]["name"]
+                                if tc.get("function", {}).get("arguments"):
+                                    tool_calls_map[idx]["input_parts"].append(tc["function"]["arguments"])
+                        # Stop reason
+                        fr = choice.get("finish_reason")
+                        if fr:
+                            result["stop_reason"] = fr
+
                 elif provider == "anthropic":
-                    # Anthropic streaming format
-                    if data.get("type") == "content_block_delta":
+                    msg_type = data.get("type", "")
+                    # Content block start (text or tool_use)
+                    if msg_type == "content_block_start":
+                        cb = data.get("content_block", {})
+                        if cb.get("type") == "tool_use":
+                            current_tool_block = {"name": cb.get("name", ""), "input_parts": []}
+                        else:
+                            current_tool_block = None
+                    # Content delta
+                    elif msg_type == "content_block_delta":
                         delta = data.get("delta", {})
-                        if delta.get("text"):
+                        # Support both formats: {type:"text_delta", text:"..."} and {text:"..."}
+                        delta_type = delta.get("type", "")
+                        if delta.get("text") and delta_type in ("text_delta", ""):
                             content_parts.append(delta["text"])
+                        elif delta_type == "input_json_delta" and current_tool_block is not None:
+                            current_tool_block["input_parts"].append(delta.get("partial_json", ""))
+                    # Content block stop
+                    elif msg_type == "content_block_stop":
+                        if current_tool_block is not None:
+                            tool_calls_anthropic.append(current_tool_block)
+                            current_tool_block = None
+                    # Message delta (stop reason)
+                    elif msg_type == "message_delta":
+                        sr = data.get("delta", {}).get("stop_reason")
+                        if sr:
+                            result["stop_reason"] = sr
+
             except json.JSONDecodeError:
                 continue
-        return "".join(content_parts)
+
+        result["content"] = "".join(content_parts)
+
+        # Assemble tool calls
+        if tool_calls_map:
+            for idx in sorted(tool_calls_map.keys()):
+                tc = tool_calls_map[idx]
+                input_str = "".join(tc["input_parts"])
+                try:
+                    input_parsed = json.loads(input_str) if input_str else {}
+                except json.JSONDecodeError:
+                    input_parsed = input_str
+                result["tool_calls"].append({"name": tc["name"], "input": input_parsed})
+        if tool_calls_anthropic:
+            for tc in tool_calls_anthropic:
+                input_str = "".join(tc["input_parts"])
+                try:
+                    input_parsed = json.loads(input_str) if input_str else {}
+                except json.JSONDecodeError:
+                    input_parsed = input_str
+                result["tool_calls"].append({"name": tc["name"], "input": input_parsed})
+
+        return result
     except Exception:
-        return chunks.decode("utf-8", errors="replace")
+        result["content"] = chunks.decode("utf-8", errors="replace")
+        return result
 
 
 # ─── Message Extraction (Vault v2) ────────────────────────────────────────────
@@ -222,6 +305,8 @@ def _extract_new_content(req_body: bytes, provider: str) -> dict:
         "full_request_hash": full_request_hash,
         "context_messages_count": 0,
         "session_id": None,
+        "is_tool_continuation": False,
+        "is_heartbeat": False,
     }
 
     try:
@@ -235,6 +320,19 @@ def _extract_new_content(req_body: bytes, provider: str) -> dict:
         return result
 
     result["context_messages_count"] = len(messages)
+
+    # Detect tool_continuation: last message is role=tool (OpenAI) or
+    # role=user with content containing tool_result (Anthropic)
+    last_msg = messages[-1] if messages else {}
+    if last_msg.get("role") == "tool":
+        result["is_tool_continuation"] = True
+    elif last_msg.get("role") == "user":
+        content = last_msg.get("content", "")
+        if isinstance(content, list):
+            for part in content:
+                if isinstance(part, dict) and part.get("type") == "tool_result":
+                    result["is_tool_continuation"] = True
+                    break
 
     # Extract system prompt
     system_parts = []
@@ -301,9 +399,13 @@ def _extract_new_content(req_body: bytes, provider: str) -> dict:
 def _record_ecp(req_body: bytes, resp_content: str, path: str, provider: str,
                 agent: str, model: str, latency_ms: int,
                 tokens_in: Optional[int] = None, tokens_out: Optional[int] = None,
-                http_status: int = 200):
+                http_status: int = 200,
+                stop_reason: Optional[str] = None,
+                tool_calls: Optional[list] = None,
+                is_streaming: bool = False,
+                is_provider_error: bool = False):
     """Fire-and-forget ECP recording in background thread."""
-    # Classify infra errors (not the agent's fault)
+    # Classify infra errors (not the agent's fault) — legacy, kept for backward compat
     INFRA_STATUSES = {429: "rate_limit", 500: "server_error", 502: "bad_gateway",
                       503: "service_unavailable", 504: "gateway_timeout"}
     is_infra = http_status in INFRA_STATUSES
@@ -324,12 +426,61 @@ def _record_ecp(req_body: bytes, resp_content: str, path: str, provider: str,
             resp_bytes = resp_content.encode("utf-8") if isinstance(resp_content, str) else resp_content
             full_response_hash = "sha256:" + hashlib.sha256(resp_bytes).hexdigest()
 
-            # Build flags
+            # Detect heartbeat: input contains HEARTBEAT and output is short
+            is_heartbeat = False
+            input_text = extracted.get("input", "") or ""
+            if "HEARTBEAT" in input_text and len(resp_content.strip()) < 100:
+                is_heartbeat = True
+
+            # Detect provider error from response body (billing, quota, auth)
+            detected_provider_error = is_provider_error
+            if not detected_provider_error and http_status < 500:
+                try:
+                    resp_json = json.loads(resp_content)
+                    if resp_json.get("type") == "error" or resp_json.get("error"):
+                        detected_provider_error = True
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
+            # Has tool calls?
+            has_tool_calls = bool(tool_calls) or stop_reason in ("tool_use", "tool_calls")
+
+            # Build flags — legacy + factual
             flags = []
+            # Legacy flags (backward compat)
             if is_infra:
                 flags.append("infra_error")
             if is_client_error:
                 flags.append("client_error")
+
+            # Factual flags (v0.17+)
+            if http_status and 400 <= http_status < 500:
+                flags.append("http_4xx")
+            if http_status and 500 <= http_status < 600:
+                flags.append("http_5xx")
+            if is_streaming:
+                flags.append("streaming")
+            if has_tool_calls:
+                flags.append("has_tool_calls")
+            if extracted.get("is_tool_continuation"):
+                flags.append("tool_continuation")
+            if not resp_content.strip():
+                flags.append("empty_output")
+            if not input_text.strip() or extracted.get("is_tool_continuation"):
+                flags.append("empty_input")
+            if is_heartbeat:
+                flags.append("heartbeat")
+            if detected_provider_error:
+                flags.append("provider_error")
+
+            # Build vault output: include tool_calls if present
+            vault_output = resp_content
+            if has_tool_calls and tool_calls and not resp_content.strip():
+                # For tool_call-only responses, store tool info so vault isn't empty
+                vault_output = json.dumps(
+                    {"tool_calls": [{"name": tc.get("name", ""), "input": tc.get("input", {})} for tc in tool_calls]},
+                    ensure_ascii=False,
+                )
 
             vault_extra = {
                 "vault_version": 2,
@@ -339,16 +490,25 @@ def _record_ecp(req_body: bytes, resp_content: str, path: str, provider: str,
                 "context_messages_count": extracted["context_messages_count"],
                 "session_id": extracted["session_id"],
                 "http_status": http_status,
+                "stop_reason": stop_reason,
             }
+            if tool_calls:
+                vault_extra["tool_calls"] = [
+                    {"name": tc.get("name", ""), "input": tc.get("input", {})} for tc in tool_calls
+                ]
             if is_infra:
                 vault_extra["is_infra_error"] = True
                 vault_extra["error_type"] = error_type
             if is_client_error:
                 vault_extra["is_client_error"] = True
+            if is_heartbeat:
+                vault_extra["is_heartbeat"] = True
+            if detected_provider_error:
+                vault_extra["is_provider_error"] = True
 
             record_minimal_v2(
                 input_content=extracted["input"],
-                output_content=resp_content,
+                output_content=vault_output,
                 agent=agent,
                 action=_detect_action(path),
                 model=meta_model,
@@ -356,7 +516,7 @@ def _record_ecp(req_body: bytes, resp_content: str, path: str, provider: str,
                 tokens_in=tokens_in,
                 tokens_out=tokens_out,
                 session_id=extracted["session_id"],
-                flags=flags if flags else None,
+                flags=list(set(flags)) if flags else None,
                 vault_extra=vault_extra,
             )
         except Exception:
@@ -447,9 +607,42 @@ class ATLASTProxy:
         # Record ECP (including infra errors like 429/500/503)
         tokens_in, tokens_out = _extract_tokens_from_response(resp_body, provider)
         resp_text = resp_body.decode("utf-8", errors="replace")
+
+        # Extract stop_reason and tool_calls from sync response
+        sync_stop_reason = None
+        sync_tool_calls = []
+        sync_is_error = False
+        try:
+            resp_json = json.loads(resp_body)
+            if provider in ("openai", "minimax"):
+                for choice in resp_json.get("choices", []):
+                    sync_stop_reason = choice.get("finish_reason")
+                    msg = choice.get("message", {})
+                    if msg.get("tool_calls"):
+                        for tc in msg["tool_calls"]:
+                            fn = tc.get("function", {})
+                            try:
+                                inp = json.loads(fn.get("arguments", "{}"))
+                            except (json.JSONDecodeError, ValueError):
+                                inp = fn.get("arguments", "")
+                            sync_tool_calls.append({"name": fn.get("name", ""), "input": inp})
+            elif provider == "anthropic":
+                sync_stop_reason = resp_json.get("stop_reason")
+                for block in resp_json.get("content", []):
+                    if block.get("type") == "tool_use":
+                        sync_tool_calls.append({"name": block.get("name", ""), "input": block.get("input", {})})
+            if resp_json.get("type") == "error" or resp_json.get("error"):
+                sync_is_error = True
+        except (json.JSONDecodeError, ValueError):
+            pass
+
         _record_ecp(req_body, resp_text, request.path, provider,
                      self.agent, model, latency_ms, tokens_in, tokens_out,
-                     http_status=resp.status)
+                     http_status=resp.status,
+                     stop_reason=sync_stop_reason,
+                     tool_calls=sync_tool_calls if sync_tool_calls else None,
+                     is_streaming=False,
+                     is_provider_error=sync_is_error)
         self.record_count += 1
 
         return web.Response(
@@ -484,9 +677,13 @@ class ATLASTProxy:
         # Record ECP from buffered chunks
         latency_ms = int((time.time() - t_start) * 1000)
         full_response = b"".join(chunks)
-        resp_content = _reconstruct_sse_content(full_response, provider)
-        _record_ecp(req_body, resp_content, request.path, provider,
-                     self.agent, model, latency_ms)
+        sse_result = _reconstruct_sse_content(full_response, provider)
+        _record_ecp(req_body, sse_result["content"], request.path, provider,
+                     self.agent, model, latency_ms,
+                     stop_reason=sse_result.get("stop_reason"),
+                     tool_calls=sse_result.get("tool_calls"),
+                     is_streaming=True,
+                     is_provider_error=sse_result.get("is_error", False))
         self.record_count += 1
 
         try:
