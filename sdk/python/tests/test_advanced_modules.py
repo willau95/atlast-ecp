@@ -81,51 +81,5 @@ class TestA2A:
         assert isinstance(text, str)
 
 
-# ─── OpenClaw Scanner Tests (H7) ──────────────────────────────────────────────
-
-class TestOpenClawScanner:
-    def test_import(self):
-        from atlast_ecp.openclaw_scanner import scan_session_file, scan_openclaw_agent
-        assert scan_session_file is not None
-
-    def test_scan_session_file_nonexistent(self):
-        from atlast_ecp.openclaw_scanner import scan_session_file
-        try:
-            result = scan_session_file("/nonexistent/path.jsonl")
-            assert result == []
-        except FileNotFoundError:
-            pass  # acceptable
-
-    def test_scan_session_file_valid(self, tmp_path):
-        from atlast_ecp.openclaw_scanner import scan_session_file
-        f = tmp_path / "session.jsonl"
-        # OpenClaw session format: {type: "message", message: {role, content}}
-        lines = [
-            {"type": "message", "message": {"role": "user", "content": "Hello"}, "timestamp": "2026-03-21T10:00:00"},
-            {"type": "message", "message": {"role": "assistant", "content": "Hi there"}, "timestamp": "2026-03-21T10:00:01"},
-            {"type": "message", "message": {"role": "user", "content": "What is 2+2?"}, "timestamp": "2026-03-21T10:00:02"},
-            {"type": "message", "message": {"role": "assistant", "content": "4"}, "timestamp": "2026-03-21T10:00:03"},
-        ]
-        with open(f, "w") as fh:
-            for line in lines:
-                fh.write(json.dumps(line) + "\n")
-
-        results = scan_session_file(str(f))
-        assert isinstance(results, list)
-        # Should extract user→assistant pairs
-        assert len(results) >= 1
-
-    def test_scan_session_file_empty(self, tmp_path):
-        from atlast_ecp.openclaw_scanner import scan_session_file
-        f = tmp_path / "empty.jsonl"
-        f.write_text("")
-        results = scan_session_file(str(f))
-        assert results == []
-
-    def test_scan_openclaw_agent_nonexistent(self, tmp_path):
-        from atlast_ecp.openclaw_scanner import scan_openclaw_agent
-        try:
-            results = scan_openclaw_agent(str(tmp_path / "nonexistent"))
-            assert isinstance(results, (list, dict, type(None)))
-        except (FileNotFoundError, SystemExit):
-            pass
+# ─── OpenClaw Scanner Tests (H7) — REMOVED ───────────────────────────────────
+# Scanner deprecated in v0.14.0. Use atlast proxy instead.
