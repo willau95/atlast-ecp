@@ -607,10 +607,8 @@ def cmd_init(args: list[str]):
         except Exception:
             print("  Server: 📁 offline mode (records saved locally, sync later with: atlast register)")
 
-        # Scanner service DISABLED — proxy is the correct recording method.
-        # Scanner generated fake data from session logs; proxy records real API calls.
-        # Use: atlast proxy --port 8340 --agent <name>
-        print("  Recording: 📡 use 'atlast proxy' to record real API calls")
+        # Auto-setup: detect OpenClaw agent, start proxy, configure routing
+        _auto_setup_proxy(identity)
 
         print("\n  ✅ All set! Your agent's work is now being recorded.")
         print("     Use your agent normally — evidence is captured automatically.")
@@ -618,6 +616,142 @@ def cmd_init(args: list[str]):
         print("  Identity: skipped (run 'atlast init' to create DID)")
         print("\n  Next: echo '{\"in\":\"prompt\",\"out\":\"response\"}' | atlast record")
     print()
+
+
+def _auto_setup_proxy(identity: dict):
+    """Auto-detect OpenClaw agent, start proxy daemon, configure LLM routing."""
+    import json
+    import socket
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    # 1. Detect OpenClaw agent from environment
+    profile = os.environ.get("OPENCLAW_PROFILE", "")
+    state_dir = os.environ.get("OPENCLAW_STATE_DIR", "")
+    if not profile and not state_dir:
+        # Try to detect from ~/.openclaw-* directories
+        home = Path.home()
+        candidates = sorted(home.glob(".openclaw-*"))
+        candidates = [d for d in candidates if d.is_dir() and not "backup" in d.name]
+        if len(candidates) == 1:
+            state_dir = str(candidates[0])
+            profile = candidates[0].name.replace(".openclaw-", "")
+        elif len(candidates) > 1:
+            # Can't auto-detect — multiple agents
+            print("  Recording: ⚠️  multiple OpenClaw agents found, skipping auto-setup")
+            print("     Run: atlast proxy --port 8340 --agent <name>")
+            return
+        else:
+            print("  Recording: 📡 use 'atlast proxy' to record real API calls")
+            return
+
+    agent_name = profile or "default"
+    if state_dir:
+        state_path = Path(state_dir)
+    else:
+        state_path = Path.home() / f".openclaw-{profile}"
+
+    # 2. Find a free port for proxy
+    def _find_free_port():
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", 0))
+            return s.getsockname()[1]
+
+    proxy_port = _find_free_port()
+
+    # 3. Get ECP dir
+    ecp_dir = os.environ.get("ATLAST_ECP_DIR", str(Path.home() / ".ecp"))
+
+    # 4. Start proxy as background daemon
+    python_bin = sys.executable
+    proxy_script = f"""
+import os, sys
+os.environ["ATLAST_ECP_DIR"] = "{ecp_dir}"
+from atlast_ecp.proxy import run_proxy
+run_proxy(port={proxy_port}, agent="{agent_name}")
+"""
+    try:
+        proc = subprocess.Popen(
+            [python_bin, "-c", proxy_script],
+            stdout=open("/tmp/atlast-proxy.log", "a"),
+            stderr=open("/tmp/atlast-proxy-err.log", "a"),
+            start_new_session=True,
+        )
+        # Wait briefly to check it started
+        import time
+        time.sleep(1)
+        if proc.poll() is not None:
+            print(f"  Recording: ❌ proxy failed to start (exit code {proc.returncode})")
+            return
+        print(f"  Recording: ✅ proxy started on port {proxy_port} (PID {proc.pid})")
+    except Exception as e:
+        print(f"  Recording: ❌ could not start proxy: {e}")
+        return
+
+    # 5. Configure OpenClaw models.json to route through proxy
+    models_json = state_path / "agents" / "main" / "agent" / "models.json"
+    try:
+        if models_json.exists():
+            with open(models_json) as f:
+                models = json.load(f)
+        else:
+            models_json.parent.mkdir(parents=True, exist_ok=True)
+            models = {"providers": {}}
+
+        models.setdefault("providers", {})
+        models["providers"]["anthropic"] = {
+            "baseUrl": f"http://127.0.0.1:{proxy_port}",
+            "api": "anthropic-messages"
+        }
+        with open(models_json, "w") as f:
+            json.dump(models, f, indent=2)
+        print(f"  Routing: ✅ LLM calls → proxy → recorded")
+    except Exception as e:
+        print(f"  Routing: ⚠️  could not configure auto-routing: {e}")
+        print(f"     Set ANTHROPIC_BASE_URL=http://127.0.0.1:{proxy_port}")
+
+    # 6. Create LaunchAgent for persistence (macOS)
+    if sys.platform == "darwin":
+        try:
+            plist_label = f"ai.atlast.ecp.proxy.{agent_name}"
+            plist_path = Path.home() / "Library" / "LaunchAgents" / f"{plist_label}.plist"
+            plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>{plist_label}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{python_bin}</string>
+        <string>-c</string>
+        <string>import os; os.environ["ATLAST_ECP_DIR"]="{ecp_dir}"; from atlast_ecp.proxy import run_proxy; run_proxy(port={proxy_port}, agent="{agent_name}")</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>ATLAST_ECP_DIR</key>
+        <string>{ecp_dir}</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/atlast-proxy.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/atlast-proxy-err.log</string>
+</dict>
+</plist>"""
+            plist_path.write_text(plist_content)
+            # Load it (the current process already started proxy, this is for reboot persistence)
+            subprocess.run(["launchctl", "bootstrap", f"gui/{os.getuid()}", str(plist_path)],
+                         capture_output=True, timeout=5)
+            print(f"  Persistence: ✅ auto-start on reboot")
+        except Exception:
+            print(f"  Persistence: ⚠️  proxy running but won't auto-start on reboot")
 
 
 def _ask_backup_location():

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atlast-ecp"
-version = "0.14.0"
+version = "0.15.0"
 description = "ATLAST Evidence Chain Protocol — trust infrastructure for AI Agents"
 readme = "README.md"
 license = { text = "MIT" }
@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 requires-python = ">=3.10"
-dependencies = []  # Zero required dependencies — Fail-Open by design
+dependencies = ["aiohttp>=3.9"]  # Required for proxy (auto-started by init)
 
 [project.optional-dependencies]
 crypto = ["cryptography>=42.0"]   # For ed25519 signing (recommended)
