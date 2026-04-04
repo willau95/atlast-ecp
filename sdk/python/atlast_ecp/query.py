@@ -95,7 +95,14 @@ def rebuild_index(verbose: bool = False) -> int:
     now_ms = int(time.time() * 1000)
 
     import gzip as _gzip
-    all_files = sorted(set(RECORDS_DIR.glob("*.jsonl")) | set(RECORDS_DIR.glob("*.jsonl.gz")))
+    # Collect records from global dir AND per-agent dirs
+    file_set = set(RECORDS_DIR.glob("*.jsonl")) | set(RECORDS_DIR.glob("*.jsonl.gz"))
+    agents_dir = ECP_DIR / "agents"
+    if agents_dir.exists():
+        for agent_records in agents_dir.glob("*/records"):
+            file_set |= set(agent_records.glob("*.jsonl"))
+            file_set |= set(agent_records.glob("*.jsonl.gz"))
+    all_files = sorted(file_set)
     for f in all_files:
         if str(f).endswith(".gz"):
             lines = _gzip.open(f, "rt", encoding="utf-8").read().splitlines()

@@ -279,10 +279,22 @@ def save_vault_v2(record_id: str, input_content: str, output_content: str,
 
 
 def load_vault(record_id: str) -> Optional[dict]:
-    """Load raw content from vault. Returns {input, output} or None."""
+    """Load raw content from vault. Returns {input, output} or None.
+    Checks global vault first, then per-agent vault dirs."""
     vault_file = VAULT_DIR / f"{record_id}.json"
     if not vault_file.exists():
-        return None
+        # Search per-agent vault directories
+        agents_dir = ECP_DIR / "agents"
+        if agents_dir.exists():
+            for agent_vault in agents_dir.glob("*/vault"):
+                candidate = agent_vault / f"{record_id}.json"
+                if candidate.exists():
+                    vault_file = candidate
+                    break
+            else:
+                return None
+        else:
+            return None
     try:
         return json.loads(vault_file.read_text(encoding="utf-8"))
     except Exception:
