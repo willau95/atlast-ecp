@@ -1789,17 +1789,14 @@ def cmd_doctor(args: list[str]):
     except Exception:
         pass
 
-    # 9. Proxy status (scanner DEPRECATED — proxy is the correct recording method)
+    # 9. Proxy status — detect by checking for running atlast proxy process
     try:
-        import socket
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(1)
-        result = s.connect_ex(("127.0.0.1", 8340))
-        s.close()
-        if result == 0:
-            print("  ✅ Proxy: running on port 8340 (recording real API calls)")
+        import subprocess as _sp
+        result = _sp.run(["pgrep", "-f", "atlast_ecp.proxy"], capture_output=True, timeout=3)
+        if result.returncode == 0:
+            print("  ✅ Proxy: running (recording real API calls)")
         else:
-            print("  ⚠️  Proxy: not running — start with 'atlast proxy --port 8340'")
+            print("  ⚠️  Proxy: not running — run 'atlast init' to auto-start")
             issues.append("ATLAST Proxy not running — API calls not being recorded")
             all_ok = False
     except Exception:
@@ -1917,6 +1914,7 @@ def main():
         "certify": cmd_certify,
         "export": cmd_export,
         "inspect": cmd_inspect,
+        "show": cmd_inspect,
         "proof": cmd_proof,
         "insights": _cmd_insights,
         "config": _cmd_config,

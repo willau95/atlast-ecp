@@ -16,6 +16,7 @@ Key conventions:
 
 import hashlib
 import json
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -364,4 +365,57 @@ def create_minimal_record(
         merged_meta["delegation_depth"] = delegation_depth
     if merged_meta:
         record["meta"] = merged_meta
+
+    # Chain linking — thread-safe prev hash tracking
+    with _minimal_chain_lock:
+        global _minimal_chain_prev
+        if _minimal_chain_prev is None:
+            # Try to load last chain hash from existing records
+            _minimal_chain_prev = _load_last_chain_hash()
+        record["chain"] = {"prev": _minimal_chain_prev, "hash": ""}
+        record["sig"] = "unverified"
+        chain_hash = compute_chain_hash(record)
+        record["chain"]["hash"] = chain_hash
+        _minimal_chain_prev = chain_hash
+
+    # Try to sign with identity
+    try:
+        from .identity import get_or_create_identity, sign as sign_data
+        identity = get_or_create_identity()
+        record["sig"] = sign_data(identity, chain_hash)
+    except Exception:
+        pass  # Keep "unverified"
+
     return record
+
+
+# ─── Chain state for minimal records ──────────────────────────────────────────
+_minimal_chain_lock = threading.Lock()
+_minimal_chain_prev: Optional[str] = None
+
+
+def _load_last_chain_hash() -> str:
+    """Load the last chain hash from existing records on disk."""
+    try:
+        from .storage import ECP_DIR
+        records_dir = ECP_DIR / "records"
+        if not records_dir.exists():
+            return "genesis"
+        # Find the latest jsonl file
+        jsonl_files = sorted(records_dir.glob("*.jsonl"))
+        if not jsonl_files:
+            return "genesis"
+        # Read last line of last file
+        last_file = jsonl_files[-1]
+        last_line = ""
+        with open(last_file) as f:
+            for line in f:
+                if line.strip():
+                    last_line = line.strip()
+        if not last_line:
+            return "genesis"
+        import json
+        rec = json.loads(last_line)
+        return rec.get("chain", {}).get("hash", "genesis")
+    except Exception:
+        return "genesis"

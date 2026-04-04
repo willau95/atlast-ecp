@@ -24,10 +24,13 @@ class TestCreateMinimalRecord:
         assert rec["in_hash"].startswith("sha256:")
         assert rec["out_hash"].startswith("sha256:")
 
-    def test_no_chain_no_sig(self):
+    def test_has_chain_and_sig(self):
+        """v0.16+: minimal records include chain linking and signature."""
         rec = create_minimal_record("agent", "tool_call", "in", "out")
-        assert "chain" not in rec
-        assert "sig" not in rec
+        assert "chain" in rec
+        assert rec["chain"]["prev"]  # genesis or prev hash
+        assert rec["chain"]["hash"].startswith("sha256:")
+        assert "sig" in rec
         assert "step" not in rec  # v1.0 uses flat format
 
     def test_hash_consistency(self):

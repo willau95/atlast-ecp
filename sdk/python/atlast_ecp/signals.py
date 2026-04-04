@@ -191,16 +191,17 @@ def compute_trust_signals(records: list[dict]) -> dict:
 
     def _flag_count(flag: str, recs: "list[dict] | None" = None) -> int:
         target = recs if recs is not None else records
-        return sum(1 for r in target if flag in (r.get("step", {}).get("flags") or []))
+        return sum(1 for r in target if flag in (
+            r.get("step", {}).get("flags") or r.get("meta", {}).get("flags") or []))
 
     # Agent errors: error flag in non-infra records
     agent_errors = _flag_count("error", agent_records)
 
-    latencies = [
-        r["step"]["latency_ms"]
-        for r in agent_records
-        if r.get("step", {}).get("latency_ms")
-    ]
+    latencies = []
+    for r in agent_records:
+        lat = r.get("step", {}).get("latency_ms") or r.get("meta", {}).get("latency_ms")
+        if lat:
+            latencies.append(lat)
 
     chain_ok = _check_chain_integrity(records)
 

@@ -525,6 +525,14 @@ def run_proxy(port: int = 8340, agent: str = "proxy"):
     print("\n   Or use: atlast run python my_agent.py")
     print("\n   Press Ctrl+C to stop.\n")
 
+    # Start batch scheduler (auto-upload Merkle root every hour)
+    try:
+        from .batch import start_scheduler
+        start_scheduler(interval_seconds=3600)
+        print("   📦 Batch scheduler: every 60 min → chain anchor\n")
+    except Exception:
+        pass  # Fail-Open
+
     web.run_app(app, host="127.0.0.1", port=port, print=None)
 
 

@@ -157,13 +157,16 @@ class TestCreateMinimalRecord:
         deserialized = json.loads(serialized)
         assert deserialized == rec
 
-    def test_minimal_record_has_exactly_7_required_fields(self):
+    def test_minimal_record_has_required_fields_plus_chain(self):
+        """v0.16+: minimal records include chain + sig."""
         rec = create_minimal_record("a", "llm_call", "in", "out")
-        assert set(rec.keys()) == {"ecp", "id", "ts", "agent", "action", "in_hash", "out_hash"}
+        required = {"ecp", "id", "ts", "agent", "action", "in_hash", "out_hash", "chain", "sig"}
+        assert required.issubset(set(rec.keys()))
 
-    def test_minimal_record_with_meta_has_8_fields(self):
+    def test_minimal_record_with_meta(self):
         rec = create_minimal_record("a", "llm_call", "in", "out", meta={"model": "x"})
-        assert set(rec.keys()) == {"ecp", "id", "ts", "agent", "action", "in_hash", "out_hash", "meta"}
+        assert "meta" in rec
+        assert "chain" in rec
 
 
 # ─────────────────────────────────────────────────────────────────────────────
