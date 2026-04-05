@@ -8,6 +8,7 @@ from atlast_ecp.scoring_rules import (
     classify_record,
     classify_records,
     calculate_scores,
+    aggregate_interactions,
     get_rules,
     reset_cache,
     DEFAULT_RULES,
@@ -368,6 +369,145 @@ class TestGetRules:
 
 # ─── Integration: classify + score pipeline ───────────────────────────────────
 
+class TestAggregateInteractions:
+    """Test tool chain aggregation."""
+
+    def test_no_tool_calls(self):
+        """Records without tool chains pass through unchanged."""
+        records = [
+            {"classification": "interaction", "ts": 1, "session_id": "s1", "input": "hi", "output": "hey"},
+            {"classification": "interaction", "ts": 2, "session_id": "s1", "input": "bye", "output": "cya"},
+        ]
+        result = aggregate_interactions(records)
+        assert len(result) == 2
+        assert "tool_steps" not in result[0]
+
+    def test_simple_tool_chain(self):
+        """Two-step tool chain: tool_intermediate + interaction → 1 aggregated."""
+        records = [
+            {"classification": "tool_intermediate", "ts": 1, "session_id": "s1",
+             "id": "rec_001", "input": "write code", "output": "",
+             "meta": {"latency_ms": 5000},
+             "vault_extra": {"tool_calls": [{"name": "write_file", "input": {"path": "x.py"}}]}},
+            {"classification": "interaction", "ts": 2, "session_id": "s1",
+             "id": "rec_002", "input": "", "output": "Done! File created.",
+             "meta": {"latency_ms": 3000}},
+        ]
+        result = aggregate_interactions(records)
+        assert len(result) == 1
+        assert result[0]["classification"] == "interaction"
+        assert result[0]["total_api_calls"] == 2
+        assert result[0]["total_latency_ms"] == 8000
+        assert len(result[0]["tool_steps"]) == 1
+        assert result[0]["tool_steps"][0]["name"] == "write_file"
+        assert result[0]["raw_record_ids"] == ["rec_001", "rec_002"]
+
+    def test_three_step_tool_chain(self):
+        """Three-step: intermediate → intermediate → interaction."""
+        records = [
+            {"classification": "tool_intermediate", "ts": 1, "session_id": "s1",
+             "id": "r1", "meta": {"latency_ms": 1000},
+             "vault_extra": {"tool_calls": [{"name": "read_file", "input": {}}]}},
+            {"classification": "tool_intermediate", "ts": 2, "session_id": "s1",
+             "id": "r2", "meta": {"latency_ms": 2000},
+             "vault_extra": {"tool_calls": [{"name": "write_file", "input": {}}]}},
+            {"classification": "interaction", "ts": 3, "session_id": "s1",
+             "id": "r3", "output": "All done", "meta": {"latency_ms": 3000}},
+        ]
+        result = aggregate_interactions(records)
+        assert len(result) == 1
+        assert result[0]["total_api_calls"] == 3
+        assert result[0]["total_latency_ms"] == 6000
+        assert len(result[0]["tool_steps"]) == 2
+
+    def test_mixed_with_heartbeat(self):
+        """Tool chain + heartbeat → heartbeat stays separate."""
+        records = [
+            {"classification": "tool_intermediate", "ts": 1, "session_id": "s1",
+             "id": "r1", "meta": {"latency_ms": 1000}, "vault_extra": {"tool_calls": []}},
+            {"classification": "heartbeat", "ts": 2, "session_id": "s2",
+             "id": "r2", "meta": {"latency_ms": 100}},
+            {"classification": "interaction", "ts": 3, "session_id": "s1",
+             "id": "r3", "output": "Done", "meta": {"latency_ms": 2000}},
+        ]
+        result = aggregate_interactions(records)
+        # The heartbeat breaks the chain — r1 flushed standalone, then heartbeat, then r3
+        assert len(result) == 3
+
+    def test_different_sessions_not_merged(self):
+        """Tool chains from different sessions are not merged."""
+        records = [
+            {"classification": "tool_intermediate", "ts": 1, "session_id": "s1",
+             "id": "r1", "meta": {"latency_ms": 1000}, "vault_extra": {"tool_calls": []}},
+            {"classification": "interaction", "ts": 2, "session_id": "s2",
+             "id": "r2", "output": "Different session", "meta": {"latency_ms": 500}},
+        ]
+        result = aggregate_interactions(records)
+        assert len(result) == 2  # not merged
+
+    def test_empty_list(self):
+        result = aggregate_interactions([])
+        assert result == []
+
+    def test_elena_full_scenario(self):
+        """Simulate Elena's 9 records → should produce 3 interactions + 2 heartbeats + 1 system."""
+        records = [
+            # Round 1: tweet (no tool, direct response)
+            {"classification": "interaction", "ts": 1, "session_id": "s1",
+             "id": "r1", "input": "写tweet", "output": "两条tweet...",
+             "meta": {"latency_ms": 12347}},
+            # Round 2: profile (tool chain: 2 API calls)
+            {"classification": "tool_intermediate", "ts": 2, "session_id": "s1",
+             "id": "r2", "input": "做html profile", "output": "",
+             "meta": {"latency_ms": 66166},
+             "vault_extra": {"tool_calls": [{"name": "write_file", "input": {"path": "profile.html"}}]}},
+            {"classification": "interaction", "ts": 3, "session_id": "s1",
+             "id": "r3", "output": "搞定！profile已创建",
+             "meta": {"latency_ms": 8864}},
+            # Round 3: game (tool chain: 3 API calls)
+            {"classification": "tool_intermediate", "ts": 4, "session_id": "s1",
+             "id": "r4", "input": "加小游戏", "output": "",
+             "meta": {"latency_ms": 12168},
+             "vault_extra": {"tool_calls": [{"name": "read_file", "input": {}}]}},
+            {"classification": "tool_intermediate", "ts": 5, "session_id": "s1",
+             "id": "r5", "output": "",
+             "meta": {"latency_ms": 90653},
+             "vault_extra": {"tool_calls": [{"name": "write_file", "input": {}}]}},
+            {"classification": "interaction", "ts": 6, "session_id": "s1",
+             "id": "r6", "output": "小游戏已嵌入",
+             "meta": {"latency_ms": 11481}},
+            # Heartbeats
+            {"classification": "heartbeat", "ts": 7, "session_id": "s1",
+             "id": "r7", "meta": {"latency_ms": 2349}},
+            {"classification": "system_error", "ts": 8, "session_id": "s1",
+             "id": "r8", "meta": {"latency_ms": 584}},
+            {"classification": "heartbeat", "ts": 9, "session_id": "s1",
+             "id": "r9", "meta": {"latency_ms": 2102}},
+        ]
+        result = aggregate_interactions(records)
+
+        # Should be: 3 interactions (1 standalone + 2 aggregated) + 2 heartbeats + 1 system
+        interactions = [r for r in result if r.get("classification") == "interaction"]
+        heartbeats = [r for r in result if r.get("classification") == "heartbeat"]
+        system_errors = [r for r in result if r.get("classification") == "system_error"]
+
+        assert len(interactions) == 3
+        assert len(heartbeats) == 2
+        assert len(system_errors) == 1
+
+        # First interaction: standalone tweet
+        assert "tool_steps" not in interactions[0]
+
+        # Second interaction: profile (2 API calls)
+        assert interactions[1]["total_api_calls"] == 2
+        assert len(interactions[1]["tool_steps"]) == 1
+        assert interactions[1]["tool_steps"][0]["name"] == "write_file"
+
+        # Third interaction: game (3 API calls)
+        assert interactions[2]["total_api_calls"] == 3
+        assert len(interactions[2]["tool_steps"]) == 2
+
+
 class TestPipeline:
     """Test the full classify → score pipeline."""
 
@@ -389,3 +529,22 @@ class TestPipeline:
         assert scores["excluded"].get("heartbeat", 0) == 1
         assert scores["excluded"].get("system_error", 0) == 1
         assert scores["reliability"] == 0.5  # 1 error / 2 interactions
+
+    def test_full_pipeline_with_aggregation(self):
+        """classify → aggregate → score pipeline."""
+        raw_records = [
+            {"flags": ["has_tool_calls", "empty_output", "streaming"], "ts": 1,
+             "input": "write code", "output": "", "meta": {"latency_ms": 5000, "session_id": "s1"}},
+            {"flags": ["tool_continuation", "streaming"], "ts": 2,
+             "input": "", "output": "Done!", "meta": {"latency_ms": 3000, "session_id": "s1"}},
+            {"flags": ["heartbeat"], "ts": 3,
+             "input": "HEARTBEAT", "output": "OK", "meta": {"latency_ms": 100}},
+        ]
+        classified = classify_records(raw_records)
+        aggregated = aggregate_interactions(classified)
+        scores = calculate_scores(aggregated)
+
+        # Tool chain → 1 interaction, heartbeat → excluded
+        assert scores["interactions"] == 1
+        assert scores["excluded"].get("heartbeat", 0) == 1
+        assert scores["reliability"] == 1.0

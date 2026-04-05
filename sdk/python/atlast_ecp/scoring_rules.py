@@ -152,9 +152,9 @@ def classify_record(
         # Check require_empty_text_output
         if rule.get("require_empty_text_output"):
             text_content = (output_text or "").strip()
-            # If there's substantial text output, this is NOT a tool_intermediate
+            # If there's any meaningful text output, this is NOT a tool_intermediate
             # (it's the final response that happens to also have tool_calls)
-            if len(text_content) > 10:
+            if text_content:
                 continue
 
         return rule["label"]
@@ -362,3 +362,133 @@ def reset_cache():
     global _rules_cache, _rules_cache_time
     _rules_cache = None
     _rules_cache_time = 0
+
+
+# ─── Tool Chain Aggregation ───────────────────────────────────────────────────
+
+def aggregate_interactions(classified_records: list[dict]) -> list[dict]:
+    """
+    Aggregate classified records into logical interactions.
+
+    A tool chain is a sequence of API calls for a single user intent:
+      1. user message → LLM returns tool_call (tool_intermediate)
+      2. tool_result → LLM returns tool_call (tool_intermediate)
+      3. tool_result → LLM returns text (interaction)
+
+    This function merges sequential tool_intermediate + final interaction
+    records into a single "interaction" with tool_steps detail.
+
+    Records must be sorted by timestamp. Non-interaction records
+    (heartbeat, system_error, infra_error) pass through unchanged.
+
+    Returns list of aggregated records, each with:
+      - All fields from the final interaction record
+      - "tool_steps": list of intermediate tool calls
+      - "total_api_calls": number of raw API calls in this interaction
+      - "total_latency_ms": sum of all latencies
+      - "raw_record_ids": list of all constituent record IDs
+    """
+    if not classified_records:
+        return []
+
+    # Sort by timestamp
+    def _get_ts(r: dict) -> int:
+        return r.get("ts") or r.get("timestamp") or 0
+
+    sorted_records = sorted(classified_records, key=_get_ts)
+
+    result = []
+    pending_chain: list[dict] = []  # accumulator for tool_intermediate records
+
+    for rec in sorted_records:
+        cls = rec.get("classification", "interaction")
+        session = (
+            rec.get("session_id") or
+            rec.get("meta", {}).get("session_id") or
+            rec.get("step", {}).get("session_id") or
+            ""
+        )
+
+        if cls == "tool_intermediate":
+            # Accumulate into pending chain
+            # But check session continuity
+            if pending_chain:
+                prev_session = (
+                    pending_chain[-1].get("session_id") or
+                    pending_chain[-1].get("meta", {}).get("session_id") or
+                    pending_chain[-1].get("step", {}).get("session_id") or
+                    ""
+                )
+                if session != prev_session:
+                    # Different session — flush the old chain as standalone records
+                    result.extend(pending_chain)
+                    pending_chain = []
+            pending_chain.append(rec)
+
+        elif cls == "interaction" and pending_chain:
+            # Check if this interaction belongs to the same session as the chain
+            prev_session = (
+                pending_chain[-1].get("session_id") or
+                pending_chain[-1].get("meta", {}).get("session_id") or
+                pending_chain[-1].get("step", {}).get("session_id") or
+                ""
+            )
+            if session == prev_session:
+                # Merge: chain + final interaction → one aggregated interaction
+                all_records = pending_chain + [rec]
+                tool_steps = []
+                total_latency = 0
+                raw_ids = []
+
+                for r in all_records:
+                    rid = r.get("id") or r.get("record_id") or ""
+                    if rid:
+                        raw_ids.append(rid)
+                    lat = (
+                        r.get("latency_ms") or
+                        r.get("meta", {}).get("latency_ms") or
+                        r.get("step", {}).get("latency_ms") or 0
+                    )
+                    total_latency += lat
+
+                    # Extract tool info from intermediate records
+                    if r.get("classification") == "tool_intermediate":
+                        vault_extra = r.get("vault_extra", {})
+                        tool_calls = vault_extra.get("tool_calls") or r.get("tool_calls", [])
+                        for tc in tool_calls:
+                            tool_steps.append({
+                                "name": tc.get("name", ""),
+                                "input_preview": str(tc.get("input", ""))[:200],
+                            })
+
+                # Build aggregated record from the final interaction
+                aggregated = dict(rec)
+                aggregated["tool_steps"] = tool_steps
+                aggregated["total_api_calls"] = len(all_records)
+                aggregated["total_latency_ms"] = total_latency
+                aggregated["raw_record_ids"] = raw_ids
+                # Use the first record's input (the original user message)
+                first_input = pending_chain[0].get("input") or pending_chain[0].get("vault", {}).get("input", "")
+                if first_input:
+                    aggregated["aggregated_input"] = first_input
+
+                result.append(aggregated)
+                pending_chain = []
+            else:
+                # Different session — flush chain, add interaction standalone
+                result.extend(pending_chain)
+                pending_chain = []
+                result.append(rec)
+        else:
+            # Non-tool record (heartbeat, system_error, infra, standalone interaction)
+            if pending_chain:
+                # Flush any pending chain first
+                result.extend(pending_chain)
+                pending_chain = []
+            result.append(rec)
+
+    # Flush any remaining pending chain
+    if pending_chain:
+        result.extend(pending_chain)
+
+    return result
