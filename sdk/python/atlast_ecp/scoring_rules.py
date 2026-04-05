@@ -343,6 +343,77 @@ def calculate_scores(
     }
 
 
+def compute_trust_score_1000(classified_records: list[dict], chain_integrity: float = 1.0) -> dict:
+    """
+    Compute ATLAST Trust Score (0-1000) per whitepaper §7.2.
+
+    Four signal layers:
+      Layer 1: Behavioral Reliability (40%) — error, retry, completion, latency consistency
+      Layer 2: Consistency (25%)            — output stability, drift (placeholder)
+      Layer 3: Transparency (20%)           — chain integrity, recording coverage
+      Layer 4: External Validation (15%)    — owner feedback (placeholder)
+
+    Returns:
+        {
+            "trust_score": int (0-1000),
+            "layers": {
+                "behavioral_reliability": {"score": float, "weight": 0.40, "weighted": float},
+                "consistency":            {"score": float, "weight": 0.25, "weighted": float},
+                "transparency":           {"score": float, "weight": 0.20, "weighted": float},
+                "external_validation":    {"score": float, "weight": 0.15, "weighted": float},
+            },
+            "raw_scores": {...}  # underlying calculate_scores output
+        }
+    """
+    raw = calculate_scores(classified_records)
+    interactions = raw["interactions"]
+
+    # ── Layer 1: Behavioral Reliability (40%) ──
+    # Reliability (no errors) = 60% of layer, latency consistency = 40% of layer
+    reliability = raw.get("reliability", 1.0)
+    high_latency_rate = raw.get("high_latency_rate", 0.0)
+    latency_score = max(0, 1.0 - high_latency_rate)  # lower high_latency = better
+    layer1 = reliability * 0.6 + latency_score * 0.4
+
+    # ── Layer 2: Consistency (25%) ──
+    # Placeholder: based on incomplete_rate and hedge_rate for now
+    # Full implementation needs cross-temporal hash comparison
+    incomplete_rate = raw.get("incomplete_rate", 0.0)
+    hedge_rate = raw.get("hedge_rate", 0.0)
+    layer2 = max(0, 1.0 - incomplete_rate - hedge_rate)
+
+    # ── Layer 3: Transparency (20%) ──
+    # Chain integrity + recording coverage
+    layer3 = chain_integrity
+
+    # ── Layer 4: External Validation (15%) ──
+    # Placeholder: no owner feedback system yet → neutral 0.7
+    layer4 = 0.7 if interactions > 0 else 0.0
+
+    # ── Weighted sum → 0-1000 ──
+    weighted_1 = layer1 * 0.40
+    weighted_2 = layer2 * 0.25
+    weighted_3 = layer3 * 0.20
+    weighted_4 = layer4 * 0.15
+
+    total = weighted_1 + weighted_2 + weighted_3 + weighted_4
+    trust_score = round(total * 1000)
+
+    # Clamp
+    trust_score = max(0, min(1000, trust_score))
+
+    return {
+        "trust_score": trust_score,
+        "layers": {
+            "behavioral_reliability": {"score": round(layer1, 4), "weight": 0.40, "weighted": round(weighted_1, 4)},
+            "consistency":            {"score": round(layer2, 4), "weight": 0.25, "weighted": round(weighted_2, 4)},
+            "transparency":           {"score": round(layer3, 4), "weight": 0.20, "weighted": round(weighted_3, 4)},
+            "external_validation":    {"score": round(layer4, 4), "weight": 0.15, "weighted": round(weighted_4, 4)},
+        },
+        "raw_scores": raw,
+    }
+
+
 # ─── Rules Management ─────────────────────────────────────────────────────────
 
 _rules_cache: Optional[dict] = None

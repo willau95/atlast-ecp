@@ -242,18 +242,23 @@ class DashboardHandler(BaseHTTPRequestHandler):
             }
 
         elif path == "/api/scores":
-            """Trust Score and classification breakdown."""
+            """Trust Score (0-1000) and classification breakdown."""
             try:
-                from .scoring_rules import classify_records, calculate_scores
+                from .scoring_rules import classify_records, compute_trust_score_1000
+                from .signals import compute_trust_signals
                 from .batch import collect_batch
                 records_all, _ = collect_batch(since_ts=0)
                 classified = classify_records(records_all)
-                scores = calculate_scores(classified)
+                # Get chain integrity
+                trust_signals = compute_trust_signals(records_all)
+                chain_integrity = trust_signals.get("chain_integrity", 1.0)
+                # Compute 1000-point score
+                result = compute_trust_score_1000(classified, chain_integrity=chain_integrity)
                 # Add classification breakdown
                 from collections import Counter
                 labels = Counter(r.get("classification", "unknown") for r in classified)
-                scores["classification_breakdown"] = dict(labels)
-                return scores
+                result["classification_breakdown"] = dict(labels)
+                return result
             except Exception as e:
                 return {"error": str(e)}
 
@@ -558,30 +563,30 @@ body.guide-dismissed { padding-top: 0 !important; }
   border: 1px solid #334155; border-radius: 12px;
   font-family: system-ui, -apple-system, sans-serif; color: #e2e8f0;
 }
-.ts-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.ts-icon { font-size: 24px; }
-.ts-title { font-size: 18px; font-weight: 700; color: #f8fafc; }
-.ts-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 12px; margin-bottom: 14px;
-}
-.ts-card {
-  background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px;
-  text-align: center; border: 1px solid rgba(255,255,255,0.08);
-}
-.ts-value { font-size: 24px; font-weight: 700; color: #93c5fd; }
-.ts-value.ts-green { color: #4ade80; }
-.ts-label { font-size: 11px; color: #94a3b8; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-.ts-breakdown { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ts-main { display: flex; gap: 24px; align-items: center; }
+.ts-score-ring { text-align: center; min-width: 120px; }
+.ts-score-number { font-size: 56px; font-weight: 800; line-height: 1; }
+.ts-score-label { font-size: 14px; color: #64748b; margin-top: 2px; }
+.ts-layers { flex: 1; }
+.ts-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.ts-icon { font-size: 20px; }
+.ts-title { font-size: 16px; font-weight: 700; color: #f8fafc; }
+.ts-layer { margin-bottom: 8px; }
+.ts-layer-info { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; font-size: 12px; }
+.ts-layer-name { color: #cbd5e1; flex: 1; }
+.ts-layer-weight { color: #64748b; font-size: 11px; }
+.ts-layer-val { color: #93c5fd; font-weight: 600; min-width: 50px; text-align: right; }
+.ts-bar-bg { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+.ts-bar-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 3px; transition: width 0.5s; }
+.ts-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); }
+.ts-meta-item { font-size: 12px; color: #94a3b8; }
 .ts-tag {
-  padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;
+  padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500;
   background: rgba(99,102,241,0.2); color: #a5b4fc;
 }
 .ts-tag-heartbeat { background: rgba(234,179,8,0.2); color: #fde047; }
 .ts-tag-tool_intermediate { background: rgba(168,85,247,0.2); color: #c4b5fd; }
 .ts-tag-interaction { background: rgba(34,197,94,0.2); color: #86efac; }
-.ts-excluded { font-size: 12px; color: #64748b; }
-.ts-exc { margin-right: 4px; }
 
 /* Vault overlay */
 #atlast-vault-overlay {
@@ -850,48 +855,46 @@ body.guide-dismissed { padding-top: 0 !important; }
       const data = await res.json();
       if (data.error) return;
 
+      const score = data.trust_score || 0;
+      const layers = data.layers || {};
+      const raw = data.raw_scores || {};
+      const scoreColor = score >= 800 ? '#4ade80' : score >= 600 ? '#facc15' : score >= 400 ? '#fb923c' : '#f87171';
+
       const panel = document.createElement('div');
       panel.id = 'atlast-trust-score';
       panel.innerHTML = `
-        <div class="ts-header">
-          <span class="ts-icon">🛡️</span>
-          <span class="ts-title">Trust Score</span>
-        </div>
-        <div class="ts-grid">
-          <div class="ts-card">
-            <div class="ts-value ts-green">${(data.reliability * 100).toFixed(0)}%</div>
-            <div class="ts-label">Reliability</div>
+        <div class="ts-main">
+          <div class="ts-score-ring">
+            <div class="ts-score-number" style="color:${scoreColor}">${score}</div>
+            <div class="ts-score-label">/ 1000</div>
           </div>
-          <div class="ts-card">
-            <div class="ts-value">${data.interactions}</div>
-            <div class="ts-label">Interactions</div>
-          </div>
-          <div class="ts-card">
-            <div class="ts-value">${(data.error_rate * 100).toFixed(1)}%</div>
-            <div class="ts-label">Error Rate</div>
-          </div>
-          <div class="ts-card">
-            <div class="ts-value">${(data.avg_latency_ms / 1000).toFixed(1)}s</div>
-            <div class="ts-label">Avg Latency</div>
-          </div>
-          <div class="ts-card">
-            <div class="ts-value">${(data.hedge_rate * 100).toFixed(1)}%</div>
-            <div class="ts-label">Hedge Rate</div>
-          </div>
-          <div class="ts-card">
-            <div class="ts-value">${data.total_records}</div>
-            <div class="ts-label">Total Records</div>
+          <div class="ts-layers">
+            <div class="ts-header">
+              <span class="ts-icon">🛡️</span>
+              <span class="ts-title">ATLAST Trust Score</span>
+            </div>
+            ${Object.entries(layers).map(([name, l]) => {
+              const pct = (l.score * 100).toFixed(0);
+              const wPct = (l.weight * 100).toFixed(0);
+              const label = name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+              return `<div class="ts-layer">
+                <div class="ts-layer-info">
+                  <span class="ts-layer-name">${label}</span>
+                  <span class="ts-layer-weight">${wPct}%</span>
+                  <span class="ts-layer-val">${pct}/100</span>
+                </div>
+                <div class="ts-bar-bg"><div class="ts-bar-fill" style="width:${pct}%"></div></div>
+              </div>`;
+            }).join('')}
           </div>
         </div>
-        <div class="ts-breakdown">
+        <div class="ts-meta">
+          <span class="ts-meta-item">📊 ${raw.interactions || 0} interactions</span>
+          <span class="ts-meta-item">⏱️ ${((raw.avg_latency_ms || 0) / 1000).toFixed(1)}s avg</span>
+          <span class="ts-meta-item">✅ ${((raw.reliability || 0) * 100).toFixed(0)}% reliable</span>
           ${Object.entries(data.classification_breakdown || {}).map(([k,v]) =>
             `<span class="ts-tag ts-tag-${k}">${k}: ${v}</span>`
           ).join('')}
-        </div>
-        <div class="ts-excluded">
-          ${Object.entries(data.excluded || {}).map(([k,v]) =>
-            `<span class="ts-exc">⊘ ${v} ${k}</span>`
-          ).join(' · ')}
         </div>
       `;
 
