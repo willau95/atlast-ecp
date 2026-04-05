@@ -310,20 +310,27 @@ def _check_chain_integrity(records: list[dict]) -> bool:
     if not genesis:
         return False  # No genesis in any chain
 
-    # Walk each chain forward via reverse lookup: prev→next
-    prev_to_records: dict[str, list] = {}
+    # Walk each chain forward via reverse lookup.
+    # prev field may store record id (SDK create_record) OR chain hash (proxy record_minimal_v2).
+    # Build lookup by both id and hash to support both formats.
+    key_to_next: dict[str, list] = {}
     for r in chained:
         prev = r.get("chain", {}).get("prev")
         if prev and prev != "genesis":
-            prev_to_records.setdefault(prev, []).append(r)
+            key_to_next.setdefault(prev, []).append(r)
 
     visited = set()
     for g in genesis:
         # Walk from this genesis
         current = g
         visited.add(current["id"])
-        while current["id"] in prev_to_records:
-            nexts = prev_to_records[current["id"]]
+        while True:
+            # Try both: next record may reference current by id or by hash
+            current_hash = current.get("chain", {}).get("hash", "")
+            current_id = current.get("id", "")
+            nexts = key_to_next.get(current_hash) or key_to_next.get(current_id)
+            if not nexts:
+                break
             if len(nexts) > 1:
                 return False  # Fork detected
             current = nexts[0]
