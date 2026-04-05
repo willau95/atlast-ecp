@@ -220,6 +220,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 # Use default pricing
                 total_cost += (ti / 1_000_000 * 3.0) + (to_ / 1_000_000 * 15.0)
 
+            # Compute Trust Score via scoring_rules pipeline
+            scoring = {}
+            try:
+                from .scoring_rules import classify_records, calculate_scores
+                from .batch import collect_batch
+                records_all, _ = collect_batch(since_ts=0)
+                classified = classify_records(records_all)
+                scoring = calculate_scores(classified)
+            except Exception:
+                pass
+
             return {
                 "stats": stats,
                 "timeline": timeline_data,
@@ -227,7 +238,24 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "audit_health": audit_data.get("health", "unknown"),
                 "audit_anomalies": len(audit_data.get("anomalies", [])),
                 "estimated_cost_usd": round(total_cost, 4),
+                "scoring": scoring,
             }
+
+        elif path == "/api/scores":
+            """Trust Score and classification breakdown."""
+            try:
+                from .scoring_rules import classify_records, calculate_scores
+                from .batch import collect_batch
+                records_all, _ = collect_batch(since_ts=0)
+                classified = classify_records(records_all)
+                scores = calculate_scores(classified)
+                # Add classification breakdown
+                from collections import Counter
+                labels = Counter(r.get("classification", "unknown") for r in classified)
+                scores["classification_breakdown"] = dict(labels)
+                return scores
+            except Exception as e:
+                return {"error": str(e)}
 
         elif path == "/api/records":
             """Paginated records list with filtering."""
