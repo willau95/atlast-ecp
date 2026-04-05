@@ -49,3 +49,9 @@ dashboard-ui/
 
 # Whitepaper source (PDF-only in repo)
 whitepaper/*.md
+
+# Claude Code — local only, never commit
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+.env.local
