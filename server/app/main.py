@@ -228,6 +228,7 @@ from .routes.auth import router as auth_router
 from .routes.batches import router as batches_router
 from .routes.agents import router as agents_router
 from .routes.super_batches import router as super_batches_router
+from .routes.scoring import router as scoring_router
 
 app.include_router(health_router)
 app.include_router(discovery_router)
@@ -240,6 +241,7 @@ app.include_router(auth_router)
 app.include_router(batches_router)
 app.include_router(agents_router)
 app.include_router(super_batches_router)
+app.include_router(scoring_router)
 
 # Init stats tracking
 from .routes.verify import init_stats
