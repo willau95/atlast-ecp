@@ -33,6 +33,7 @@ import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 from typing import Any, Optional
 
 # aiohttp is optional dependency
@@ -402,7 +403,6 @@ def _update_heartbeat_state(success: bool = True, latency_ms: int = 0):
     Heartbeats are uptime evidence, not behavior evidence.
     One summary per day is enough — no need for 48 individual records.
     """
-    import os
     from datetime import datetime, timezone
 
     ecp_dir = Path(os.environ.get("ATLAST_ECP_DIR", os.environ.get("ECP_DIR", os.path.expanduser("~/.ecp"))))
