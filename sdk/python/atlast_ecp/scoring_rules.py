@@ -125,8 +125,9 @@ def classify_record(
     output_stripped = (output_text or "").strip()
 
     # ── Retroactive detection for pre-v0.17 records (no factual flags) ──
-    # Detect heartbeat from content even if flag is missing
-    if "heartbeat" not in flag_set and "HEARTBEAT" in (input_text or "") and len(output_stripped) < 100:
+    # Detect heartbeat from content even if flag is missing (retroactive for pre-v0.17 records)
+    # HEARTBEAT is a system-injected prompt from OpenClaw, never user-generated
+    if "heartbeat" not in flag_set and "HEARTBEAT" in (input_text or ""):
         flag_set.add("heartbeat")
 
     # Detect provider_error from content
@@ -201,6 +202,20 @@ def classify_records(records: list[dict], rules: Optional[dict] = None) -> list[
     if rules is None:
         rules = get_rules()
 
+    # Pre-load vault data for raw records that lack input/output
+    vault_cache = {}
+    for rec in records:
+        if "input" not in rec and rec.get("id"):
+            try:
+                from pathlib import Path
+                ecp_dir = Path(os.environ.get("ATLAST_ECP_DIR", os.environ.get("ECP_DIR", os.path.expanduser("~/.ecp"))))
+                vault_path = ecp_dir / "vault" / f"{rec['id']}.json"
+                if vault_path.exists():
+                    import json as _json
+                    vault_cache[rec["id"]] = _json.loads(vault_path.read_text())
+            except Exception:
+                pass
+
     results = []
     for rec in records:
         # Extract fields from either vault or raw format
@@ -210,8 +225,10 @@ def classify_records(records: list[dict], rules: Optional[dict] = None) -> list[
             rec.get("step", {}).get("flags") or
             []
         )
-        input_text = rec.get("input", "")
-        output_text = rec.get("output", "")
+        # For raw JSONL records, fall back to vault for input/output
+        vault_data = vault_cache.get(rec.get("id", ""), {})
+        input_text = rec.get("input", "") or vault_data.get("input", "")
+        output_text = rec.get("output", "") or vault_data.get("output", "")
         http_status = rec.get("http_status") or rec.get("vault_extra", {}).get("http_status") or 200
 
         classification = classify_record(
