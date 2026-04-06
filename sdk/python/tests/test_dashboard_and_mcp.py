@@ -87,8 +87,8 @@ class TestDashboardServer:
 
         resp = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/search?q=analyze")
         data = json.loads(resp.read())
-        assert "results" in data
-        assert data["count"] >= 1
+        assert "records" in data
+        assert data["total"] >= 1
         server.server_close()
 
     def test_api_timeline(self, setup_ecp_dir):

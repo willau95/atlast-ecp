@@ -194,7 +194,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             until = params.get("until", [None])[0]
             results = search(query, limit=limit, agent=agent, since=since,
                              until=until, errors_only=errors_only, as_json=True)
-            return {"results": results, "count": len(results)}
+            return {"records": results, "total": len(results)}
 
         elif path == "/api/trace":
             record_id = params.get("id", [""])[0]

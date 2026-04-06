@@ -135,7 +135,29 @@ def rebuild_index(verbose: bool = False) -> int:
             output_preview = ""
             if vault:
                 input_preview = (vault.get("input") or "")[:500]
-                output_preview = (vault.get("output") or "")[:500]
+                raw_output = vault.get("output") or ""
+                # Detect aggregated multi-step records (proxy output with final_response + tool_calls_used)
+                # Store only the final_response text (not the full JSON blob) in output_preview,
+                # and prepend metadata so the frontend can parse it without needing the full JSON
+                if raw_output.startswith('{"final_response"'):
+                    try:
+                        parsed_output = json.loads(raw_output)
+                        final_resp = parsed_output.get("final_response", "")
+                        tool_calls = parsed_output.get("tool_calls_used", [])
+                        steps = parsed_output.get("steps", 1)
+                        # Encode aggregation metadata as a parseable JSON prefix line
+                        # Format: {"_aggregated":true,"steps":N,"tool_calls":M}\n<actual text>
+                        meta_line = json.dumps({
+                            "_aggregated": True,
+                            "steps": steps,
+                            "tool_calls": len(tool_calls),
+                            "tool_names": [tc.get("name", "") for tc in tool_calls[:20]],
+                        })
+                        output_preview = meta_line + "\n" + (final_resp or "")[:4500]
+                    except (json.JSONDecodeError, TypeError):
+                        output_preview = raw_output[:5000]
+                else:
+                    output_preview = raw_output[:5000]
 
             ts = r.get("ts", 0)
             date_str = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d") if ts else ""
