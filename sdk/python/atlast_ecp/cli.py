@@ -645,6 +645,9 @@ def cmd_init(args: list[str]):
         # Auto-setup: detect OpenClaw agent, start proxy, configure routing
         _auto_setup_proxy(identity)
 
+        # Auto-setup: detect Claude Code, install hooks
+        _auto_setup_claude_code()
+
         print("\n  ✅ All set! Your agent's work is now being recorded.")
         print("     Use your agent normally — evidence is captured automatically.")
     else:
@@ -787,6 +790,116 @@ run_proxy(port={proxy_port}, agent="{agent_name}")
             print("  Persistence: ✅ auto-start on reboot")
         except Exception:
             print("  Persistence: ⚠️  proxy running but won't auto-start on reboot")
+
+
+def _auto_setup_claude_code():
+    """Auto-detect Claude Code and install recording hooks."""
+    from pathlib import Path
+    import json
+
+    claude_dir = Path.home() / ".claude"
+    if not claude_dir.exists():
+        return  # No Claude Code installed
+
+    settings_file = claude_dir / "settings.json"
+
+    # Load existing settings
+    settings = {}
+    if settings_file.exists():
+        try:
+            settings = json.loads(settings_file.read_text())
+        except (json.JSONDecodeError, IOError):
+            settings = {}
+
+    # Check if hooks already installed
+    hooks = settings.get("hooks", {})
+    existing_hooks = json.dumps(hooks)
+    if "atlast_ecp" in existing_hooks or "atlast-ecp" in existing_hooks:
+        print("  Claude Code: ✅ hooks already installed")
+        return
+
+    # Find the ecp_hooks.py file
+    hooks_src = None
+    # Check in the installed package
+    try:
+        import atlast_ecp
+        pkg_dir = Path(atlast_ecp.__file__).parent
+        candidate = pkg_dir.parent / "integrations" / "claude_code" / "ecp_hooks.py"
+        if candidate.exists():
+            hooks_src = candidate
+    except Exception:
+        pass
+
+    # Also check common locations
+    if not hooks_src:
+        for p in [
+            Path.home() / "Desktop" / "atlast-ecp" / "sdk" / "python" / "integrations" / "claude_code" / "ecp_hooks.py",
+            Path.home() / "atlast-ecp" / "sdk" / "python" / "integrations" / "claude_code" / "ecp_hooks.py",
+        ]:
+            if p.exists():
+                hooks_src = p
+                break
+
+    if not hooks_src:
+        # Create a minimal inline hook script
+        plugins_dir = claude_dir / "plugins"
+        plugins_dir.mkdir(parents=True, exist_ok=True)
+        hook_file = plugins_dir / "atlast_ecp_hook.py"
+        hook_file.write_text('''"""ATLAST ECP — Claude Code hook for passive recording."""
+import json, sys, time
+
+def main():
+    """Record a tool call via ATLAST ECP."""
+    try:
+        from atlast_ecp.core import record_minimal
+        # Read hook data from stdin
+        data = json.load(sys.stdin) if not sys.stdin.isatty() else {}
+        tool_name = data.get("tool_name", "unknown")
+        tool_input = json.dumps(data.get("tool_input", {}))[:500]
+        tool_output = data.get("tool_output", "")[:2000]
+        record_minimal(
+            input_content=f"{tool_name}: {tool_input}",
+            output_content=tool_output or "(completed)",
+            agent="claude-code",
+            action=tool_name,
+            model="claude",
+            latency_ms=int(data.get("duration_ms", 0)),
+        )
+    except Exception:
+        pass  # Fail-Open
+
+if __name__ == "__main__":
+    main()
+''')
+        hooks_src = hook_file
+    else:
+        # Copy hooks file to plugins
+        import shutil
+        plugins_dir = claude_dir / "plugins"
+        plugins_dir.mkdir(parents=True, exist_ok=True)
+        hook_file = plugins_dir / "atlast_ecp_hook.py"
+        shutil.copy(hooks_src, hook_file)
+
+    # Register PostToolUse hook in settings.json
+    python_bin = sys.executable or "python3"
+    hook_command = f"{python_bin} {hook_file}"
+
+    hooks = settings.setdefault("hooks", {})
+    post_hooks = hooks.setdefault("PostToolUse", [])
+
+    # Add ATLAST hook if not present
+    if not any("atlast" in json.dumps(h).lower() for h in post_hooks):
+        post_hooks.append({
+            "matcher": "*",
+            "hooks": [{
+                "type": "command",
+                "command": hook_command
+            }]
+        })
+
+    settings_file.parent.mkdir(parents=True, exist_ok=True)
+    settings_file.write_text(json.dumps(settings, indent=2))
+    print("  Claude Code: ✅ recording hooks installed")
 
 
 def _ask_backup_location():
