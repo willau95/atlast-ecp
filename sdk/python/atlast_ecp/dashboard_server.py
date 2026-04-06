@@ -643,9 +643,9 @@ body.guide-dismissed { padding-top: 0 !important; }
 
 <div id="atlast-guide-banner">
   <span>
-    📊 <b>ATLAST ECP Dashboard</b> — Your AI agent's evidence chain viewer.
-    All data stays on your machine.
-    <a id="guide-learn-more">Learn how to use →</a>
+    📊 <b>ATLAST ECP Dashboard</b> — Every AI agent action is recorded in a tamper-proof evidence chain.
+    Your Trust Score (0-1000) shows how reliable your agent is. All data stays on your machine.
+    <a id="guide-learn-more">Quick guide →</a>
   </span>
   <button class="close-btn" id="guide-dismiss">✕ Dismiss</button>
 </div>
@@ -661,12 +661,13 @@ body.guide-dismissed { padding-top: 0 !important; }
 <button id="atlast-help-btn" title="Help & Guide">?</button>
 <div id="atlast-help-panel">
   <h4>📖 Quick Guide</h4>
-  <div class="help-item"><b>📊 Stats</b> — Total records, reliability score, active days</div>
-  <div class="help-item"><b>🔍 Search</b> — Find records by model, type, or flags. <em>Click any row to see full AI input/output.</em></div>
-  <div class="help-item"><b>📅 Timeline</b> — Daily activity trends and error rates</div>
-  <div class="help-item"><b>🔗 Trace</b> — Follow the chain: each record links to the previous one</div>
-  <div class="help-item"><b>📋 Audit</b> — 30-day health report of your agent</div>
-  <div class="help-item"><b>🔐 Privacy</b> — All data stays on your machine. The vault (raw conversations) never leaves your device.</div>
+  <div class="help-item"><b>🏠 Overview</b> — Your agent's Trust Score (0-1000) at a glance. Higher = more reliable.</div>
+  <div class="help-item"><b>📋 Records</b> — Every AI interaction with timing, model, and status. <em>Click any row to see exact input/output.</em></div>
+  <div class="help-item"><b>👥 Agents</b> — Compare multiple agents' performance side by side</div>
+  <div class="help-item"><b>🔗 Evidence Chain</b> — Visual proof: each record cryptographically links to the previous one</div>
+  <div class="help-item"><b>📊 Audit</b> — 30-day health report with anomaly detection</div>
+  <div class="help-item"><b>🔍 Search</b> — Find any record by keyword, date, or model</div>
+  <div class="help-item"><b>🔐 Privacy</b> — All data stays on YOUR machine. Raw conversations never leave your device.</div>
   <div class="help-item" style="margin-top:8px; font-size:12px; color:#64748b;">
     Data dir: <code id="help-ecp-dir">~/.ecp/</code>
   </div>
