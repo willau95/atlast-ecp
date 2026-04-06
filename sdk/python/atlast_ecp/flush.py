@@ -57,21 +57,55 @@ def flush_stale_buffers(timeout_s: int = FLUSH_TIMEOUT_S) -> int:
                 tool_summary[name] = tool_summary.get(name, 0) + 1
             summary_str = ", ".join(f"{name} x{count}" for name, count in tool_summary.items())
 
-            # First meaningful input
-            first_input = ""
-            for s in steps:
-                inp = s.get("tool_input_str", "")
-                if inp and len(inp) > 10:
-                    first_input = inp[:500]
-                    break
+            # Try to read Claude Code transcript for real user message + agent response
+            user_input = None
+            agent_response = None
+            transcript_path = buf.get("transcript_path", "")
+            if transcript_path:
+                try:
+                    from pathlib import Path as _Path
+                    tp = _Path(transcript_path)
+                    if tp.exists():
+                        entries = []
+                        for tl in tp.read_text().splitlines():
+                            if tl.strip():
+                                try: entries.append(json.loads(tl))
+                                except: pass
+                        # Last real user message (text, not tool_result)
+                        for e in reversed(entries):
+                            if e.get("type") == "user":
+                                c = e.get("message", {}).get("content", "")
+                                if isinstance(c, str) and len(c) > 0:
+                                    user_input = c[:1000]
+                                    break
+                        # Last assistant text response
+                        for e in reversed(entries):
+                            if e.get("type") == "assistant":
+                                content = e.get("message", {}).get("content", [])
+                                if isinstance(content, list):
+                                    texts = [b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"]
+                                    if texts:
+                                        agent_response = "\n".join(texts)[:3000]
+                                        break
+                except Exception:
+                    pass
 
-            # Last meaningful output
-            last_output = ""
-            for s in reversed(steps):
-                out = s.get("tool_response", "")
-                if out and len(str(out)) > 5:
-                    last_output = str(out)[:3000]
-                    break
+            # Fallback: use tool data if transcript not available
+            first_input = user_input or ""
+            if not first_input:
+                for s in steps:
+                    inp = s.get("tool_input_str", "")
+                    if inp and len(inp) > 10:
+                        first_input = inp[:500]
+                        break
+
+            last_output = agent_response or ""
+            if not last_output:
+                for s in reversed(steps):
+                    out = s.get("tool_response", "")
+                    if out and len(str(out)) > 5:
+                        last_output = str(out)[:3000]
+                        break
 
             total_latency = sum(s.get("duration_ms", 0) for s in steps)
 
