@@ -407,6 +407,17 @@ def cmd_register(args: list[str]):
     # This ensures the server stores the correct key for signature verification
     pub_key = identity.get("crypto_pub_key") or identity.get("pub_key", "")
 
+    # Idempotency: if already registered locally, skip unless --force
+    if "--force" not in args:
+        from .config import load_config
+        existing = load_config()
+        if existing.get("agent_api_key") and existing.get("agent_did") == did:
+            did_short = did.split(':')[-1][:8]
+            print(f"\n  ✓ Already registered (ID: ...{did_short})")
+            print(f"  ✓ API Key: {existing['agent_api_key'][:12]}...")
+            print("  (use --force to re-register)\n")
+            return
+
     print("\n🔗 Registering Agent...")
 
     body: dict = {

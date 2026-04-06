@@ -186,6 +186,11 @@ def save_vault(record_id: str, input_content: str, output_content: str) -> None:
         }, ensure_ascii=False, indent=indent)
         vault_file = VAULT_DIR / f"{record_id}.json"
         vault_file.write_text(content_json, encoding="utf-8")
+        try:
+            import stat
+            vault_file.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0600 — vault contains PII
+        except OSError:
+            pass
 
         # Auto-backup if configured (Fail-Open)
         try:
@@ -260,6 +265,11 @@ def save_vault_v2(record_id: str, input_content: str, output_content: str,
         content_json = json.dumps(vault_data, ensure_ascii=False, indent=indent)
         vault_file = VAULT_DIR / f"{record_id}.json"
         vault_file.write_text(content_json, encoding="utf-8")
+        try:
+            import stat
+            vault_file.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0600 — vault contains PII
+        except OSError:
+            pass
 
         # Auto-backup if configured (Fail-Open) — same as save_vault
         try:
