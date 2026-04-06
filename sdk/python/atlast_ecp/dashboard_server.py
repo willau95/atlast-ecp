@@ -498,7 +498,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
         """.replace("WHERE AND", "WHERE"), p).fetchall()
         if chain_records:
             id_set = set(r[0] for r in chain_records)
-            broken = sum(1 for r in chain_records if r[1] != "genesis" and r[1] not in id_set)
+            hash_set = set(r[2] for r in chain_records if r[2])
+            broken = sum(1 for r in chain_records if r[1] != "genesis" and r[1] not in id_set and r[1] not in hash_set)
             chain_ok = broken == 0
 
         db.close()

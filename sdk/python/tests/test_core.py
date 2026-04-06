@@ -210,9 +210,9 @@ class TestSignals:
 
     def test_high_latency_detection(self):
         from atlast_ecp.signals import detect_flags
-        # absolute threshold: > 5000ms
-        flags_high = detect_flags("answer", latency_ms=6000)
-        flags_normal = detect_flags("answer", latency_ms=500)
+        # absolute threshold: > 30000ms (LLM agents routinely take 10-30s)
+        flags_high = detect_flags("answer", latency_ms=35000)
+        flags_normal = detect_flags("answer", latency_ms=5000)
         assert "high_latency" in flags_high
         assert "high_latency" not in flags_normal
 
@@ -241,7 +241,7 @@ class TestSignals:
         # incomplete
         assert "incomplete" in detect_flags("I cannot do that")
         # high_latency
-        assert "high_latency" in detect_flags("ok", latency_ms=9999)
+        assert "high_latency" in detect_flags("ok", latency_ms=35000)
         # error
         assert "error" in detect_flags("Traceback (most recent call last):")
         # human_review

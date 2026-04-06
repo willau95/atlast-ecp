@@ -88,8 +88,8 @@ DEFAULT_RULES: dict[str, Any] = {
         # Flags excluded from latency calculation
         "exclude_from_latency": ["heartbeat", "infra_error", "system_error"],
 
-        # High latency threshold (ms)
-        "high_latency_threshold_ms": 10000,
+        # High latency threshold (ms) — 30s for LLM agents (10-30s normal)
+        "high_latency_threshold_ms": 30000,
 
         # Incomplete detection: min output chars for "complete"
         "incomplete_max_chars": 5,

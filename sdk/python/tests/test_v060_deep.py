@@ -190,7 +190,7 @@ class TestRecordMinimal:
         assert rec["agent"] == "test"
 
     def test_flag_detection_high_latency(self):
-        rid = record_minimal("prompt", "response", latency_ms=15000)
+        rid = record_minimal("prompt", "response", latency_ms=35000)
         records = load_records(limit=10)
         rec = [r for r in records if r.get("id") == rid][0]
         assert "high_latency" in rec.get("meta", {}).get("flags", [])

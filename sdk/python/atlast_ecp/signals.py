@@ -96,8 +96,10 @@ _ERROR = [re.compile(p, re.IGNORECASE) for p in ERROR_PATTERNS]
 _HUMAN_REVIEW = [re.compile(p, re.IGNORECASE) for p in HUMAN_REVIEW_PATTERNS]
 _A2A = [re.compile(p, re.IGNORECASE) for p in A2A_PATTERNS]
 
-# High-latency threshold (ms) — default 5 seconds
-HIGH_LATENCY_THRESHOLD_MS = 5000
+# High-latency threshold (ms) — default 30 seconds
+# LLM agents routinely take 10-30s per call; 5s was too aggressive.
+# When median_latency_ms is available, 2x median is used instead.
+HIGH_LATENCY_THRESHOLD_MS = 30000
 
 
 # ─── Flag Detection ────────────────────────────────────────────────────────────

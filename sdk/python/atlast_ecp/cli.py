@@ -1793,8 +1793,10 @@ def cmd_doctor(args: list[str]):
     # 7. Records count
     records_dir = ECP_DIR / "records"
     if records_dir.exists():
-        count = len(list(records_dir.glob("*.json")))
-        print(f"  ✅ Records: {count}")
+        from .storage import count_records
+        count = count_records()
+        file_count = len(list(records_dir.glob("*.jsonl"))) + len(list(records_dir.glob("*.jsonl.gz")))
+        print(f"  ✅ Records: {count} (in {file_count} file{'s' if file_count != 1 else ''})")
     else:
         print("  ✅ Records: 0 (ready to start)")
 
