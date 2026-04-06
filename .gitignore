@@ -55,3 +55,17 @@ CLAUDE.md
 CLAUDE.local.md
 .claude/
 .env.local
+
+# Internal development — not for public repo
+.archive/
+experiments/
+stress-test/
+PHASE-V17-PLAN.md
+docs/ISSUE-LOG.md
+docs/DISCOVERY.md
+docs/USER-TEST-MANUAL.md
+docs/STRESS-TEST-V3-PLAN.md
+docs/STRESS-TEST-V3-REPORT.md
+docs/STRESS-TEST-V3-ISSUES.md
+docs/STRESS-TEST-V3-FINAL-REPORT.md
+whitepaper/*.pdf
