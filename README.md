@@ -134,14 +134,39 @@ Today, you have nothing to show them. No standard format. No verifiable chain. N
 
 ## Quick Start
 
+### For Claude Code / AI Coding Agents
+
+Copy this and paste it to your AI agent:
+
+> Install ATLAST ECP on this machine to create a tamper-proof evidence chain of all your work. ATLAST ECP is an open-source protocol that records every action with cryptographic proof — so I can verify what you did, track your reliability, and have a complete audit trail.
+>
+> Step 1 — Install:
+> ```
+> pip3 install atlast-ecp --break-system-packages
+> ```
+> If `--break-system-packages` fails, try `pip3 install atlast-ecp` or `pip install atlast-ecp`.
+>
+> Step 2 — Initialize (generates your unique identity + local storage):
+> ```
+> python3 -m atlast_ecp.cli init
+> ```
+>
+> Step 3 — Verify everything is working:
+> ```
+> python3 -m atlast_ecp.cli doctor
+> ```
+>
+> Tell me the output of each step.
+
+That's it. Your agent handles the rest.
+
 ### Zero Code (any language, any framework)
 
 ```bash
-pip install atlast-ecp[proxy]
+pip install atlast-ecp
 
 # One command — every LLM call is now recorded
 atlast run python my_agent.py
-atlast log   # View records
 ```
 
 ### Python SDK (one line)
@@ -171,11 +196,8 @@ crew = Crew(agents=[...], callbacks=[ATLASTCrewCallback(agent="my-crew")])
 
 ```bash
 atlast init                         # Initialize + generate DID
-atlast record --in "query" --out "response"  # Manual record
 atlast log                          # View records
-atlast insights                     # Local analytics
 atlast verify <record_id>           # Verify chain integrity
-atlast verify --a2a a.jsonl b.jsonl # Multi-agent verification
 atlast push                         # Upload to ECP server (opt-in)
 atlast flush                        # Immediate batch upload
 atlast proxy --port 8340            # Start transparent proxy
