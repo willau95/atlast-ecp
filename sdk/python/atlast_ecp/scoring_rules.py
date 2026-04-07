@@ -286,12 +286,43 @@ def calculate_scores(
     excluded_counts: dict[str, int] = {}
     interaction_records = []
 
+    # Anti-gaming filters
+    import hashlib as _hashlib
+    _seen_input_hashes: dict[str, int] = {}  # hash → count
+
     for rec in classified_records:
         cls = rec.get("classification", "interaction")
         if cls in exclude_labels:
             excluded_counts[cls] = excluded_counts.get(cls, 0) + 1
-        else:
-            interaction_records.append(rec)
+            continue
+
+        # Filter 1: Minimum interaction time — <100ms is suspicious (scripted)
+        lat = (
+            rec.get("latency_ms") or
+            rec.get("meta", {}).get("latency_ms") or
+            rec.get("step", {}).get("latency_ms") or 0
+        )
+        if lat > 0 and lat < 100:
+            excluded_counts["too_fast"] = excluded_counts.get("too_fast", 0) + 1
+            continue
+
+        # Filter 2: Minimum output length — <5 chars is not real work
+        # (Generous threshold to avoid false positives on short valid responses)
+        output = rec.get("output", "") or rec.get("output_preview", "") or ""
+        if isinstance(output, str) and 0 < len(output.strip()) < 5:
+            excluded_counts["trivial_output"] = excluded_counts.get("trivial_output", 0) + 1
+            continue
+
+        # Filter 3: Duplicate input — same input hash >3 times doesn't count
+        input_text = rec.get("input", "") or rec.get("input_preview", "") or ""
+        if input_text:
+            inp_hash = _hashlib.md5(str(input_text).encode()).hexdigest()[:12]
+            _seen_input_hashes[inp_hash] = _seen_input_hashes.get(inp_hash, 0) + 1
+            if _seen_input_hashes[inp_hash] > 3:
+                excluded_counts["duplicate_input"] = excluded_counts.get("duplicate_input", 0) + 1
+                continue
+
+        interaction_records.append(rec)
 
     interactions = len(interaction_records)
 
