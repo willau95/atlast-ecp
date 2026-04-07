@@ -280,11 +280,47 @@ def compute_trust_signals(records: list[dict]) -> dict:
         "error_rate": round(agent_errors / total_interactions, 4) if total_interactions else 0.0,
         "infra_error_rate": round(infra_errors / total, 4) if total else 0.0,
         "human_review_rate": round(_flag_count("human_review", agent_records) / total_interactions, 4) if total_interactions else 0.0,
-        "chain_integrity": 1.0 if chain_ok else 0.0,
+        "chain_integrity": _chain_integrity_ratio(records),
         "avg_latency_ms": int(statistics.mean(latencies)) if latencies else 0,
         "reliability": reliability,
         "availability": availability,
     }
+
+
+def _chain_integrity_ratio(records: list[dict]) -> float:
+    """Return chain integrity as 0.0-1.0 ratio (visited/total)."""
+    if len(records) <= 1:
+        return 1.0
+    chained = [r for r in records if r.get("chain", {}).get("hash")]
+    if not chained:
+        return 1.0
+    genesis = [r for r in chained if r.get("chain", {}).get("prev") == "genesis"]
+    if not genesis:
+        return 0.0
+    key_to_next: dict[str, list] = {}
+    for r in chained:
+        prev = r.get("chain", {}).get("prev")
+        if prev and prev != "genesis":
+            key_to_next.setdefault(prev, []).append(r)
+    visited = set()
+    for g in genesis:
+        current = g
+        visited.add(current["id"])
+        while True:
+            current_hash = current.get("chain", {}).get("hash", "")
+            current_id = current.get("id", "")
+            nexts = key_to_next.get(current_hash) or key_to_next.get(current_id)
+            if not nexts:
+                break
+            if len(nexts) > 1:
+                # Fork: still walk first branch, count what we can
+                current = nexts[0]
+            else:
+                current = nexts[0]
+            if current["id"] in visited:
+                break
+            visited.add(current["id"])
+    return round(len(visited) / len(chained), 4)
 
 
 def _check_chain_integrity(records: list[dict]) -> bool:
