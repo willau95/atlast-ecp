@@ -42,10 +42,16 @@ ATLAST_API = _get_api_url()
 _batch_timer: Optional[threading.Timer] = None
 _batch_lock = threading.Lock()
 
-# ─── Anti-Abuse Throttle (C6) ─────────────────────────────────────────────────
+# ─── Batch Policy ─────────────────────────────────────────────────────────────
+# Two triggers (whichever comes first):
+#   1. Record count >= BATCH_THRESHOLD → immediate batch
+#   2. Days since last batch >= BATCH_MAX_DAYS → batch regardless of count
+# This avoids wasteful per-hour batching while ensuring data gets anchored.
 import os as _os
 MIN_BATCH_INTERVAL_S = int(_os.environ.get("ATLAST_BATCH_INTERVAL", "60"))
 MAX_RECORDS_PER_BATCH = int(_os.environ.get("ATLAST_MAX_BATCH_SIZE", "1000"))
+BATCH_THRESHOLD = int(_os.environ.get("ATLAST_BATCH_THRESHOLD", "1000"))
+BATCH_MAX_DAYS = int(_os.environ.get("ATLAST_BATCH_MAX_DAYS", "7"))
 
 
 # ─── Merkle Tree ──────────────────────────────────────────────────────────────
@@ -331,9 +337,14 @@ def upload_merkle_root(
 
 def run_batch(flush: bool = False):
     """
-    Main batch processing function. Called hourly by scheduler.
+    Main batch processing function. Called periodically by scheduler.
     Collects records → builds Merkle tree → signs → uploads.
     Queues on failure for next run. NEVER raises.
+
+    Batch policy (unless flush=True):
+      - Only batch when: record_count >= BATCH_THRESHOLD (1000) OR
+        days since last batch >= BATCH_MAX_DAYS (7)
+      - This prevents wasteful micro-batches while ensuring data gets anchored.
     """
     with _batch_lock:
         try:
@@ -351,6 +362,28 @@ def run_batch(flush: bool = False):
             records, hashes = collect_batch(since_ts=since_ts)
             if not hashes:
                 return {"status": "empty", "record_count": 0}  # Nothing to batch
+
+            # Batch policy: only proceed if threshold met or max days elapsed
+            if not flush:
+                days_since_last = 0
+                if since_ts:
+                    days_since_last = (time.time() * 1000 - since_ts) / 1000 / 86400
+                else:
+                    days_since_last = BATCH_MAX_DAYS  # First batch ever — allow it
+
+                record_count = len(hashes)
+                threshold_met = record_count >= BATCH_THRESHOLD
+                time_met = days_since_last >= BATCH_MAX_DAYS
+
+                if not threshold_met and not time_met:
+                    return {
+                        "status": "waiting",
+                        "record_count": record_count,
+                        "threshold": BATCH_THRESHOLD,
+                        "days_since_last": round(days_since_last, 1),
+                        "max_days": BATCH_MAX_DAYS,
+                        "reason": f"{record_count}/{BATCH_THRESHOLD} records, {days_since_last:.1f}/{BATCH_MAX_DAYS} days",
+                    }
 
             # Anti-abuse throttle (C6): cap records per batch
             if len(hashes) > MAX_RECORDS_PER_BATCH:
@@ -486,12 +519,23 @@ def _retry_queued():
 # ─── Scheduler ────────────────────────────────────────────────────────────────
 
 def start_scheduler(interval_seconds: int = 3600):
-    """Start hourly batch scheduler (background daemon thread)."""
+    """Start batch scheduler (background daemon thread).
+
+    Checks every hour whether batch policy is met:
+      - >= 1000 records since last batch → upload
+      - >= 7 days since last batch → upload
+    Otherwise just logs "waiting" and checks again next hour.
+    """
     global _batch_timer
+    import logging
+    _logger = logging.getLogger(__name__)
 
     def _scheduled_run():
         global _batch_timer
-        run_batch()
+        result = run_batch()
+        status = result.get("status", "unknown") if isinstance(result, dict) else "unknown"
+        if status == "waiting":
+            _logger.debug("Batch check: %s", result.get("reason", ""))
         _batch_timer = threading.Timer(interval_seconds, _scheduled_run)
         _batch_timer.daemon = True
         _batch_timer.start()
