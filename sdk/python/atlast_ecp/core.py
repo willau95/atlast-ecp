@@ -199,7 +199,15 @@ def record_minimal(
     """
     try:
         out_text = _extract_text(output_content)
-        flags = detect_flags(out_text, latency_ms=latency_ms)
+        # Extract final_response for flag detection (avoid code false positives)
+        flag_text = out_text
+        if isinstance(output_content, str) and output_content.strip().startswith('{"final_response"'):
+            try:
+                import json as _json
+                flag_text = _json.loads(output_content).get("final_response", out_text)
+            except (ValueError, TypeError):
+                pass
+        flags = detect_flags(flag_text, latency_ms=latency_ms)
 
         meta: dict[str, Any] = {}
         if model:
@@ -277,7 +285,19 @@ def record_minimal_v2(
     """
     try:
         out_text = _extract_text(output_content)
-        auto_flags = detect_flags(out_text, latency_ms=latency_ms)
+        # For aggregated records (JSON with final_response + tool_calls),
+        # only detect flags from the final_response text — NOT from code
+        # inside tool_calls (which would cause false positives like "Error:"
+        # in error handling code being flagged as agent error)
+        flag_text = out_text
+        if isinstance(output_content, str) and output_content.strip().startswith('{"final_response"'):
+            try:
+                import json as _json
+                _parsed = _json.loads(output_content)
+                flag_text = _parsed.get("final_response", out_text)
+            except (ValueError, TypeError):
+                pass
+        auto_flags = detect_flags(flag_text, latency_ms=latency_ms)
         # Merge externally provided flags (e.g. infra_error from proxy)
         if flags:
             flags = list(set(auto_flags or []) | set(flags))
