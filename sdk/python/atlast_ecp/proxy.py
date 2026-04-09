@@ -46,29 +46,47 @@ except ImportError:
 
 # ─── Provider Detection ───────────────────────────────────────────────────────
 
-# Map of path patterns → provider name
+# Map of path patterns → provider name (format-based, not vendor-locked)
+# Any API that uses the same path format is automatically supported.
 PROVIDER_ROUTES = {
-    "/v1/chat/completions": "openai",      # OpenAI + all compatible (Qwen, Kimi, DeepSeek, Yi, Groq, Together)
-    "/v1/completions": "openai",            # Legacy completions
-    "/v1/embeddings": "openai",             # Embeddings
-    "/v1/messages": "anthropic",            # Anthropic
-    "/v1/text/chatcompletion": "minimax",   # MiniMax
+    # OpenAI-compatible format (covers: OpenAI, Ollama, Groq, Together, Qwen,
+    # Kimi, DeepSeek, Yi, Mistral, Azure OpenAI, LM Studio, vLLM, LocalAI,
+    # and any other service using the OpenAI API format)
+    "/v1/chat/completions": "openai",
+    "/v1/completions": "openai",
+    "/v1/embeddings": "openai",
+    # Anthropic format
+    "/v1/messages": "anthropic",
+    # MiniMax format
+    "/v1/text/chatcompletion": "minimax",
+    # Ollama native format (non-OpenAI mode)
+    "/api/chat": "ollama",
+    "/api/generate": "ollama",
+    # Azure OpenAI format
+    "/openai/deployments": "openai",
 }
 
 
 def _detect_provider(path: str) -> str:
-    """Detect API provider from request path."""
+    """Detect API provider from request path.
+
+    Format-based detection: any service using the same API format
+    is automatically supported without code changes.
+    """
     for pattern, provider in PROVIDER_ROUTES.items():
         if path.startswith(pattern):
             return provider
     if "/v1beta/models/" in path and "generateContent" in path:
         return "gemini"
+    # Fallback: if path contains known keywords, make a best guess
+    if "chat" in path or "completions" in path or "messages" in path:
+        return "openai"  # Assume OpenAI-compatible format
     return "unknown"
 
 
 def _detect_action(path: str) -> str:
     """Map request path to ECP action type."""
-    if "chat/completions" in path or "messages" in path or "chatcompletion" in path or "generateContent" in path:
+    if "chat" in path or "completions" in path or "messages" in path or "generateContent" in path or "generate" in path:
         return "llm_call"
     if "embeddings" in path:
         return "tool_call"
@@ -83,16 +101,19 @@ DEFAULT_UPSTREAMS = {
     "anthropic": "https://api.anthropic.com",
     "gemini": "https://generativelanguage.googleapis.com",
     "minimax": "https://api.minimax.chat",
+    "ollama": "http://127.0.0.1:11434",
 }
 
 # Env vars that might contain the original upstream URL
 UPSTREAM_ENV_VARS = [
-    "ATLAST_UPSTREAM_URL",       # Explicit override
-    "ATLAST_OPENAI_UPSTREAM",    # Per-provider
+    "ATLAST_UPSTREAM_URL",       # Explicit override (any provider)
+    "ATLAST_OPENAI_UPSTREAM",    # Per-provider overrides
     "ATLAST_ANTHROPIC_UPSTREAM",
+    "ATLAST_OLLAMA_UPSTREAM",
     "OPENAI_API_BASE",           # Legacy OpenAI
     "OPENAI_BASE_URL_ORIGINAL",  # Saved by atlast run
     "ANTHROPIC_BASE_URL_ORIGINAL",
+    "OLLAMA_HOST",               # Ollama custom host
 ]
 
 
@@ -146,11 +167,18 @@ def _extract_tokens_from_response(body: bytes, provider: str) -> tuple:
     try:
         data = json.loads(body)
         usage = data.get("usage", {})
-        if provider == "openai":
-            return usage.get("prompt_tokens"), usage.get("completion_tokens")
+        if provider in ("openai", "ollama"):
+            # OpenAI and Ollama-compatible format
+            tin = usage.get("prompt_tokens") or usage.get("prompt_eval_count")
+            tout = usage.get("completion_tokens") or usage.get("eval_count")
+            return tin, tout
         elif provider == "anthropic":
             return usage.get("input_tokens"), usage.get("output_tokens")
-        return None, None
+        # Generic fallback: try common field names
+        return (
+            usage.get("prompt_tokens") or usage.get("input_tokens"),
+            usage.get("completion_tokens") or usage.get("output_tokens"),
+        )
     except Exception:
         return None, None
 
@@ -826,7 +854,15 @@ class ATLASTProxy:
         sync_is_error = False
         try:
             resp_json = json.loads(resp_body)
-            if provider in ("openai", "minimax"):
+            if provider == "ollama":
+                # Ollama native /api/chat format
+                msg = resp_json.get("message", {})
+                sync_stop_reason = "stop" if resp_json.get("done") else None
+                if msg.get("tool_calls"):
+                    for tc in msg["tool_calls"]:
+                        fn = tc.get("function", {})
+                        sync_tool_calls.append({"name": fn.get("name", ""), "input": fn.get("arguments", {})})
+            elif provider in ("openai", "minimax"):
                 for choice in resp_json.get("choices", []):
                     sync_stop_reason = choice.get("finish_reason")
                     msg = choice.get("message", {})
