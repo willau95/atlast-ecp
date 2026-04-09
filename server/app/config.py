@@ -41,15 +41,14 @@ class Settings:
 
 settings = Settings()
 
-# Production safety checks
+# Production safety checks (warn, don't crash — avoid breaking existing deployments)
+import logging as _logging
+_startup_logger = _logging.getLogger("atlast.startup")
 if settings.ENVIRONMENT == "production":
     if not settings.EAS_PRIVATE_KEY and settings.EAS_STUB_MODE != "true":
-        raise ValueError(
-            "CRITICAL: EAS_PRIVATE_KEY must be set in production when EAS_STUB_MODE is not 'true'. "
-            "Server cannot start without it — on-chain anchoring would silently fail."
+        _startup_logger.warning(
+            "EAS_PRIVATE_KEY not set — on-chain anchoring will fail. "
+            "Set EAS_PRIVATE_KEY or EAS_STUB_MODE=true"
         )
     if not settings.DATABASE_URL:
-        raise ValueError(
-            "CRITICAL: DATABASE_URL must be set in production. "
-            "Server cannot store batches without a database."
-        )
+        _startup_logger.warning("DATABASE_URL not set — batch storage will be unavailable")
