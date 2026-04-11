@@ -322,9 +322,45 @@ def list_agents(as_json: bool = False) -> list[dict]:
         agent_errors = max(0, min(legacy_agent_errors, interactions))
 
         did = row[0]
+        agent_name = did_map.get(did, did.split(":")[-1][:12] if did else "unknown")
+
+        # Detect agent framework from name and record patterns
+        name_lower = (agent_name or "").lower()
+        did_lower = (did or "").lower()
+        if "claude-code" in name_lower or "claude-code" in did_lower:
+            framework = "claude-code"
+        elif "hermes" in name_lower or "hermes" in did_lower:
+            framework = "hermes"
+        elif name_lower in ("elena", "felix", "kaito", "nadia", "marco", "ziwei", "sportbot"):
+            framework = "openclaw"
+        elif did.startswith("did:ecp:") and agent_name != did:
+            # Has a friendly name from OpenClaw identity dir
+            framework = "openclaw"
+        else:
+            # Check action field — "session" = Claude Code hooks, "llm_call" = proxy
+            try:
+                _db2 = _get_db()
+                action_row = _db2.execute(
+                    "SELECT action FROM records WHERE agent = ? AND action != '' LIMIT 1", (did,)
+                ).fetchone()
+                _db2.close()
+                if action_row:
+                    action = action_row[0]
+                    if action == "session":
+                        framework = "claude-code"
+                    elif action == "llm_call":
+                        framework = "proxy"
+                    else:
+                        framework = "sdk"
+                else:
+                    framework = "unknown"
+            except Exception:
+                framework = "unknown"
+
         agents.append({
             "agent": did,
-            "agent_name": did_map.get(did, did.split(":")[-1][:12] if did else "unknown"),
+            "agent_name": agent_name,
+            "framework": framework,
             "total_records": total,
             "interactions": interactions,
             "agent_errors": agent_errors,
