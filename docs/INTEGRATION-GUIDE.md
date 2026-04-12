@@ -96,7 +96,7 @@ Add this to your platform's documentation or onboarding flow:
 **Terminal (not through AI agent):**
 
 ```bash
-pip3 install atlast-ecp --break-system-packages
+pip3 install atlast-ecp
 atlast init
 ```
 

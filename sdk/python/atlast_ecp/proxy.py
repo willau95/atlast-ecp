@@ -199,7 +199,7 @@ def _reconstruct_sse_content(chunks: bytes, provider: str) -> dict:
         content_parts = []
         tool_calls_map: dict[int, dict] = {}  # index → {name, input_json_parts}
         tool_calls_anthropic: list[dict] = []
-        current_tool_block: dict | None = None
+        current_tool_block: Optional[dict] = None
 
         for line in text.split("\n"):
             line = line.strip()

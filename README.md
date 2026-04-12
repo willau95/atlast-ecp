@@ -142,9 +142,8 @@ Copy this and paste it to your AI agent:
 >
 > Step 1 — Install:
 > ```
-> pip3 install atlast-ecp --break-system-packages
+> pip3 install atlast-ecp
 > ```
-> If `--break-system-packages` fails, try `pip3 install atlast-ecp` or `pip install atlast-ecp`.
 >
 > Step 2 — Initialize (generates your unique identity + local storage):
 > ```
