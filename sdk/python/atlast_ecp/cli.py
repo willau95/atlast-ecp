@@ -1354,10 +1354,11 @@ def main():
         _log("ERROR recording main: %s" % e)
 
     # Record subagent activity
-    # Subagents are at: {session_dir}/subagents/agent-*.jsonl
+    # Transcript: {project}/{session_uuid}.jsonl (file)
+    # Subagents:  {project}/{session_uuid}/subagents/agent-*.jsonl (dir)
     if transcript_path:
         try:
-            session_dir = transcript_path.parent
+            session_dir = transcript_path.parent / transcript_path.stem
             subagent_dir = session_dir / "subagents"
             if subagent_dir.exists():
                 sa_dedup_file = ecp_dir / "hook_buffer" / "_subagents_recorded.json"
