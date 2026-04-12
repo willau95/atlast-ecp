@@ -88,7 +88,7 @@ class TestCmdInit:
              patch("atlast_ecp.identity.get_or_create_identity", return_value={"did": "did:ecp:test12345678", "verified": True}):
             cmd_init([])
         out = capsys.readouterr().out
-        assert "Identity: ✅ created" in out
+        assert "Identity:" in out and "Installation Complete" in out
 
 
 class TestCmdDid:

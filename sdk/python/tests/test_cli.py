@@ -23,8 +23,8 @@ class TestCLIInit:
         from atlast_ecp.cli import cmd_init
         cmd_init([])
         captured = capsys.readouterr()
-        assert "ATLAST ECP initialized" in captured.out
-        assert "Identity: ✅ created" in captured.out
+        assert "Installation Complete" in captured.out
+        assert "Identity:" in captured.out
 
     def test_init_creates_identity(self, capsys):
         from atlast_ecp.cli import cmd_init

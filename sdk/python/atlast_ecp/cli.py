@@ -585,186 +585,151 @@ def cmd_init(args: list[str]):
     non_interactive = "--non-interactive" in args or not sys.stdin.isatty()
     do_upgrade = "--upgrade" in args
 
-    print("\n🔗 ATLAST ECP initialized")
-    print(f"  Storage: {ECP_DIR}/records/ (local, private)")
+    if skip_identity:
+        print("\n  Identity: skipped (run 'atlast init' to create DID)")
+        print("  Next: echo '{\"in\":\"prompt\",\"out\":\"response\"}' | atlast record\n")
+        return
 
-    if not skip_identity:
-        from .identity import get_or_create_identity
-        identity = get_or_create_identity()
+    # ── Do all setup silently, collect results ──
+    # Suppress intermediate prints — we output ONE clean block at the end
+    import io as _io
+    _real_stdout = sys.stdout
 
-        # Handle --upgrade: regenerate Ed25519 identity if currently fallback
-        if do_upgrade and not identity.get("verified"):
-            try:
-                from nacl.signing import SigningKey
-                import json
-                import stat
-                sk = SigningKey.generate()
-                pub = sk.verify_key.encode().hex()
-                priv = sk.encode().hex()
-                old_did = identity.get("did", "")
-                identity["pub_key"] = pub
-                identity["priv_key"] = priv
-                identity["verified"] = True
-                # Write back
-                id_file = ECP_DIR / "identity.json"
-                id_file.write_text(json.dumps(identity, indent=2))
-                try:
-                    id_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
-                except OSError:
-                    pass
-                print(f"  ⬆️  Upgraded to Ed25519! (DID unchanged: {old_did})")
-            except ImportError:
-                print("  ⚠️  Cannot upgrade: install PyNaCl first (pip install pynacl)")
+    from .identity import get_or_create_identity
+    identity = get_or_create_identity()
 
-        # Show identity info — friendly for non-technical users
-        did_short = identity['did'].split(':')[-1][:8]  # first 8 chars
-        is_ed25519 = identity.get('verified', False)
-        print(f"  Identity: ✅ created (ID: ...{did_short})")
-        if not is_ed25519:
-            # Silently try to auto-upgrade to Ed25519
-            try:
-                from nacl.signing import SigningKey
-                import stat
-                import json
-                sk = SigningKey.generate()
-                identity["pub_key"] = sk.verify_key.encode().hex()
-                identity["priv_key"] = sk.encode().hex()
-                identity["verified"] = True
-                id_file = ECP_DIR / "identity.json"
-                id_file.write_text(json.dumps(identity, indent=2))
-                try:
-                    id_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
-                except OSError:
-                    pass
-                print("  Security: ✅ Ed25519 (strong)")
-            except ImportError:
-                print("  Security: ✅ ready (upgrade with: pip install pynacl)")
+    # Auto-upgrade to Ed25519 if needed
+    is_ed25519 = identity.get('verified', False)
+    if not is_ed25519 or (do_upgrade and not is_ed25519):
+        try:
+            from nacl.signing import SigningKey
+            import stat, json as _json
+            sk = SigningKey.generate()
+            identity["pub_key"] = sk.verify_key.encode().hex()
+            identity["priv_key"] = sk.encode().hex()
+            identity["verified"] = True
+            id_file = ECP_DIR / "identity.json"
+            id_file.write_text(_json.dumps(identity, indent=2))
+            try: id_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
+            except OSError: pass
+            is_ed25519 = True
+        except ImportError:
+            pass
 
-        else:
-            print("  Security: ✅ Ed25519 (strong)")
-
-        # Show recovery phrase for NEW identities + save to file
-        mnemonic = identity.get("_mnemonic")
-        if mnemonic:
+    # Save recovery phrase to file (for new identities)
+    mnemonic = identity.get("_mnemonic")
+    phrase_saved = False
+    if mnemonic:
+        try:
+            import stat
             from .recovery import format_mnemonic_display
             phrase_display = format_mnemonic_display(mnemonic)
-            print("\n  🔑 RECOVERY PHRASE — write this down and store safely:")
-            for line in phrase_display.split("\n"):
-                print(f"  {line}")
-            print("\n  ⚠️  This is the ONLY way to recover your identity if lost.")
-            # Save phrase to secure file so user can retrieve it
-            try:
-                import stat
-                phrase_file = ECP_DIR / "RECOVERY-PHRASE.txt"
-                phrase_file.write_text(
-                    "ATLAST ECP Recovery Phrase\n"
-                    "========================\n\n"
-                    "Keep this file safe. Delete after writing down the phrase.\n\n"
-                    + phrase_display + "\n"
-                )
-                try:
-                    phrase_file.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 600
-                except OSError:
-                    pass
-                print(f"  📁 Saved to: {phrase_file}")
-                print("     Delete this file after writing down the phrase.\n")
-            except Exception:
-                print("  ⚠️  It will NOT be shown again.\n")
-
-        # Ask for vault backup location
-        if not non_interactive and mnemonic:
-            _ask_backup_location()
-
-        # Auto-register with server (silent on failure)
-        try:
-            _auto_register(identity)
-            print("  Server: ✅ registered")
-        except Exception:
-            print("  Server: 📁 offline mode (records saved locally, sync later with: atlast register)")
-
-        # Auto-setup: detect OpenClaw agent, start proxy, configure routing
-        proxy_port = _auto_setup_proxy(identity)
-
-        # Auto-setup: detect Claude Code, install hooks
-        claude_hooks_installed = _auto_setup_claude_code()
-
-        # ── Fixed post-install guide ──
-        # Save a persistent file so the user always has the guide,
-        # regardless of how the LLM summarizes the output.
-        from .storage import ECP_DIR
-        try:
-            from . import __version__ as _ver
-        except Exception:
-            _ver = "?"
-        did_display = identity.get("did", "unknown")
-
-        guide_lines = [
-            "=" * 60,
-            "  ATLAST ECP — Installation Complete",
-            "=" * 60,
-            "",
-            f"  Status:    Ready",
-            f"  Version:   {_ver}",
-            f"  Agent ID:  {did_display}",
-            f"  Security:  {'Ed25519 (strong)' if identity.get('verified') else 'Basic'}",
-            f"  Proxy:     {'Port ' + str(proxy_port) + ' (running)' if proxy_port else 'Not started'}",
-            f"  Hooks:     {'Claude Code (PostToolUse + Stop)' if claude_hooks_installed else 'None'}",
-            f"  Storage:   {ECP_DIR}/records/",
-            "",
-            "-" * 60,
-            "  NEXT STEPS (you MUST do these for recording to work):",
-            "-" * 60,
-            "",
-        ]
-        if claude_hooks_installed:
-            guide_lines += [
-                "  1. RESTART Claude Code:",
-                "     Type /exit, then run 'claude' again.",
-                "",
-            ]
-        if proxy_port:
-            guide_lines += [
-                "  2. RESTART your AI agent (Hermes, LangChain, etc.):",
-                "     Kill the running process, open a NEW terminal,",
-                "     then re-run your agent.",
-                "     (OPENAI_BASE_URL is auto-set in ~/.zshrc)",
-                "",
-            ]
-        guide_lines += [
-            "-" * 60,
-            "  USEFUL COMMANDS:",
-            "-" * 60,
-            "",
-            "  View dashboard:  python3 -m atlast_ecp.cli dashboard",
-            "                   Then open http://localhost:3827",
-            "",
-            "  Check status:    python3 -m atlast_ecp.cli doctor",
-            "  View records:    python3 -m atlast_ecp.cli log",
-            "  View stats:      python3 -m atlast_ecp.cli stats",
-            "",
-            "=" * 60,
-        ]
-
-        guide_text = "\n".join(guide_lines)
-
-        # Save to file — user can always read this back
-        guide_file = ECP_DIR / "INSTALL-GUIDE.txt"
-        try:
-            guide_file.write_text(guide_text)
+            phrase_file = ECP_DIR / "RECOVERY-PHRASE.txt"
+            phrase_file.write_text(
+                "ATLAST ECP Recovery Phrase\n"
+                "=========================\n\n"
+                "Keep this safe. Delete after writing it down.\n\n"
+                + phrase_display + "\n"
+            )
+            try: phrase_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
+            except OSError: pass
+            phrase_saved = True
         except Exception:
             pass
 
-        # Print to stdout
-        print("")
-        print(guide_text)
-        print("")
-        print(f"  This guide is saved at: {guide_file}")
-        print(f"  Read it anytime: cat {guide_file}")
-        print("")
-    else:
-        print("  Identity: skipped (run 'atlast init' to create DID)")
-        print("\n  Next: echo '{\"in\":\"prompt\",\"out\":\"response\"}' | atlast record")
-    print()
+    # Ask for vault backup (interactive only, new identity only)
+    if not non_interactive and mnemonic:
+        _ask_backup_location()
+
+    # Register with server (silent)
+    server_ok = False
+    try:
+        sys.stdout = _io.StringIO()
+        _auto_register(identity)
+        server_ok = True
+    except Exception:
+        pass
+    finally:
+        sys.stdout = _real_stdout
+
+    # Start proxy (silent)
+    try:
+        sys.stdout = _io.StringIO()
+        proxy_port = _auto_setup_proxy(identity)
+    except Exception:
+        proxy_port = 0
+    finally:
+        sys.stdout = _real_stdout
+
+    # Install Claude Code hooks (silent)
+    try:
+        sys.stdout = _io.StringIO()
+        claude_hooks = _auto_setup_claude_code()
+    except Exception:
+        claude_hooks = False
+    finally:
+        sys.stdout = _real_stdout
+
+    # ── Now output ONE fixed status block ──
+    try:
+        from . import __version__ as _ver
+    except Exception:
+        _ver = "?"
+
+    did = identity.get("did", "?")
+    security = "Ed25519" if is_ed25519 else "Basic"
+    proxy_status = "Port %d (running)" % proxy_port if proxy_port else "Not started"
+    hooks_status = "Claude Code (PostToolUse + Stop)" if claude_hooks else "None"
+    server_status = "Registered" if server_ok else "Offline (local mode)"
+
+    output = f"""
+============================================================
+  ATLAST ECP v{_ver} — Installation Complete
+============================================================
+
+  Identity:  {did}
+  Security:  {security}
+  Proxy:     {proxy_status}
+  Hooks:     {hooks_status}
+  Server:    {server_status}
+  Storage:   {ECP_DIR}/records/
+{"" if not phrase_saved else f"  Recovery:  Saved to {ECP_DIR}/RECOVERY-PHRASE.txt"}
+------------------------------------------------------------
+  !! IMPORTANT — You MUST restart your agent !!
+------------------------------------------------------------
+
+  Claude Code:
+    → Type /exit, then run 'claude' again
+
+  Other agents (Hermes, LangChain, etc.):
+    → Kill the process
+    → Open a NEW terminal
+    → Re-run your agent
+    (OPENAI_BASE_URL is auto-configured in ~/.zshrc)
+
+------------------------------------------------------------
+  Commands
+------------------------------------------------------------
+
+  Dashboard:   python3 -m atlast_ecp.cli dashboard
+               Then open: http://localhost:3827
+
+  Status:      python3 -m atlast_ecp.cli doctor
+  Records:     python3 -m atlast_ecp.cli log
+  Stats:       python3 -m atlast_ecp.cli stats
+
+============================================================
+  Full guide saved: {ECP_DIR}/INSTALL-GUIDE.txt
+============================================================
+"""
+    # Save to file
+    try:
+        (ECP_DIR / "INSTALL-GUIDE.txt").write_text(output)
+    except Exception:
+        pass
+
+    # Print — this is the ONLY output the LLM sees
+    print(output)
 
 
 def _write_env_to_shell_profile(key: str, value: str):
