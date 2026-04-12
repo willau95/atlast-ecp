@@ -670,8 +670,10 @@ def cmd_init(args: list[str]):
         # Auto-setup: detect Claude Code, install hooks
         _auto_setup_claude_code()
 
-        print("\n  ✅ All set! Your agent's work is now being recorded.")
-        print("     Use your agent normally — evidence is captured automatically.")
+        print("\n  ✅ ATLAST ECP is ready!")
+        print("     • Claude Code: restart your session, then it records automatically")
+        print("     • Other agents: set OPENAI_BASE_URL=http://127.0.0.1:5765 and restart")
+        print("     • Dashboard: python3 -m atlast_ecp.cli dashboard")
     else:
         print("  Identity: skipped (run 'atlast init' to create DID)")
         print("\n  Next: echo '{\"in\":\"prompt\",\"out\":\"response\"}' | atlast record")
@@ -686,25 +688,35 @@ def _auto_setup_proxy(identity: dict):
     import sys
     from pathlib import Path
 
+    # 0. Check if proxy is already running — don't start a second one
+    def _is_port_in_use(port: int) -> bool:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("127.0.0.1", port))
+                return False
+            except OSError:
+                return True
+
+    if _is_port_in_use(5765):
+        print("  Recording: ✅ proxy already running on port 5765")
+        print(f"     Your agent's API calls are being recorded.")
+        print(f"     Ensure: export OPENAI_BASE_URL=http://127.0.0.1:5765")
+        return
+
     # 1. Detect OpenClaw agent from environment
     profile = os.environ.get("OPENCLAW_PROFILE", "")
     state_dir = os.environ.get("OPENCLAW_STATE_DIR", "")
     is_openclaw = False
     if not profile and not state_dir:
-        # Try to detect from ~/.openclaw-* directories
         home = Path.home()
         candidates = sorted(home.glob(".openclaw-*"))
         candidates = [d for d in candidates if d.is_dir() and "backup" not in d.name]
-        if len(candidates) == 1:
+        if len(candidates) >= 1:
             state_dir = str(candidates[0])
             profile = candidates[0].name.replace(".openclaw-", "")
             is_openclaw = True
-        elif len(candidates) > 1:
-            # Multiple OpenClaw agents — pick first, still start proxy
-            state_dir = str(candidates[0])
-            profile = candidates[0].name.replace(".openclaw-", "")
-            is_openclaw = True
-            print(f"  Recording: 📡 multiple OpenClaw agents found, using '{profile}'")
+            if len(candidates) > 1:
+                print(f"  Recording: 📡 multiple OpenClaw agents found, using '{profile}'")
     else:
         is_openclaw = True
 
@@ -714,17 +726,8 @@ def _auto_setup_proxy(identity: dict):
     else:
         state_path = Path.home() / f".openclaw-{profile}" if profile else None
 
-    # 2. Find a free port for proxy (use fixed 5765 if available, otherwise random)
-    def _find_free_port(preferred: int = 5765) -> int:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(("127.0.0.1", preferred))
-                return preferred
-            except OSError:
-                s.bind(("127.0.0.1", 0))
-                return s.getsockname()[1]
-
-    proxy_port = _find_free_port()
+    # 2. Use fixed port 5765
+    proxy_port = 5765
 
     # 3. Get ECP dir
     ecp_dir = os.environ.get("ATLAST_ECP_DIR", str(Path.home() / ".ecp"))
@@ -784,12 +787,12 @@ run_proxy(port={proxy_port}, agent="{agent_name}")
             print("  Routing: ✅ LLM calls → proxy → recorded")
         except Exception as e:
             print(f"  Routing: ⚠️  could not configure auto-routing: {e}")
-            print(f"     Set ANTHROPIC_BASE_URL=http://127.0.0.1:{proxy_port}")
-    else:
-        # Generic agent: tell user to set env var
-        print(f"  Routing: ✅ proxy ready on port {proxy_port}")
-        print(f"     To record API calls, set: export OPENAI_BASE_URL=http://127.0.0.1:{proxy_port}")
-        print(f"     Or: export ANTHROPIC_BASE_URL=http://127.0.0.1:{proxy_port}")
+
+    # Always print env var instructions — works for ALL agents
+    print(f"\n  📡 To record any agent's API calls, set this env var:")
+    print(f"     export OPENAI_BASE_URL=http://127.0.0.1:{proxy_port}")
+    print(f"     export ANTHROPIC_BASE_URL=http://127.0.0.1:{proxy_port}")
+    print(f"     Then restart your agent for it to take effect.")
 
     # 6. Create LaunchAgent for persistence (macOS)
     if sys.platform == "darwin":
