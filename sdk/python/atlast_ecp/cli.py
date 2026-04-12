@@ -643,15 +643,33 @@ def cmd_init(args: list[str]):
         else:
             print("  Security: ✅ Ed25519 (strong)")
 
-        # Show recovery phrase for NEW identities
+        # Show recovery phrase for NEW identities + save to file
         mnemonic = identity.get("_mnemonic")
         if mnemonic:
             from .recovery import format_mnemonic_display
+            phrase_display = format_mnemonic_display(mnemonic)
             print("\n  🔑 RECOVERY PHRASE — write this down and store safely:")
-            for line in format_mnemonic_display(mnemonic).split("\n"):
+            for line in phrase_display.split("\n"):
                 print(f"  {line}")
             print("\n  ⚠️  This is the ONLY way to recover your identity if lost.")
-            print("  ⚠️  It will NOT be shown again.\n")
+            # Save phrase to secure file so user can retrieve it
+            try:
+                import stat
+                phrase_file = ECP_DIR / "RECOVERY-PHRASE.txt"
+                phrase_file.write_text(
+                    "ATLAST ECP Recovery Phrase\n"
+                    "========================\n\n"
+                    "Keep this file safe. Delete after writing down the phrase.\n\n"
+                    + phrase_display + "\n"
+                )
+                try:
+                    phrase_file.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 600
+                except OSError:
+                    pass
+                print(f"  📁 Saved to: {phrase_file}")
+                print("     Delete this file after writing down the phrase.\n")
+            except Exception:
+                print("  ⚠️  It will NOT be shown again.\n")
 
         # Ask for vault backup location
         if not non_interactive and mnemonic:
@@ -670,45 +688,79 @@ def cmd_init(args: list[str]):
         # Auto-setup: detect Claude Code, install hooks
         claude_hooks_installed = _auto_setup_claude_code()
 
-        # ── Fixed post-install status card ──
-        # This output must be consistent regardless of which LLM runs it.
-        # It tells the user (or the LLM relaying to the user) exactly what happened
-        # and what to do next.
+        # ── Fixed post-install guide ──
+        # Save a persistent file so the user always has the guide,
+        # regardless of how the LLM summarizes the output.
+        from .storage import ECP_DIR
+        try:
+            from . import __version__ as _ver
+        except Exception:
+            _ver = "?"
         did_display = identity.get("did", "unknown")
-        print("")
-        print("╔══════════════════════════════════════════════════════════════╗")
-        print("║              ATLAST ECP — Installation Complete             ║")
-        print("╠══════════════════════════════════════════════════════════════╣")
-        print("║                                                            ║")
-        print("║  Status:    ✅ Ready                                        ║")
-        print(f"║  Version:   {__import__('atlast_ecp').__version__ if hasattr(__import__('atlast_ecp'), '__version__') else '?':45s}║")
-        print(f"║  Agent ID:  {did_display[-16:]:45s}║")
-        print(f"║  Security:  {'Ed25519 (strong)' if identity.get('verified') else 'Basic':45s}║")
-        print(f"║  Proxy:     {'Port ' + str(proxy_port) + ' (running)' if proxy_port else 'Not started':45s}║")
-        print(f"║  Hooks:     {'Claude Code (PostToolUse + Stop)' if claude_hooks_installed else 'None':45s}║")
-        print(f"║  Storage:   ~/.ecp/records/{'':<33s}║")
-        print("║                                                            ║")
-        print("╠══════════════════════════════════════════════════════════════╣")
-        print("║                                                            ║")
-        print("║  ⚠️  NEXT STEPS (required):                                 ║")
-        print("║                                                            ║")
+
+        guide_lines = [
+            "=" * 60,
+            "  ATLAST ECP — Installation Complete",
+            "=" * 60,
+            "",
+            f"  Status:    Ready",
+            f"  Version:   {_ver}",
+            f"  Agent ID:  {did_display}",
+            f"  Security:  {'Ed25519 (strong)' if identity.get('verified') else 'Basic'}",
+            f"  Proxy:     {'Port ' + str(proxy_port) + ' (running)' if proxy_port else 'Not started'}",
+            f"  Hooks:     {'Claude Code (PostToolUse + Stop)' if claude_hooks_installed else 'None'}",
+            f"  Storage:   {ECP_DIR}/records/",
+            "",
+            "-" * 60,
+            "  NEXT STEPS (you MUST do these for recording to work):",
+            "-" * 60,
+            "",
+        ]
         if claude_hooks_installed:
-            print("║  1. RESTART Claude Code:                                   ║")
-            print("║     Type /exit, then run 'claude' again                    ║")
-            print("║                                                            ║")
+            guide_lines += [
+                "  1. RESTART Claude Code:",
+                "     Type /exit, then run 'claude' again.",
+                "",
+            ]
         if proxy_port:
-            print("║  2. RESTART your AI agent (Hermes, etc.):                  ║")
-            print("║     Kill the process, open a NEW terminal, re-run it       ║")
-            print("║     (env vars are auto-configured in ~/.zshrc)             ║")
-            print("║                                                            ║")
-        print("║  📊 VIEW DASHBOARD:                                         ║")
-        print("║     python3 -m atlast_ecp.cli dashboard                     ║")
-        print("║     Then open http://localhost:3827 in your browser          ║")
-        print("║                                                            ║")
-        print("║  📋 CHECK STATUS:                                           ║")
-        print("║     python3 -m atlast_ecp.cli doctor                        ║")
-        print("║                                                            ║")
-        print("╚══════════════════════════════════════════════════════════════╝")
+            guide_lines += [
+                "  2. RESTART your AI agent (Hermes, LangChain, etc.):",
+                "     Kill the running process, open a NEW terminal,",
+                "     then re-run your agent.",
+                "     (OPENAI_BASE_URL is auto-set in ~/.zshrc)",
+                "",
+            ]
+        guide_lines += [
+            "-" * 60,
+            "  USEFUL COMMANDS:",
+            "-" * 60,
+            "",
+            "  View dashboard:  python3 -m atlast_ecp.cli dashboard",
+            "                   Then open http://localhost:3827",
+            "",
+            "  Check status:    python3 -m atlast_ecp.cli doctor",
+            "  View records:    python3 -m atlast_ecp.cli log",
+            "  View stats:      python3 -m atlast_ecp.cli stats",
+            "",
+            "=" * 60,
+        ]
+
+        guide_text = "\n".join(guide_lines)
+
+        # Save to file — user can always read this back
+        guide_file = ECP_DIR / "INSTALL-GUIDE.txt"
+        try:
+            guide_file.write_text(guide_text)
+        except Exception:
+            pass
+
+        # Print to stdout
+        print("")
+        print(guide_text)
+        print("")
+        print(f"  This guide is saved at: {guide_file}")
+        print(f"  Read it anytime: cat {guide_file}")
+        print("")
     else:
         print("  Identity: skipped (run 'atlast init' to create DID)")
         print("\n  Next: echo '{\"in\":\"prompt\",\"out\":\"response\"}' | atlast record")
@@ -911,6 +963,7 @@ def _auto_setup_claude_code() -> bool:
     """Auto-detect Claude Code and install recording hooks. Returns True if hooks installed."""
     from pathlib import Path
     import json
+    import subprocess
 
     claude_dir = Path.home() / ".claude"
     if not claude_dir.exists():
