@@ -74,12 +74,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def _handle_api(self, path: str, params: dict):
         try:
-            # Auto-flush stale Claude Code buffers before serving data
+            # Auto-flush stale Claude Code buffers + rebuild index before serving
             try:
                 from .flush import flush_stale_buffers
                 flush_stale_buffers()
             except Exception:
-                pass  # Fail-Open
+                pass
+            try:
+                from .query import rebuild_index
+                rebuild_index()
+            except Exception:
+                pass
             result = self._dispatch_api(path, params)
             self._json_response(200, result)
         except Exception as e:
