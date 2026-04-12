@@ -875,8 +875,18 @@ run_proxy(port={proxy_port}, agent="{agent_name}")
         except Exception as e:
             print(f"  Routing: ⚠️  could not configure auto-routing: {e}")
 
-    # Auto-write OPENAI_BASE_URL to shell profile for persistence
+    # Save original upstream URLs BEFORE overwriting (so proxy knows where to forward)
     proxy_url = f"http://127.0.0.1:{proxy_port}"
+    orig_openai = os.environ.get("OPENAI_BASE_URL", "")
+    orig_anthropic = os.environ.get("ANTHROPIC_BASE_URL", "")
+    if orig_openai and "127.0.0.1" not in orig_openai:
+        _write_env_to_shell_profile("OPENAI_BASE_URL_ORIGINAL", orig_openai)
+        os.environ["OPENAI_BASE_URL_ORIGINAL"] = orig_openai
+    if orig_anthropic and "127.0.0.1" not in orig_anthropic:
+        _write_env_to_shell_profile("ANTHROPIC_BASE_URL_ORIGINAL", orig_anthropic)
+        os.environ["ANTHROPIC_BASE_URL_ORIGINAL"] = orig_anthropic
+
+    # Now set proxy as the base URL
     _write_env_to_shell_profile("OPENAI_BASE_URL", proxy_url)
     _write_env_to_shell_profile("ANTHROPIC_BASE_URL", proxy_url)
     print(f"\n  📡 API routing configured:")

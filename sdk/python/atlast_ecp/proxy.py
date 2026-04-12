@@ -104,6 +104,20 @@ DEFAULT_UPSTREAMS = {
     "ollama": "http://127.0.0.1:11434",
 }
 
+# Additional trusted API domains that can be used via X-Real-API-URL header
+TRUSTED_API_DOMAINS = {
+    "openrouter.ai", "api.openrouter.ai",
+    "api.together.xyz",
+    "api.groq.com",
+    "api.deepseek.com",
+    "api.mistral.ai",
+    "api.fireworks.ai",
+    "api.perplexity.ai",
+    "api.cohere.ai", "api.cohere.com",
+    "generativelanguage.googleapis.com",
+    "api.x.ai",
+}
+
 # Env vars that might contain the original upstream URL
 UPSTREAM_ENV_VARS = [
     "ATLAST_UPSTREAM_URL",       # Explicit override (any provider)
@@ -119,11 +133,24 @@ UPSTREAM_ENV_VARS = [
 
 def _resolve_upstream(request_headers: dict, provider: str) -> str:
     """Determine the real upstream API URL."""
+    # 0. Auto-detect by API key prefix (OpenRouter, Together, Groq, etc.)
+    auth = request_headers.get("Authorization") or request_headers.get("authorization") or ""
+    api_key = request_headers.get("x-api-key") or request_headers.get("X-Api-Key") or ""
+    bearer = auth.replace("Bearer ", "").strip() if auth.startswith("Bearer ") else ""
+    key = bearer or api_key
+    if key.startswith("sk-or-"):
+        return "https://openrouter.ai/api"
+    if key.startswith("gsk_"):
+        return "https://api.groq.com/openai"
+    if key.startswith("xai-"):
+        return "https://api.x.ai"
+
     # 1. Explicit header override (validated against known domains)
     explicit = request_headers.get("X-Real-API-URL") or request_headers.get("x-real-api-url")
     if explicit:
         from urllib.parse import urlparse
         allowed_domains = set(urlparse(u).netloc for u in DEFAULT_UPSTREAMS.values())
+        allowed_domains.update(TRUSTED_API_DOMAINS)
         # Also allow env-configured upstreams
         for var in UPSTREAM_ENV_VARS:
             val = os.environ.get(var)
