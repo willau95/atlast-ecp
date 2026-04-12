@@ -1088,107 +1088,160 @@ if __name__ == "__main__":
             pass  # Keep venv python as fallback
     hook_command = f"{python_bin} {hook_file}"
 
-    # Also create a Stop hook script that flushes conversation on every response
+    # Also create a Stop hook script that records conversation on every response
     stop_hook_file = plugins_dir / "atlast_ecp_stop_hook.py"
-    stop_hook_file.write_text('''"""ATLAST ECP — Claude Code Stop hook. Fires after EVERY response (including pure chat)."""
-import json, os, sys, time
+    stop_hook_file.write_text('''"""ATLAST ECP — Claude Code Stop hook.
+Fires after EVERY Claude Code response (including pure chat).
+Reads the session transcript and records the latest conversation turn.
+"""
+import json, os, sys, time, logging
 from pathlib import Path
+
+LOG_FILE = Path.home() / ".ecp" / "hook_debug.log"
+
+def _log(msg):
+    """Debug log to file (never print to stdout — would corrupt Claude Code)."""
+    try:
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG_FILE, "a") as f:
+            f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\\n")
+    except:
+        pass
+
+def _find_transcript():
+    """Find the most recently modified session .jsonl file."""
+    claude_dir = Path.home() / ".claude" / "projects"
+    if not claude_dir.exists():
+        return None
+
+    # Collect ALL .jsonl files recursively, excluding subagent files
+    candidates = []
+    for f in claude_dir.rglob("*.jsonl"):
+        # Skip subagent transcripts and non-session files
+        if "/subagents/" in str(f) or f.name == "history.jsonl":
+            continue
+        try:
+            if f.stat().st_size > 50:
+                candidates.append(f)
+        except:
+            pass
+
+    if not candidates:
+        return None
+
+    # Return the most recently modified
+    candidates.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+    return candidates[0]
 
 def main():
     """Read the latest conversation turn from transcript and record it."""
+    _log("Stop hook fired")
+
+    # Read hook data from stdin
     try:
-        from atlast_ecp.core import record_minimal
+        data = json.load(sys.stdin) if not sys.stdin.isatty() else {}
+    except:
+        data = {}
 
-        # Read hook data from stdin
-        try:
-            data = json.load(sys.stdin) if not sys.stdin.isatty() else {}
-        except:
-            data = {}
+    # Find transcript
+    transcript_path = _find_transcript()
+    if not transcript_path:
+        _log("ERROR: no transcript found")
+        return
+    _log(f"Transcript: {transcript_path}")
 
-        # Find transcript — look for the most recent session
-        claude_dir = Path.home() / ".claude" / "projects"
-        transcript_path = None
-        if claude_dir.exists():
-            # Find most recently modified transcript
-            transcripts = []
-            for session_dir in claude_dir.rglob("*.jsonl"):
-                if session_dir.name in ("transcript.jsonl", "history.jsonl"):
-                    continue
-                # Session JSONL files
-            # Actually look for the session transcript directly
-            for proj in claude_dir.iterdir():
-                if proj.is_dir():
-                    for f in sorted(proj.glob("*.jsonl"), key=lambda x: x.stat().st_mtime, reverse=True):
-                        if f.stat().st_size > 100:
-                            transcript_path = f
-                            break
-                if transcript_path:
-                    break
-
-        if not transcript_path or not transcript_path.exists():
-            return  # No transcript found
-
-        # Parse transcript — find the last user message and last assistant response
-        entries = []
+    # Parse transcript entries
+    entries = []
+    try:
         for line in transcript_path.read_text().splitlines():
             if line.strip():
                 try:
                     entries.append(json.loads(line))
                 except:
                     pass
+    except Exception as e:
+        _log(f"ERROR reading transcript: {e}")
+        return
 
-        if not entries:
-            return
+    if not entries:
+        _log("ERROR: transcript empty")
+        return
+    _log(f"Entries: {len(entries)}")
 
-        # Find last user message
-        last_user_msg = None
-        last_assistant_msg = None
-        last_model = None
-        for e in reversed(entries):
-            if e.get("type") == "assistant" and not last_assistant_msg:
-                msg = e.get("message", {})
-                last_model = msg.get("model", "claude")
-                content = msg.get("content", [])
-                if isinstance(content, list):
-                    texts = [b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"]
-                    if texts:
-                        last_assistant_msg = "\\n".join(texts)[:3000]
-            elif e.get("type") == "user" and not last_user_msg:
-                c = e.get("message", {}).get("content", "")
-                if isinstance(c, str) and len(c.strip()) > 0 and not c.startswith("<"):
-                    last_user_msg = c[:1000]
-            if last_user_msg and last_assistant_msg:
-                break
+    # Find last user message + last assistant response
+    last_user_msg = None
+    last_assistant_msg = None
+    last_model = None
+    for e in reversed(entries):
+        if e.get("type") == "assistant" and not last_assistant_msg:
+            msg = e.get("message", {})
+            last_model = msg.get("model", "claude")
+            content = msg.get("content", [])
+            if isinstance(content, list):
+                texts = [b.get("text", "") for b in content
+                         if isinstance(b, dict) and b.get("type") == "text"]
+                if texts:
+                    last_assistant_msg = "\\n".join(texts)[:3000]
+            elif isinstance(content, str) and content.strip():
+                last_assistant_msg = content[:3000]
+        elif e.get("type") == "user" and not last_user_msg:
+            c = e.get("message", {}).get("content", "")
+            if isinstance(c, str) and len(c.strip()) > 0 and not c.startswith("<"):
+                last_user_msg = c[:1000]
+            elif isinstance(c, list):
+                # Content can be list of blocks
+                texts = [b.get("text", "") for b in c if isinstance(b, dict) and b.get("type") == "text"]
+                combined = " ".join(texts).strip()
+                if combined and not combined.startswith("<"):
+                    last_user_msg = combined[:1000]
+        if last_user_msg and last_assistant_msg:
+            break
 
-        if not last_user_msg:
-            return
+    if not last_user_msg:
+        _log("No user message found in transcript")
+        return
 
-        # Deduplicate: check if we already recorded this exact input recently
-        dedup_file = Path(os.environ.get("ATLAST_ECP_DIR", str(Path.home() / ".ecp"))) / "hook_buffer" / "_last_recorded.txt"
-        dedup_file.parent.mkdir(parents=True, exist_ok=True)
-        dedup_key = f"{last_user_msg[:100]}|{len(entries)}"
-        if dedup_file.exists() and dedup_file.read_text().strip() == dedup_key:
-            return  # Already recorded this turn
-        dedup_file.write_text(dedup_key)
+    _log(f"User: {last_user_msg[:60]}...")
+    _log(f"Model: {last_model}")
 
-        # Also check hook_buffer for pending tool calls and include them
-        buffer_dir = Path(os.environ.get("ATLAST_ECP_DIR", str(Path.home() / ".ecp"))) / "hook_buffer"
-        tool_count = 0
-        for bf in buffer_dir.glob("*.json"):
-            if bf.name.startswith("_"):
-                continue
-            try:
-                buf = json.loads(bf.read_text())
-                tool_count += len(buf.get("steps", []))
-                bf.unlink(missing_ok=True)
-            except:
-                pass
+    # Deduplicate
+    ecp_dir = Path(os.environ.get("ATLAST_ECP_DIR", str(Path.home() / ".ecp")))
+    dedup_file = ecp_dir / "hook_buffer" / "_last_recorded.txt"
+    dedup_file.parent.mkdir(parents=True, exist_ok=True)
+    dedup_key = f"{last_user_msg[:100]}|{len(entries)}"
+    if dedup_file.exists():
+        try:
+            if dedup_file.read_text().strip() == dedup_key:
+                _log("Dedup: already recorded this turn")
+                return
+        except:
+            pass
+    dedup_file.write_text(dedup_key)
 
-        output = last_assistant_msg or "(no response)"
-        if tool_count > 0:
-            meta = json.dumps({"_aggregated": True, "steps": tool_count, "tool_names": []})
-            output = meta + "\\n" + output
+    # Merge pending tool buffers
+    buffer_dir = ecp_dir / "hook_buffer"
+    tool_count = 0
+    tool_names = []
+    for bf in buffer_dir.glob("*.json"):
+        if bf.name.startswith("_"):
+            continue
+        try:
+            buf = json.loads(bf.read_text())
+            steps = buf.get("steps", [])
+            tool_count += len(steps)
+            tool_names.extend(s.get("tool_name", "?") for s in steps)
+            bf.unlink(missing_ok=True)
+        except:
+            pass
 
+    output = last_assistant_msg or "(no response)"
+    if tool_count > 0:
+        meta = json.dumps({"_aggregated": True, "steps": tool_count, "tool_names": tool_names})
+        output = meta + "\\n" + output
+
+    # Record!
+    try:
+        from atlast_ecp.core import record_minimal
         record_minimal(
             input_content=last_user_msg,
             output_content=output,
@@ -1197,8 +1250,9 @@ def main():
             model=last_model or "claude",
             latency_ms=int(data.get("duration_ms", 0)),
         )
-    except Exception:
-        pass  # Fail-Open
+        _log(f"SUCCESS: recorded conversation")
+    except Exception as e:
+        _log(f"ERROR recording: {e}")
 
 if __name__ == "__main__":
     main()
@@ -1231,7 +1285,21 @@ if __name__ == "__main__":
 
     settings_file.parent.mkdir(parents=True, exist_ok=True)
     settings_file.write_text(json.dumps(settings, indent=2))
-    print("  Claude Code: ✅ recording hooks installed (PostToolUse + Stop)")
+
+    # Verify hook can actually execute (dry-run import test)
+    try:
+        verify = subprocess.run(
+            [python_bin, "-c", "from atlast_ecp.core import record_minimal; print('OK')"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if verify.returncode == 0 and "OK" in verify.stdout:
+            print("  Claude Code: ✅ hooks installed + verified (PostToolUse + Stop)")
+        else:
+            print(f"  Claude Code: ⚠️  hooks installed but verification failed: {verify.stderr.strip()[:100]}")
+            print(f"     Hook Python: {python_bin}")
+    except Exception as e:
+        print(f"  Claude Code: ⚠️  hooks installed but cannot verify: {e}")
+
     # Check if Claude Code is currently running — if so, warn to restart
     try:
         from .flush import _is_process_running
