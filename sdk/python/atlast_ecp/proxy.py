@@ -805,29 +805,48 @@ class ATLASTProxy:
         self._app = None
         self._model_agent_cache = {}  # model → agent name
 
-    def _agent_for_model(self, model: str) -> str:
-        """Derive a distinct agent name from the model.
-
-        E.g. 'z-ai/glm-5.1' → 'glm-5.1'
-             'google/gemma-4-31b-it' → 'gemma-4-31b-it'
-             'claude-3-5-haiku-20241022' → 'claude-3-5-haiku'
+    def _agent_for_request(self, model: str, req_body: bytes = b"") -> str:
+        """Derive agent name from request. Priority:
+        1. System prompt identity (e.g. "You are capital-manager") → capital-manager
+        2. Model name (e.g. z-ai/glm-5.1 → glm-5.1)
+        3. Fallback to self.agent
         """
+        # Try to extract agent identity from system prompt
+        if req_body:
+            try:
+                body = json.loads(req_body)
+                messages = body.get("messages", [])
+                for msg in messages:
+                    if msg.get("role") == "system":
+                        sys_content = msg.get("content", "")
+                        if sys_content:
+                            # Look for "You are {name}" or "I am {name}" patterns
+                            import re
+                            # Match: "You are capital-manager" or "You are Elena"
+                            m = re.search(r'(?:You are|I am|name is|called)\s+([A-Za-z][A-Za-z0-9_-]{1,30})', sys_content)
+                            if m:
+                                agent_id = m.group(1).lower()
+                                # Cache by system prompt hash + model
+                                cache_key = agent_id + ":" + (model or "")
+                                self._model_agent_cache[cache_key] = agent_id
+                                return agent_id
+                        break  # Only check first system message
+            except (json.JSONDecodeError, KeyError):
+                pass
+
         if not model:
             return self.agent
+
         if model in self._model_agent_cache:
             return self._model_agent_cache[model]
-        # Use the part after '/' if present (provider/model format)
+
+        # Derive from model name
         name = model.split("/")[-1] if "/" in model else model
-        # Remove version suffixes like -20241022
         import re
         name = re.sub(r'-\d{8,}$', '', name)
-        # Remove :free suffix
         name = name.replace(":free", "")
         self._model_agent_cache[model] = name
         return name
-        self.record_count = 0
-        self._app: Any = None
-        self._runner = None
 
     async def handle(self, request: web.Request) -> web.StreamResponse:
         """Main proxy handler — forward request, record ECP, return response."""
@@ -875,7 +894,7 @@ class ATLASTProxy:
             latency_ms = int((time.time() - t_start) * 1000)
             error_msg = json.dumps({"error": f"ATLAST Proxy error: {str(e)}"})
             _record_ecp(req_body, error_msg, request.path, provider,
-                         self._agent_for_model(model), model, latency_ms, http_status=502)
+                         self._agent_for_request(model, req_body), model, latency_ms, http_status=502)
             self.record_count += 1
             return web.Response(
                 text=error_msg,
@@ -936,7 +955,7 @@ class ATLASTProxy:
             pass
 
         _record_ecp(req_body, resp_text, request.path, provider,
-                     self._agent_for_model(model), model, latency_ms, tokens_in, tokens_out,
+                     self._agent_for_request(model, req_body), model, latency_ms, tokens_in, tokens_out,
                      http_status=resp.status,
                      stop_reason=sync_stop_reason,
                      tool_calls=sync_tool_calls if sync_tool_calls else None,
@@ -978,7 +997,7 @@ class ATLASTProxy:
         full_response = b"".join(chunks)
         sse_result = _reconstruct_sse_content(full_response, provider)
         _record_ecp(req_body, sse_result["content"], request.path, provider,
-                     self._agent_for_model(model), model, latency_ms,
+                     self._agent_for_request(model, req_body), model, latency_ms,
                      stop_reason=sse_result.get("stop_reason"),
                      tool_calls=sse_result.get("tool_calls"),
                      is_streaming=True,
