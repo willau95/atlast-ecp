@@ -230,6 +230,31 @@ class DashboardHandler(BaseHTTPRequestHandler):
             count = rebuild_index()
             return {"indexed": count}
 
+        elif path == "/api/version":
+            # Check current vs latest version on PyPI
+            try:
+                from . import __version__ as current
+            except Exception:
+                current = "?"
+            latest = current
+            update_available = False
+            try:
+                import urllib.request as _ur
+                resp = _ur.urlopen("https://pypi.org/pypi/atlast-ecp/json", timeout=5)
+                import json as _json
+                pypi = _json.loads(resp.read())
+                latest = pypi.get("info", {}).get("version", current)
+                if latest != current:
+                    update_available = True
+            except Exception:
+                pass
+            return {
+                "current": current,
+                "latest": latest,
+                "update_available": update_available,
+                "update_command": "pip3 install --upgrade atlast-ecp",
+            }
+
         elif path == "/api/stats":
             agent = params.get("agent", [None])[0]
             return self._get_stats(agent=agent)
