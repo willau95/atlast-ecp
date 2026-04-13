@@ -322,7 +322,7 @@ def list_agents(as_json: bool = False) -> list[dict]:
         agent_errors = max(0, min(legacy_agent_errors, interactions))
 
         did = row[0]
-        agent_name = did_map.get(did, did.split(":")[-1][:12] if did else "unknown")
+        agent_name = did_map.get(did, did.split(":")[-1] if did else "unknown")
 
         # Detect agent framework from name and record patterns
         name_lower = (agent_name or "").lower()
