@@ -641,14 +641,17 @@ def cmd_init(args: list[str]):
     if not non_interactive and mnemonic:
         _ask_backup_location()
 
+    # Track errors for automatic reporting
+    _init_errors = []
+
     # Register with server (silent)
     server_ok = False
     try:
         sys.stdout = _io.StringIO()
         _auto_register(identity)
         server_ok = True
-    except Exception:
-        pass
+    except Exception as e:
+        _init_errors.append(f"Server register: {e}")
     finally:
         sys.stdout = _real_stdout
 
@@ -656,8 +659,9 @@ def cmd_init(args: list[str]):
     try:
         sys.stdout = _io.StringIO()
         proxy_port = _auto_setup_proxy(identity)
-    except Exception:
+    except Exception as e:
         proxy_port = 0
+        _init_errors.append(f"Proxy start: {e}")
     finally:
         sys.stdout = _real_stdout
 
@@ -665,8 +669,9 @@ def cmd_init(args: list[str]):
     try:
         sys.stdout = _io.StringIO()
         claude_hooks = _auto_setup_claude_code()
-    except Exception:
+    except Exception as e:
         claude_hooks = False
+        _init_errors.append(f"Claude hooks: {e}")
     finally:
         sys.stdout = _real_stdout
 
@@ -735,6 +740,14 @@ def cmd_init(args: list[str]):
 
     # Print — this is the ONLY output the LLM sees
     print(output)
+
+    # Auto-send telemetry to Discord (silent, fail-open)
+    # Sends: version, OS, what worked/failed. No sensitive data.
+    _send_discord_alert("Init", {
+        "status": "OK" if not _init_errors else "ERRORS",
+        "context": f"DID: {did[-12:]}\nProxy: {proxy_status}\nHooks: {hooks_status}\nServer: {server_status}",
+        "errors": _init_errors if _init_errors else None,
+    }, silent=True)
 
 
 def _write_env_to_shell_profile(key: str, value: str):
@@ -2653,8 +2666,17 @@ def cmd_doctor(args: list[str]):
     print()
 
 
-def _send_discord_report(issues: list, fixed: list):
-    """Send diagnostic report to ATLAST Discord #bug-reports channel."""
+_DISCORD_WEBHOOK = "https://discordapp.com/api/webhooks/1493511460314153001/GuZhuB2gUZQsqXKKVBtbHYVuU4XLex1HzPw6g1fi0Ix6DpunLAni9KdzEhpeoIqSdyje"
+
+
+def _send_discord_alert(source: str, details: dict, silent: bool = False):
+    """Send alert to ATLAST Discord #bug-reports. Fail-open, never blocks.
+
+    Args:
+        source: "init", "doctor", "error", etc.
+        details: dict with context (issues, errors, version, etc.)
+        silent: if True, don't print anything to stdout
+    """
     import urllib.request
     import platform
     try:
@@ -2662,41 +2684,49 @@ def _send_discord_report(issues: list, fixed: list):
     except Exception:
         ver = "?"
 
-    report_lines = [
-        f"**ATLAST Doctor Report**",
-        f"Version: {ver}",
-        f"Python: {sys.version.split()[0]}",
-        f"OS: {platform.system()} {platform.release()}",
-        f"Machine: {platform.machine()}",
-        "",
+    lines = [
+        f"**ATLAST {source.upper()}**",
+        f"Version: {ver} | Python: {sys.version.split()[0]} | OS: {platform.system()} {platform.release()} {platform.machine()}",
     ]
-    if issues:
-        report_lines.append(f"**{len(issues)} issue(s):**")
-        for i in issues:
-            report_lines.append(f"• {i}")
-    if fixed:
-        report_lines.append(f"\n**{len(fixed)} auto-fixed:**")
-        for f in fixed:
-            report_lines.append(f"• {f}")
-    if not issues and not fixed:
-        report_lines.append("No issues found.")
 
-    payload = json.dumps({
-        "content": "\n".join(report_lines)[:1900],
-    })
+    if details.get("issues"):
+        lines.append(f"\n**{len(details['issues'])} issue(s):**")
+        for i in details["issues"]:
+            lines.append(f"• {i}")
 
-    webhook_url = "https://discordapp.com/api/webhooks/1493511460314153001/GuZhuB2gUZQsqXKKVBtbHYVuU4XLex1HzPw6g1fi0Ix6DpunLAni9KdzEhpeoIqSdyje"
+    if details.get("errors"):
+        lines.append(f"\n**Error(s):**")
+        for e in details["errors"]:
+            lines.append(f"```{str(e)[:200]}```")
+
+    if details.get("fixed"):
+        lines.append(f"\n**{len(details['fixed'])} auto-fixed:**")
+        for f in details["fixed"]:
+            lines.append(f"• {f}")
+
+    if details.get("status"):
+        lines.append(f"\n**Status:** {details['status']}")
+
+    if details.get("context"):
+        lines.append(f"\n{details['context']}")
+
+    payload = json.dumps({"content": "\n".join(lines)[:1900]})
     try:
         req = urllib.request.Request(
-            webhook_url,
+            _DISCORD_WEBHOOK,
             data=payload.encode(),
             headers={"Content-Type": "application/json"},
         )
         urllib.request.urlopen(req, timeout=10)
-        print("  ✅ Report sent to ATLAST Discord! We'll look into it.")
-    except Exception as e:
-        print(f"  ⚠️  Could not send report: {e}")
-        print("  Join Discord manually: https://discord.gg/gztk5Ud3C2")
+        if not silent:
+            print("  ✅ Report sent to ATLAST team.")
+    except Exception:
+        pass  # Fail-open
+
+
+def _send_discord_report(issues: list, fixed: list):
+    """Legacy wrapper for doctor --report."""
+    _send_discord_alert("Doctor Report", {"issues": issues, "fixed": fixed})
 
 
 def cmd_dashboard(args: list[str]):
