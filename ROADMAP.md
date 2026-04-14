@@ -1,40 +1,34 @@
-# ATLAST ECP Roadmap
+# ATLAST Protocol — Roadmap
 
-## ✅ Phase 1-4 — Foundation (Complete)
-- ECP SDK v0.7.0 (Python, 440+ tests)
-- ECP Server v1.0.0 (FastAPI, Railway)
-- EAS on-chain anchoring (Base Sepolia)
-- Framework adapters (LangChain, CrewAI, AutoGen)
-- Full E2E pipeline: SDK → batch → anchor → webhook
+## ✅ Shipped
+- Python SDK v0.25+ (PyPI: atlast-ecp, 830+ tests)
+- Go SDK (minimal ECP records, zero dependencies)
+- ECP Reference Server (FastAPI, Railway)
+- EAS on-chain anchoring (Base)
+- Framework support: Claude Code, Hermes, OpenClaw, LangChain, CrewAI, AutoGen
+- Universal proxy (any OpenAI/Anthropic/OpenRouter/Groq agent)
+- Trust Score (0-1000, Bayesian confidence scoring)
+- Local Dashboard with real-time analytics
+- Ed25519 cryptographic identity + SHA-256 hash chains
+- Subagent recording (full tool call details)
+- EU AI Act compliance foundation
+- Discord community + automated bug reporting
 
-## 🔄 Phase 5 — Market-Ready (In Progress)
-- TS SDK v0.2.0 with Merkle consistency fix
-- Server hardening (rate limiting, webhook retry, Prometheus)
-- Module stability labels (stable/beta/experimental)
-- INTERFACE-CONTRACT.md + ARCHITECTURE.md
-- Coverage + CI improvements
+## 🔄 In Progress
+- Base Mainnet full deployment
+- Community growth
+- LLAChat platform integration
+- Advanced Trust Score model
 
-## 📋 Phase 6 — Standards & Compliance
-- ECP-SPEC v2.0 formal specification
-- EU AI Act compliance mapping
-- IETF/W3C standards exploration
-- Insights Layer B (optimization recommendations)
-- Community engagement + developer docs
-
-## 📋 Phase 7 — Protocol Expansion
-- Base Mainnet migration
-- AIP (Agent Identity Protocol)
-- ASP (Agent Safety Protocol)
+## 📋 Next
 - Multi-chain support
-- Go SDK completion
-
-## 📋 Phase 8 — Platform
-- ECP Dashboard MVP
-- Enterprise tier
-- ACP (Agent Certification Protocol)
-- Self-hosted deployment guide
+- Enterprise deployment guide
+- Agent-to-Agent trust verification (A2A)
+- ECP-SPEC v2.0 formal specification
+- Mobile SDK
 
 ---
 
-> **Contributing**: See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get involved.  
-> **Questions**: Open a [GitHub Discussion](https://github.com/willau95/atlast-ecp/discussions).
+> **Contributing**: See [CONTRIBUTING.md](CONTRIBUTING.md)
+> **Discord**: [discord.gg/gztk5Ud3C2](https://discord.gg/gztk5Ud3C2)
+> **Questions**: Open a [GitHub Discussion](https://github.com/willau95/atlast-ecp/discussions)
