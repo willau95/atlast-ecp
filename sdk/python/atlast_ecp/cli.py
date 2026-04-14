@@ -741,13 +741,29 @@ def cmd_init(args: list[str]):
     # Print — this is the ONLY output the LLM sees
     print(output)
 
+    # If errors: ask for email so we can follow up
+    user_email = ""
+    if _init_errors and not non_interactive:
+        try:
+            user_email = input("  📧 Want us to help? Enter your email (or press Enter to skip): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            pass
+
     # Auto-send telemetry to Discord (silent, fail-open)
-    # Sends: version, OS, what worked/failed. No sensitive data.
+    contact = ""
+    if user_email:
+        contact = f"\n📧 **Contact: {user_email}**"
     _send_discord_alert("Init", {
         "status": "OK" if not _init_errors else "ERRORS",
-        "context": f"DID: {did[-12:]}\nProxy: {proxy_status}\nHooks: {hooks_status}\nServer: {server_status}",
+        "context": f"DID: {did}\nProxy: {proxy_status}\nHooks: {hooks_status}\nServer: {server_status}{contact}",
         "errors": _init_errors if _init_errors else None,
     }, silent=True)
+
+    if user_email:
+        print("  ✅ We'll reach out to help. You can also join Discord: https://discord.gg/gztk5Ud3C2\n")
+    elif _init_errors:
+        print("  💬 Need help? Join Discord: https://discord.gg/gztk5Ud3C2")
+        print("     Your ID: %s\n" % did)
 
 
 def _write_env_to_shell_profile(key: str, value: str):
@@ -2670,13 +2686,7 @@ _DISCORD_WEBHOOK = "https://discordapp.com/api/webhooks/1493511460314153001/GuZh
 
 
 def _send_discord_alert(source: str, details: dict, silent: bool = False):
-    """Send alert to ATLAST Discord #bug-reports. Fail-open, never blocks.
-
-    Args:
-        source: "init", "doctor", "error", etc.
-        details: dict with context (issues, errors, version, etc.)
-        silent: if True, don't print anything to stdout
-    """
+    """Send alert to ATLAST Discord #bug-reports. Fail-open, never blocks."""
     import urllib.request
     import platform
     try:
@@ -2684,31 +2694,31 @@ def _send_discord_alert(source: str, details: dict, silent: bool = False):
     except Exception:
         ver = "?"
 
+    status = details.get("status", "")
+    emoji = "✅" if status == "OK" else "❌" if status == "ERRORS" else "ℹ️"
+
     lines = [
-        f"**ATLAST {source.upper()}**",
+        f"{emoji} **ATLAST {source.upper()}** — {status}",
         f"Version: {ver} | Python: {sys.version.split()[0]} | OS: {platform.system()} {platform.release()} {platform.machine()}",
     ]
+
+    if details.get("context"):
+        lines.append(f"\n{details['context']}")
+
+    if details.get("errors"):
+        lines.append(f"\n⚠️ **Error(s):**")
+        for e in details["errors"]:
+            lines.append(f"• `{str(e)[:200]}`")
 
     if details.get("issues"):
         lines.append(f"\n**{len(details['issues'])} issue(s):**")
         for i in details["issues"]:
             lines.append(f"• {i}")
 
-    if details.get("errors"):
-        lines.append(f"\n**Error(s):**")
-        for e in details["errors"]:
-            lines.append(f"```{str(e)[:200]}```")
-
     if details.get("fixed"):
-        lines.append(f"\n**{len(details['fixed'])} auto-fixed:**")
+        lines.append(f"\n🔧 **{len(details['fixed'])} auto-fixed:**")
         for f in details["fixed"]:
             lines.append(f"• {f}")
-
-    if details.get("status"):
-        lines.append(f"\n**Status:** {details['status']}")
-
-    if details.get("context"):
-        lines.append(f"\n{details['context']}")
 
     payload = json.dumps({"content": "\n".join(lines)[:1900]})
     try:
