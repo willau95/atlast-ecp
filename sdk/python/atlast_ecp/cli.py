@@ -2640,7 +2640,63 @@ def cmd_doctor(args: list[str]):
             print(f"     • {i}")
         print()
         if "--fix" not in args:
-            print("  💡 Run 'atlast doctor --fix' to auto-fix what's possible.\n")
+            print("  💡 Run 'atlast doctor --fix' to auto-fix what's possible.")
+
+        # Offer to send bug report to Discord
+        print("  📨 Need help? Send this report to ATLAST team: atlast doctor --report")
+        if "--report" in args:
+            _send_discord_report(issues, fixed)
+
+    # Community links
+    print("  💬 Discord: https://discord.gg/gztk5Ud3C2")
+    print("  📧 Email:   atlastecp@gmail.com")
+    print()
+
+
+def _send_discord_report(issues: list, fixed: list):
+    """Send diagnostic report to ATLAST Discord #bug-reports channel."""
+    import urllib.request
+    import platform
+    try:
+        from . import __version__ as ver
+    except Exception:
+        ver = "?"
+
+    report_lines = [
+        f"**ATLAST Doctor Report**",
+        f"Version: {ver}",
+        f"Python: {sys.version.split()[0]}",
+        f"OS: {platform.system()} {platform.release()}",
+        f"Machine: {platform.machine()}",
+        "",
+    ]
+    if issues:
+        report_lines.append(f"**{len(issues)} issue(s):**")
+        for i in issues:
+            report_lines.append(f"• {i}")
+    if fixed:
+        report_lines.append(f"\n**{len(fixed)} auto-fixed:**")
+        for f in fixed:
+            report_lines.append(f"• {f}")
+    if not issues and not fixed:
+        report_lines.append("No issues found.")
+
+    payload = json.dumps({
+        "content": "\n".join(report_lines)[:1900],
+    })
+
+    webhook_url = "https://discordapp.com/api/webhooks/1493511460314153001/GuZhuB2gUZQsqXKKVBtbHYVuU4XLex1HzPw6g1fi0Ix6DpunLAni9KdzEhpeoIqSdyje"
+    try:
+        req = urllib.request.Request(
+            webhook_url,
+            data=payload.encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=10)
+        print("  ✅ Report sent to ATLAST Discord! We'll look into it.")
+    except Exception as e:
+        print(f"  ⚠️  Could not send report: {e}")
+        print("  Join Discord manually: https://discord.gg/gztk5Ud3C2")
 
 
 def cmd_dashboard(args: list[str]):
