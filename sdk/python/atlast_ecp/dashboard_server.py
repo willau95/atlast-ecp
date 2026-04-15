@@ -115,6 +115,26 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "active": get_active_incident(),
             }
 
+        # ── Evaluation ──
+        elif path == "/api/evaluation":
+            agent = params.get("agent", [None])[0]
+            days = int(params.get("days", ["30"])[0])
+            from .query import _ensure_index as _ei2, _get_db as _gdb2
+            _ei2()
+            from .evaluation import evaluate_records
+            db3 = _gdb2()
+            conds = ["1=1"]
+            p2 = []
+            if agent:
+                conds.append("agent = ?")
+                p2.append(agent)
+            rows = db3.execute(
+                "SELECT id, agent, ts, model, flags, input_preview, output_preview, error, is_infra FROM records WHERE %s ORDER BY ts DESC LIMIT 500" % " AND ".join(conds), p2
+            ).fetchall()
+            db3.close()
+            recs = [{"id":r[0],"agent":r[1],"ts":r[2],"model":r[3],"flags":r[4],"input_preview":r[5],"output_preview":r[6],"error":r[7],"is_infra":r[8]} for r in rows]
+            return evaluate_records(recs)
+
         # ── Clusters ──
         elif path == "/api/clusters":
             agent = params.get("agent", [None])[0]
