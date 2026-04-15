@@ -115,6 +115,28 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "active": get_active_incident(),
             }
 
+        # ── Clusters ──
+        elif path == "/api/clusters":
+            agent = params.get("agent", [None])[0]
+            days = int(params.get("days", ["30"])[0])
+            min_size = int(params.get("min_size", ["2"])[0])
+            # Get records for clustering
+            from .query import _ensure_index as _ei, _get_db as _gdb
+            _ei()
+            from .clustering import discover_clusters
+            db2 = _gdb()
+            conditions = ["error = 1 OR is_infra = 1"]
+            p = []
+            if agent:
+                conditions.append("agent = ?")
+                p.append(agent)
+            rows = db2.execute(
+                "SELECT id, agent, ts, model, latency_ms, flags, error, is_infra FROM records WHERE %s ORDER BY ts DESC LIMIT 500" % " AND ".join(conditions), p
+            ).fetchall()
+            db2.close()
+            recs = [{"id":r[0],"agent":r[1],"ts":r[2],"model":r[3],"latency_ms":r[4],"flags":r[5],"error":r[6],"is_infra":r[7]} for r in rows]
+            return {"clusters": discover_clusters(recs, min_cluster_size=min_size)}
+
         # ── Suggestions ──
         elif path == "/api/suggestions":
             agent = params.get("agent", [None])[0]
