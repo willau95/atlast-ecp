@@ -122,7 +122,34 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if not q:
                 return {"results": [], "error": "Query required"}
             from .embeddings import semantic_search
-            return {"results": semantic_search(q, limit=limit), "query": q}
+            hits = semantic_search(q, limit=limit)
+            if not hits:
+                return {"results": [], "query": q, "total": 0}
+            # Enrich with full record data
+            from .query import _ensure_index as _sei, _get_db as _sgdb
+            _sei()
+            db_s = _sgdb()
+            enriched = []
+            for h in hits:
+                row = db_s.execute(
+                    "SELECT id, agent, ts, date, step_type, action, model, latency_ms, confidence, "
+                    "session_id, chain_prev, chain_hash, flags, input_preview, output_preview, "
+                    "error, is_infra, tokens_in, tokens_out FROM records WHERE id = ?",
+                    (h["id"],)
+                ).fetchone()
+                if row:
+                    enriched.append({
+                        "id": row[0], "agent": row[1], "ts": row[2], "date": row[3],
+                        "step_type": row[4], "action": row[5], "model": row[6],
+                        "latency_ms": row[7], "confidence": row[8], "session_id": row[9],
+                        "chain_prev": row[10], "chain_hash": row[11], "flags": row[12],
+                        "input_preview": row[13], "output_preview": row[14],
+                        "error": row[15], "is_infra": row[16],
+                        "tokens_in": row[17], "tokens_out": row[18],
+                        "score": h["score"],
+                    })
+            db_s.close()
+            return {"results": enriched, "query": q, "total": len(enriched)}
 
         # ── Evaluation ──
         elif path == "/api/evaluation":
