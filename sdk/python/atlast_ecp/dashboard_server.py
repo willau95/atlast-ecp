@@ -115,6 +115,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "active": get_active_incident(),
             }
 
+        # ── Semantic Search ──
+        elif path == "/api/semantic-search":
+            q = params.get("q", [""])[0]
+            limit = int(params.get("limit", ["20"])[0])
+            if not q:
+                return {"results": [], "error": "Query required"}
+            from .embeddings import semantic_search
+            return {"results": semantic_search(q, limit=limit), "query": q}
+
         # ── Evaluation ──
         elif path == "/api/evaluation":
             agent = params.get("agent", [None])[0]
