@@ -95,8 +95,9 @@ async def check_gas_balance() -> tuple[bool, int]:
 
     try:
         from web3 import Web3
+        import os
         _USE_TESTNET = getattr(settings, 'EAS_CHAIN', 'sepolia') == 'sepolia'
-        rpc = "https://sepolia.base.org" if _USE_TESTNET else "https://mainnet.base.org"
+        rpc = "https://sepolia.base.org" if _USE_TESTNET else os.getenv("BASE_RPC_URL", "https://mainnet.base.org")
         w3 = Web3(Web3.HTTPProvider(rpc))
         account = w3.eth.account.from_key(private_key)
 
@@ -137,8 +138,9 @@ async def get_next_nonce() -> int | None:
 
     try:
         from web3 import Web3
+        import os
         _USE_TESTNET = getattr(settings, 'EAS_CHAIN', 'sepolia') == 'sepolia'
-        rpc = "https://sepolia.base.org" if _USE_TESTNET else "https://mainnet.base.org"
+        rpc = "https://sepolia.base.org" if _USE_TESTNET else os.getenv("BASE_RPC_URL", "https://mainnet.base.org")
         w3 = Web3(Web3.HTTPProvider(rpc))
         account = w3.eth.account.from_key(private_key)
 
