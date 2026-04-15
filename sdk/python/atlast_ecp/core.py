@@ -243,6 +243,13 @@ def record_minimal(
         from .record import _serialize_for_hash
         save_vault(rec["id"], _serialize_for_hash(input_content), _serialize_for_hash(output_content))
 
+        # Check for incidents (Fail-Open)
+        try:
+            from .incidents import check_record
+            check_record(rec)
+        except Exception:
+            pass
+
         return rec["id"]
     except Exception as _exc:
         _logger.warning("ecp record_minimal() failed: %s", _exc, exc_info=True)
@@ -345,6 +352,13 @@ def record_minimal_v2(
             output_content=output_content if isinstance(output_content, str) else str(output_content),
             extra=vault_extra,
         )
+
+        # Check for incidents (Fail-Open)
+        try:
+            from .incidents import check_record
+            check_record(rec)
+        except Exception:
+            pass
 
         return rec["id"]
     except Exception as _exc:
