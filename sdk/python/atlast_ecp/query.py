@@ -54,12 +54,13 @@ def _get_db() -> sqlite3.Connection:
             error_type TEXT DEFAULT '',
             tokens_in INTEGER DEFAULT 0,
             tokens_out INTEGER DEFAULT 0,
-            indexed_at INTEGER
+            indexed_at INTEGER,
+            thread_id TEXT DEFAULT ''
         )
     """)
     # Migrate: add columns if missing (for existing DBs)
     import sqlite3 as _sqlite3
-    for col, typ in [("is_infra","INTEGER DEFAULT 0"),("error_type","TEXT DEFAULT ''"),("tokens_in","INTEGER DEFAULT 0"),("tokens_out","INTEGER DEFAULT 0")]:
+    for col, typ in [("is_infra","INTEGER DEFAULT 0"),("error_type","TEXT DEFAULT ''"),("tokens_in","INTEGER DEFAULT 0"),("tokens_out","INTEGER DEFAULT 0"),("thread_id","TEXT DEFAULT ''")]:
         try:
             db.execute(f"ALTER TABLE records ADD COLUMN {col} {typ}")
         except _sqlite3.OperationalError:
@@ -68,6 +69,7 @@ def _get_db() -> sqlite3.Connection:
     db.execute("CREATE INDEX IF NOT EXISTS idx_records_agent ON records(agent)")
     db.execute("CREATE INDEX IF NOT EXISTS idx_records_session ON records(session_id)")
     db.execute("CREATE INDEX IF NOT EXISTS idx_records_date ON records(date)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_records_thread ON records(thread_id)")
     db.execute("""
         CREATE TABLE IF NOT EXISTS index_state (
             key TEXT PRIMARY KEY,
@@ -180,8 +182,8 @@ def rebuild_index(verbose: bool = False) -> int:
                     (id, agent, ts, date, step_type, action, model, latency_ms,
                      confidence, session_id, delegation_id, delegation_depth,
                      chain_prev, chain_hash, flags, input_preview, output_preview,
-                     error, is_infra, error_type, tokens_in, tokens_out, indexed_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     error, is_infra, error_type, tokens_in, tokens_out, indexed_at, thread_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     record_id,
                     r.get("agent", ""),
@@ -206,6 +208,7 @@ def rebuild_index(verbose: bool = False) -> int:
                     step.get("tokens_in") or meta.get("tokens_in", 0) or 0,
                     step.get("tokens_out") or meta.get("tokens_out", 0) or 0,
                     now_ms,
+                    step.get("thread_id") or meta.get("thread_id") or r.get("thread_id", ""),
                 ))
                 count += 1
             except Exception:
@@ -379,6 +382,99 @@ def _ensure_index():
         if (time.time() * 1000 - last_rebuild) < 300_000:  # 5 min
             return
     rebuild_index()
+
+
+# ── Threads ─────────────────────────────────────────────────────────────────
+
+
+def list_threads(
+    agent: Optional[str] = None,
+    limit: int = 20,
+    since: Optional[str] = None,
+    as_json: bool = False,
+) -> list:
+    """List conversation threads grouped by session_id.
+
+    A thread = all records sharing the same session_id (or inferred from
+    temporal proximity for records without session_id).
+    Returns: [{thread_id, agent, record_count, first_ts, last_ts, duration_ms,
+               first_input, last_output, model, has_error}]
+    """
+    _ensure_index()
+    db = _get_db()
+    conditions = ["session_id != ''"]
+    params: list = []
+    if agent:
+        conditions.append("agent = ?")
+        params.append(agent)
+    if since:
+        conditions.append("date >= ?")
+        params.append(since)
+    where = " AND ".join(conditions)
+
+    rows = db.execute(f"""
+        SELECT session_id, agent,
+               COUNT(*) as record_count,
+               MIN(ts) as first_ts,
+               MAX(ts) as last_ts,
+               MAX(ts) - MIN(ts) as duration_ms,
+               GROUP_CONCAT(DISTINCT model) as models,
+               MAX(error) as has_error
+        FROM records
+        WHERE {where}
+        GROUP BY session_id
+        HAVING record_count >= 1
+        ORDER BY last_ts DESC
+        LIMIT ?
+    """, params + [limit]).fetchall()
+    db.close()
+
+    threads = []
+    for row in rows:
+        threads.append({
+            "thread_id": row[0],
+            "agent": row[1],
+            "record_count": row[2],
+            "first_ts": row[3],
+            "last_ts": row[4],
+            "duration_ms": row[5],
+            "models": row[6],
+            "has_error": bool(row[7]),
+        })
+    return threads
+
+
+def get_thread(thread_id: str, as_json: bool = False) -> list:
+    """Get all records in a thread, ordered by timestamp."""
+    _ensure_index()
+    db = _get_db()
+    rows = db.execute("""
+        SELECT id, agent, ts, action, model, latency_ms, flags,
+               input_preview, output_preview, error, session_id, tokens_in, tokens_out
+        FROM records
+        WHERE session_id = ?
+        ORDER BY ts ASC
+    """, (thread_id,)).fetchall()
+    db.close()
+
+    records = []
+    for row in rows:
+        records.append({
+            "id": row[0],
+            "agent": row[1],
+            "ts": row[2],
+            "action": row[3],
+            "model": row[4],
+            "latency_ms": row[5],
+            "flags": row[6],
+            "input_preview": row[7],
+            "output_preview": row[8],
+            "error": row[9],
+            "session_id": row[10],
+            "tokens_in": row[11],
+            "tokens_out": row[12],
+        })
+    return records
 
 
 # ── Search ──────────────────────────────────────────────────────────────────

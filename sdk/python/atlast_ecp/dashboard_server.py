@@ -103,10 +103,20 @@ class DashboardHandler(BaseHTTPRequestHandler):
         return name  # fallback: return as-is
 
     def _dispatch_api(self, path: str, params: dict) -> dict:
-        from .query import search, trace, audit, timeline, rebuild_index, list_agents
+        from .query import search, trace, audit, timeline, rebuild_index, list_agents, list_threads, get_thread
+
+        # ── Threads: conversation grouping ──
+        if path == "/api/threads":
+            agent = params.get("agent", [None])[0]
+            limit = int(params.get("limit", ["20"])[0])
+            return {"threads": list_threads(agent=agent, limit=limit, as_json=True)}
+
+        elif path.startswith("/api/thread/"):
+            thread_id = path.replace("/api/thread/", "")
+            return {"thread_id": thread_id, "records": get_thread(thread_id, as_json=True)}
 
         # ── Agents: list all agents with stats ──
-        if path == "/api/agents":
+        elif path == "/api/agents":
             agents = list_agents(as_json=True)
             # Inject friendly names: keep DID in agent_did, show name in agent
             for a in agents:

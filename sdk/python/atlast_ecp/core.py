@@ -187,6 +187,7 @@ def record_minimal(
     session_id: Optional[str] = None,
     delegation_id: Optional[str] = None,
     delegation_depth: Optional[int] = None,
+    thread_id: Optional[str] = None,
 ) -> Optional[str]:
     """
     Minimal ECP recording. No identity, no chain, no signature.
@@ -226,6 +227,8 @@ def record_minimal(
             meta["delegation_id"] = delegation_id
         if delegation_depth is not None:
             meta["delegation_depth"] = delegation_depth
+        if thread_id:
+            meta["thread_id"] = thread_id
 
         rec = create_minimal_record(
             agent=agent,
@@ -260,6 +263,7 @@ def record_minimal_v2(
     delegation_depth: Optional[int] = None,
     vault_extra: Optional[dict] = None,
     flags: Optional[list] = None,
+    thread_id: Optional[str] = None,
 ) -> Optional[str]:
     """
     Minimal ECP recording with Vault v2 support (Proxy path).
@@ -321,6 +325,8 @@ def record_minimal_v2(
             meta["delegation_id"] = delegation_id
         if delegation_depth is not None:
             meta["delegation_depth"] = delegation_depth
+        if thread_id:
+            meta["thread_id"] = thread_id
 
         rec = create_minimal_record(
             agent=agent,

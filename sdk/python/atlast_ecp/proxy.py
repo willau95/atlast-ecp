@@ -796,6 +796,7 @@ def _record_ecp(req_body: bytes, resp_content: str, path: str, provider: str,
                     tokens_in=tokens_in,
                     tokens_out=tokens_out,
                     session_id=session_id,
+                    thread_id=session_id,  # Thread = session for proxy conversations
                     flags=list(set(agg_flags)) if agg_flags else None,
                     vault_extra=vault_extra,
                 )
