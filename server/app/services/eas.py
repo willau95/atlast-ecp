@@ -156,8 +156,8 @@ async def _live_attestation(
         except Exception:
             gas_limit = 500000  # Safe fallback
 
-        max_priority = w3.to_wei(0.01, 'gwei')
-        max_fee = max(base_fee * 3, max_priority * 2)
+        max_priority = w3.to_wei(1, 'gwei')
+        max_fee = max(base_fee * 5, max_priority * 2)
         tx = {
             "from": account.address,
             "to": EAS_CONTRACT,
