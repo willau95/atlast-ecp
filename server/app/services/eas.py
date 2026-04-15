@@ -12,6 +12,7 @@ EAS on Base:
 """
 
 import hashlib
+import os
 import time
 from typing import Optional
 from ..config import settings
@@ -23,7 +24,7 @@ EAS_CONTRACT = "0x4200000000000000000000000000000000000021"
 # Chain config: Base Sepolia (testnet, free) or Base mainnet
 _USE_TESTNET = getattr(settings, 'EAS_CHAIN', 'sepolia') == 'sepolia'
 BASE_CHAIN_ID = 84532 if _USE_TESTNET else 8453
-BASE_RPC = "https://sepolia.base.org" if _USE_TESTNET else "https://base.llamarpc.com"
+BASE_RPC = "https://sepolia.base.org" if _USE_TESTNET else os.getenv("BASE_RPC_URL", "https://mainnet.base.org")
 EAS_SCAN_BASE = "https://base-sepolia.easscan.org" if _USE_TESTNET else "https://base.easscan.org"
 
 
