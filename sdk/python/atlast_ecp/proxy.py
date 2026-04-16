@@ -173,7 +173,10 @@ def _resolve_upstream(request_headers: dict, provider: str) -> str:
                 allowed_domains.add(urlparse(val).netloc)
         parsed = urlparse(explicit)
         hostname = parsed.hostname or ""
-        is_local = hostname in ("localhost", "127.0.0.1", "0.0.0.0", "::1")
+        is_local = hostname in ("localhost", "127.0.0.1", "::1")
+        # Block cloud metadata and link-local (SSRF prevention)
+        if hostname and (hostname.startswith("169.254.") or hostname == "0.0.0.0"):
+            is_local = False
         if is_local or parsed.netloc in allowed_domains:
             return explicit.rstrip("/")
         else:

@@ -405,11 +405,29 @@ class DashboardHandler(BaseHTTPRequestHandler):
             try:
                 from .scoring_rules import classify_records, compute_trust_score_1000
                 from .signals import compute_trust_signals
-                from .batch import collect_batch
+                from .query import _ensure_index as _sei3, _get_db as _gdb3
+                _sei3()
+                db_sc = _gdb3()
                 agent = params.get("agent", [None])[0]
-                records_all, _ = collect_batch(since_ts=0)
                 if agent:
-                    records_all = [r for r in records_all if r.get("agent") == agent or r.get("agent_name") == agent]
+                    agent = self._resolve_agent_name(agent)
+                conds = ["1=1"]
+                p_sc = []
+                if agent:
+                    conds.append("agent = ?")
+                    p_sc.append(agent)
+                rows_sc = db_sc.execute(
+                    "SELECT id, agent, ts, model, latency_ms, flags, error, is_infra, "
+                    "tokens_in, tokens_out, input_preview, output_preview, chain_hash, chain_prev "
+                    "FROM records WHERE %s ORDER BY ts DESC LIMIT 2000" % " AND ".join(conds), p_sc
+                ).fetchall()
+                db_sc.close()
+                records_all = [{
+                    "id": r[0], "agent": r[1], "ts": r[2], "model": r[3],
+                    "latency_ms": r[4], "flags": r[5], "error": r[6], "is_infra": r[7],
+                    "tokens_in": r[8], "tokens_out": r[9], "input_preview": r[10],
+                    "output_preview": r[11], "chain_hash": r[12], "chain_prev": r[13],
+                } for r in rows_sc]
                 classified = classify_records(records_all)
                 trust_signals = compute_trust_signals(records_all)
                 chain_integrity = trust_signals.get("chain_integrity", 1.0)
