@@ -105,8 +105,64 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def _dispatch_api(self, path: str, params: dict) -> dict:
         from .query import search, trace, audit, timeline, rebuild_index, list_agents, list_threads, get_thread
 
+        # ── Token Analytics ──
+        if path == "/api/token-stats":
+            from .query import _ensure_index as _tei, _get_db as _tdb
+            _tei()
+            db_t = _tdb()
+            agent = params.get("agent", [None])[0]
+            if agent:
+                agent = self._resolve_agent_name(agent)
+            conds = ["1=1"]
+            p_t = []
+            if agent:
+                conds.append("agent = ?")
+                p_t.append(agent)
+            # Per-model stats
+            model_rows = db_t.execute(
+                "SELECT model, COUNT(*) as calls, "
+                "SUM(COALESCE(tokens_in,0)) as tin, SUM(COALESCE(tokens_out,0)) as tout, "
+                "AVG(CASE WHEN tokens_in > 0 THEN tokens_in END) as avg_in, "
+                "AVG(CASE WHEN tokens_out > 0 THEN tokens_out END) as avg_out, "
+                "SUM(CASE WHEN tokens_in > 0 OR tokens_out > 0 THEN 1 ELSE 0 END) as with_tok "
+                "FROM records WHERE %s AND model != '' GROUP BY model ORDER BY tin+tout DESC" % " AND ".join(conds), p_t
+            ).fetchall()
+            # Per-day timeline
+            day_rows = db_t.execute(
+                "SELECT date, SUM(COALESCE(tokens_in,0)) as tin, SUM(COALESCE(tokens_out,0)) as tout, "
+                "COUNT(*) as calls "
+                "FROM records WHERE %s GROUP BY date ORDER BY date" % " AND ".join(conds), p_t
+            ).fetchall()
+            # Totals
+            totals = db_t.execute(
+                "SELECT SUM(COALESCE(tokens_in,0)), SUM(COALESCE(tokens_out,0)), COUNT(*), "
+                "SUM(CASE WHEN tokens_in > 0 OR tokens_out > 0 THEN 1 ELSE 0 END) "
+                "FROM records WHERE %s" % " AND ".join(conds), p_t
+            ).fetchone()
+            db_t.close()
+
+            models = [{
+                "model": r[0], "calls": r[1], "tokens_in": r[2], "tokens_out": r[3],
+                "tokens_total": r[2] + r[3],
+                "avg_tokens_in": int(r[4] or 0), "avg_tokens_out": int(r[5] or 0),
+                "coverage": round(r[6] / max(r[1], 1) * 100, 1),
+            } for r in model_rows]
+
+            timeline = [{"date": r[0], "tokens_in": r[1], "tokens_out": r[2], "calls": r[3]} for r in day_rows]
+
+            return {
+                "total_tokens_in": totals[0] or 0,
+                "total_tokens_out": totals[1] or 0,
+                "total_tokens": (totals[0] or 0) + (totals[1] or 0),
+                "total_records": totals[2] or 0,
+                "records_with_tokens": totals[3] or 0,
+                "coverage_pct": round((totals[3] or 0) / max(totals[2] or 1, 1) * 100, 1),
+                "models": models,
+                "timeline": timeline,
+            }
+
         # ── Attestations (proxy to ATLAST server) ──
-        if path == "/api/attestations":
+        elif path == "/api/attestations":
             try:
                 import urllib.request as _ur2
                 resp = _ur2.urlopen("https://api.weba0.com/v1/attestations?limit=100", timeout=10)

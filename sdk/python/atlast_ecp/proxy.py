@@ -210,22 +210,38 @@ def _extract_model_from_request(body: bytes) -> str:
 
 
 def _extract_tokens_from_response(body: bytes, provider: str) -> tuple:
-    """Extract token counts from response body. Returns (tokens_in, tokens_out)."""
+    """Extract token counts from response body. Returns (tokens_in, tokens_out).
+    Handles: OpenAI, Anthropic, Ollama, Google Gemini, and generic formats.
+    """
     try:
         data = json.loads(body)
         usage = data.get("usage", {})
-        if provider in ("openai", "ollama"):
-            # OpenAI and Ollama-compatible format
-            tin = usage.get("prompt_tokens") or usage.get("prompt_eval_count")
-            tout = usage.get("completion_tokens") or usage.get("eval_count")
-            return tin, tout
-        elif provider == "anthropic":
-            return usage.get("input_tokens"), usage.get("output_tokens")
-        # Generic fallback: try common field names
-        return (
-            usage.get("prompt_tokens") or usage.get("input_tokens"),
-            usage.get("completion_tokens") or usage.get("output_tokens"),
-        )
+
+        # 1. Standard usage object (OpenAI, most providers)
+        tin = usage.get("prompt_tokens") or usage.get("input_tokens") or usage.get("prompt_eval_count")
+        tout = usage.get("completion_tokens") or usage.get("output_tokens") or usage.get("eval_count")
+
+        # 2. Ollama top-level fields (not in usage object)
+        if not tin:
+            tin = data.get("prompt_eval_count")
+        if not tout:
+            tout = data.get("eval_count")
+
+        # 3. Google Gemini format (usageMetadata)
+        if not tin and "usageMetadata" in data:
+            meta = data["usageMetadata"]
+            tin = meta.get("promptTokenCount")
+            tout = meta.get("candidatesTokenCount") or meta.get("totalTokenCount")
+
+        # 4. Nested in choices (some providers)
+        if not tin and "choices" in data:
+            for choice in data.get("choices", []):
+                u = choice.get("usage", {})
+                if u:
+                    tin = tin or u.get("prompt_tokens") or u.get("input_tokens")
+                    tout = tout or u.get("completion_tokens") or u.get("output_tokens")
+
+        return tin, tout
     except Exception:
         return None, None
 
