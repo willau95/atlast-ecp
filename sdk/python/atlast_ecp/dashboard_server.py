@@ -403,7 +403,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         elif path == "/api/scores":
             """Trust Score (0-1000) per agent. ?agent=name for specific agent."""
             try:
-                from .scoring_rules import classify_records, compute_trust_score_1000
+                from .scoring_rules import classify_records, compute_trust_score_v2
                 from .signals import compute_trust_signals
                 from .query import _ensure_index as _sei3, _get_db as _gdb3
                 _sei3()
@@ -431,7 +431,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 classified = classify_records(records_all)
                 trust_signals = compute_trust_signals(records_all)
                 chain_integrity = trust_signals.get("chain_integrity", 1.0)
-                result = compute_trust_score_1000(classified, chain_integrity=chain_integrity)
+                result = compute_trust_score_v2(classified, chain_integrity=chain_integrity)
                 from collections import Counter
                 labels = Counter(r.get("classification", "unknown") for r in classified)
                 result["classification_breakdown"] = dict(labels)

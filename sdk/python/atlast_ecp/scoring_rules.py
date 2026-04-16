@@ -463,6 +463,319 @@ def compute_trust_score_1000(classified_records: list[dict], chain_integrity: fl
     }
 
 
+# ─── Trust Score v2 — Legal-Grade Architecture ──────────────────────────────
+
+def compute_trust_score_v2(records: list[dict], chain_integrity: float = 1.0) -> dict:
+    """
+    ATLAST Trust Score v2 (0-1000) — Legal-Grade Reliability Architecture.
+
+    Philosophy: Score measures the OPERATIONAL RELIABILITY of the Agent+LLM
+    system when it is used. Not how often it's used (user's responsibility),
+    not how smart it is (subjective), but how reliably it operates.
+
+    Attribution principle:
+      - Agent errors (wrong tool, hallucination)     → COUNTS against score
+      - LLM provider errors (500, 429, timeout)      → EXCLUDED (not agent's fault)
+      - Infra errors (network, DNS, disk)             → EXCLUDED
+      - User interruptions (manual stop)              → EXCLUDED
+      - Evidence gaps (missing vault, broken chain)    → COUNTS (agent should ensure completeness)
+
+    5 dimensions:
+      1. Operational Reliability (35%) — time-weighted agent error-free rate
+      2. Evidence Completeness (25%)   — chain integrity + record field completeness
+      3. Behavioral Consistency (20%)  — stability over time (low variance)
+      4. Operational Maturity (10%)    — history length (not volume!)
+      5. Data Integrity (10%)          — anti-gaming checks
+
+    Score distribution target:
+      900+ : ~5%  (exceptional — months of consistent, complex, error-free work)
+      700-899: ~30% (good — reliable with minor issues)
+      500-699: ~45% (normal — new or moderately reliable agents)
+      300-499: ~15% (needs improvement)
+      <300  : ~5%  (problematic)
+
+    New agent starts at ~500 (Bayesian prior pulls toward center).
+    """
+    import math
+    from collections import defaultdict
+
+    if not records:
+        return _v2_empty_result()
+
+    raw = calculate_scores(records)
+    interactions = raw["interactions"]
+    total_records = raw["total_records"]
+
+    if interactions == 0:
+        return _v2_empty_result()
+
+    import time as _time
+    now_ms = int(_time.time() * 1000)  # Real current time, not max(ts)
+
+    # ═══════════════════════════════════════════════════════════
+    # DIMENSION 1: Operational Reliability (35%)
+    # Time-weighted Bayesian agent-error-free rate
+    # Recent performance matters more than historical
+    # ═══════════════════════════════════════════════════════════
+    recent_7d = 0; recent_7d_err = 0
+    recent_30d = 0; recent_30d_err = 0
+    older = 0; older_err = 0
+
+    for r in records:
+        ts = r.get("ts") or 0
+        is_agent_error = bool(r.get("error")) and not bool(r.get("is_infra"))
+        # Classify flags
+        flags = r.get("flags") or ""
+        if isinstance(flags, str):
+            try:
+                import json as _j
+                flags = _j.loads(flags)
+            except Exception:
+                flags = []
+        if not isinstance(flags, list):
+            flags = []
+
+        is_excluded = "infra_error" in flags or "system_error" in flags
+        if is_excluded:
+            continue  # Don't count infra/system errors at all
+
+        age_days = (now_ms - ts) / 86400000 if ts and now_ms else 999
+
+        if age_days <= 7:
+            recent_7d += 1
+            if is_agent_error: recent_7d_err += 1
+        elif age_days <= 30:
+            recent_30d += 1
+            if is_agent_error: recent_30d_err += 1
+        else:
+            older += 1
+            if is_agent_error: older_err += 1
+
+    # Weighted counts (recent 3x, mid 2x, old 1x)
+    w_total = recent_7d * 3 + recent_30d * 2 + older * 1
+    w_errors = recent_7d_err * 3 + recent_30d_err * 2 + older_err * 1
+
+    # Bayesian: prior = 2 successes / 4 total (50% prior, tighter than v1)
+    w_successes = w_total - w_errors
+    dim1 = (w_successes + 2) / (w_total + 4) if w_total > 0 else 0.5
+
+    # ═══════════════════════════════════════════════════════════
+    # DIMENSION 2: Evidence Completeness (25%)
+    # Chain integrity + record field completeness
+    # ═══════════════════════════════════════════════════════════
+    chain_score = chain_integrity  # 0.0 - 1.0
+
+    # Field completeness: how many records have all key fields?
+    complete = 0
+    for r in records:
+        has_model = bool(r.get("model"))
+        has_input = bool(r.get("input_preview") or r.get("input"))
+        has_output = bool(r.get("output_preview") or r.get("output"))
+        has_chain = bool(r.get("chain_hash"))
+        if has_model and has_input and has_output and has_chain:
+            complete += 1
+    field_completeness = complete / len(records) if records else 0
+
+    dim2 = chain_score * 0.6 + field_completeness * 0.4
+
+    # ═══════════════════════════════════════════════════════════
+    # DIMENSION 3: Behavioral Consistency (20%)
+    # Low variance in daily error rate = more trustworthy
+    # A stable 3% error rate is better than swinging 0%-20%
+    # ═══════════════════════════════════════════════════════════
+    daily_errors = defaultdict(lambda: {"total": 0, "errors": 0})
+    for r in records:
+        ts = r.get("ts") or 0
+        if not ts:
+            continue
+        day_key = ts // 86400000  # Day bucket
+        daily_errors[day_key]["total"] += 1
+        is_agent_error = bool(r.get("error")) and not bool(r.get("is_infra"))
+        if is_agent_error:
+            daily_errors[day_key]["errors"] += 1
+
+    if len(daily_errors) >= 3:
+        daily_rates = [d["errors"] / max(d["total"], 1) for d in daily_errors.values()]
+        mean_rate = sum(daily_rates) / len(daily_rates)
+        variance = sum((r - mean_rate) ** 2 for r in daily_rates) / len(daily_rates)
+        std_dev = math.sqrt(variance)
+        # Score: lower std_dev = better. std_dev of 0 = perfect (1.0), std_dev of 0.3+ = bad (0.0)
+        dim3 = max(0.0, 1.0 - (std_dev / 0.3))
+    elif len(daily_errors) >= 1:
+        # Not enough days for consistency — give benefit of doubt but cap at 0.7
+        dim3 = 0.7
+    else:
+        dim3 = 0.5
+
+    # ═══════════════════════════════════════════════════════════
+    # DIMENSION 4: Operational Maturity (10%)
+    # Combines: history span + recency (when was the agent last seen?)
+    # Long history + recently active = highest maturity
+    # Long history + inactive = decayed maturity
+    # Short history = low maturity (can't be gamed — time can't be faked)
+    # ═══════════════════════════════════════════════════════════
+    timestamps = [r.get("ts") or 0 for r in records if r.get("ts")]
+    if timestamps:
+        first_ts = min(timestamps)
+        last_ts = max(timestamps)
+        history_days = (last_ts - first_ts) / 86400000
+        # Recency: how many days since last record?
+        days_since_last = (now_ms - last_ts) / 86400000 if now_ms > last_ts else 0
+    else:
+        history_days = 0
+        days_since_last = 999
+
+    # History component: 7d→0.3, 30d→0.65, 90d→0.9
+    if history_days <= 0:
+        history_component = 0.1  # At least one record
+    else:
+        history_component = min(1.0, 1.0 - math.exp(-history_days / 60))
+
+    # Recency decay: inactive agents lose maturity
+    # 0 days inactive → 1.0, 30 days → 0.6, 90 days → 0.2, 180 days → 0.05
+    recency_factor = max(0.05, math.exp(-days_since_last / 60))
+
+    dim4 = history_component * recency_factor
+
+    # ═══════════════════════════════════════════════════════════
+    # DIMENSION 5: Data Integrity (10%)
+    # Anti-gaming: detect synthetic/spam patterns
+    # ═══════════════════════════════════════════════════════════
+    import hashlib as _hl
+    input_hashes = defaultdict(int)
+    burst_windows = defaultdict(int)  # 5-min windows
+
+    for r in records:
+        inp = r.get("input_preview") or r.get("input") or ""
+        # Exclude HEARTBEAT and system messages from duplicate counting
+        if inp and "HEARTBEAT" not in inp and not inp.startswith("<"):
+            h = _hl.md5(str(inp).encode()).hexdigest()[:12]
+            input_hashes[h] += 1
+        ts = r.get("ts") or 0
+        if ts:
+            window = ts // 300000  # 5-min window
+            burst_windows[window] += 1
+
+    # Duplicate rate: what % of inputs are repeated >3 times?
+    total_duped = sum(c - 3 for c in input_hashes.values() if c > 3)
+    dup_rate = total_duped / max(len(records), 1)
+    dup_penalty = min(1.0, dup_rate * 5)  # 20% duped → full penalty
+
+    # Burst rate: any 5-min window with >50 records?
+    max_burst = max(burst_windows.values()) if burst_windows else 0
+    burst_penalty = min(1.0, max(0, max_burst - 50) / 100)
+
+    dim5 = max(0.0, 1.0 - dup_penalty * 0.6 - burst_penalty * 0.4)
+
+    # ═══════════════════════════════════════════════════════════
+    # WEIGHTED SUM → 0-1000
+    # ═══════════════════════════════════════════════════════════
+    weights = {
+        "operational_reliability": 0.35,
+        "evidence_completeness": 0.25,
+        "behavioral_consistency": 0.20,
+        "operational_maturity": 0.10,
+        "data_integrity": 0.10,
+    }
+    dims = {
+        "operational_reliability": dim1,
+        "evidence_completeness": dim2,
+        "behavioral_consistency": dim3,
+        "operational_maturity": dim4,
+        "data_integrity": dim5,
+    }
+
+    total = sum(dims[k] * weights[k] for k in weights)
+    trust_score = round(total * 1000)
+    trust_score = max(0, min(1000, trust_score))
+
+    # Volume floor: insufficient data = capped confidence
+    # < 10 interactions: max 600 (we can't be confident yet)
+    # < 30 interactions: max 750
+    # < 100 interactions: max 900
+    if interactions < 10:
+        trust_score = min(trust_score, 600)
+    elif interactions < 30:
+        trust_score = min(trust_score, 750)
+    elif interactions < 100:
+        trust_score = min(trust_score, 900)
+
+    # ═══════════════════════════════════════════════════════════
+    # LLM Performance Profile (separate, not in Trust Score)
+    # ═══════════════════════════════════════════════════════════
+    model_stats = defaultdict(lambda: {"calls": 0, "errors": 0, "latency": []})
+    for r in records:
+        model = r.get("model") or "unknown"
+        model_stats[model]["calls"] += 1
+        if r.get("is_infra"):
+            model_stats[model]["errors"] += 1
+        lat = r.get("latency_ms") or 0
+        if lat > 0:
+            model_stats[model]["latency"].append(lat)
+
+    llm_profile = {}
+    for model, stats in model_stats.items():
+        lats = stats["latency"]
+        llm_profile[model] = {
+            "calls": stats["calls"],
+            "error_rate": round(stats["errors"] / max(stats["calls"], 1), 4),
+            "avg_latency_ms": int(sum(lats) / len(lats)) if lats else 0,
+            "p95_latency_ms": int(sorted(lats)[int(len(lats) * 0.95)]) if len(lats) >= 5 else 0,
+        }
+
+    # ═══════════════════════════════════════════════════════════
+    # RESULT
+    # ═══════════════════════════════════════════════════════════
+    layers = {}
+    dim_labels = {
+        "operational_reliability": "How reliably does the agent operate without errors?",
+        "evidence_completeness": "Is the evidence chain and record data complete?",
+        "behavioral_consistency": "Is performance stable over time?",
+        "operational_maturity": "How long has this agent been observed?",
+        "data_integrity": "Is the data genuine (not gamed/synthetic)?",
+    }
+    for k in weights:
+        layers[k] = {
+            "score": round(dims[k], 4),
+            "weight": weights[k],
+            "weighted": round(dims[k] * weights[k], 4),
+            "description": dim_labels[k],
+        }
+
+    return {
+        "trust_score": trust_score,
+        "version": 2,
+        "layers": layers,
+        "raw_scores": raw,
+        "llm_profile": llm_profile,
+        "meta": {
+            "records_analyzed": len(records),
+            "interactions_scored": interactions,
+            "history_days": round(history_days, 1),
+            "active_days": len(daily_errors),
+            "models_used": len(model_stats),
+        },
+    }
+
+
+def _v2_empty_result():
+    return {
+        "trust_score": 500,
+        "version": 2,
+        "layers": {
+            "operational_reliability": {"score": 0.5, "weight": 0.35, "weighted": 0.175, "description": "No data yet"},
+            "evidence_completeness": {"score": 0.5, "weight": 0.25, "weighted": 0.125, "description": "No data yet"},
+            "behavioral_consistency": {"score": 0.5, "weight": 0.20, "weighted": 0.100, "description": "No data yet"},
+            "operational_maturity": {"score": 0.0, "weight": 0.10, "weighted": 0.000, "description": "No data yet"},
+            "data_integrity": {"score": 1.0, "weight": 0.10, "weighted": 0.100, "description": "No data yet"},
+        },
+        "raw_scores": {"total_records": 0, "interactions": 0, "excluded": {}, "reliability": 1.0,
+                        "avg_latency_ms": 0, "hedge_rate": 0.0, "incomplete_rate": 0.0, "error_rate": 0.0, "high_latency_rate": 0.0},
+        "llm_profile": {},
+        "meta": {"records_analyzed": 0, "interactions_scored": 0, "history_days": 0, "active_days": 0, "models_used": 0},
+    }
+
+
 # ─── Rules Management ─────────────────────────────────────────────────────────
 
 _rules_cache: Optional[dict] = None
