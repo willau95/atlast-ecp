@@ -998,12 +998,16 @@ def _auto_setup_claude_code() -> bool:
         except (json.JSONDecodeError, IOError):
             settings = {}
 
-    # Check if hooks already installed
+    # Check if BOTH hooks are installed (PostToolUse + Stop)
     hooks = settings.get("hooks", {})
     existing_hooks = json.dumps(hooks)
-    if "atlast_ecp" in existing_hooks or "atlast-ecp" in existing_hooks:
-        print("  Claude Code: ✅ hooks already installed")
+    has_post = "atlast" in json.dumps(hooks.get("PostToolUse", [])).lower()
+    has_stop = "atlast" in json.dumps(hooks.get("Stop", [])).lower()
+    if has_post and has_stop:
+        print("  Claude Code: ✅ hooks already installed (PostToolUse + Stop)")
         return True
+    if has_post and not has_stop:
+        print("  Claude Code: ⚠️  PostToolUse exists but Stop hook missing — upgrading...")
 
     # Find the ecp_hooks.py file
     hooks_src = None
