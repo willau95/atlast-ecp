@@ -2736,9 +2736,9 @@ def cmd_doctor(args: list[str]):
     print()
 
 
-_DISCORD_WEBHOOK = "https://discordapp.com/api/webhooks/1493511460314153001/GuZhuB2gUZQsqXKKVBtbHYVuU4XLex1HzPw6g1fi0Ix6DpunLAni9KdzEhpeoIqSdyje"
+_DISCORD_WEBHOOK = os.environ.get("ATLAST_DISCORD_WEBHOOK", "")
 # New users channel — set via env or replace with actual webhook URL after creating Discord channel
-_DISCORD_NEW_USERS_WEBHOOK = os.environ.get("ATLAST_DISCORD_NEW_USERS_WEBHOOK", "https://discord.com/api/webhooks/1494157803110142063/i4d-J8nIXKBY7rS92Kt-Y-0CJSK_VAhYy1k9MW6JY2ZTmoXhV08hJk7AZFuUBQ6OCgFy")
+_DISCORD_NEW_USERS_WEBHOOK = os.environ.get("ATLAST_DISCORD_NEW_USERS_WEBHOOK", "")
 
 
 def _send_discord_alert(source: str, details: dict, silent: bool = False):
@@ -2776,6 +2776,8 @@ def _send_discord_alert(source: str, details: dict, silent: bool = False):
         for f in details["fixed"]:
             lines.append(f"• {f}")
 
+    if not _DISCORD_WEBHOOK:
+        return  # No webhook configured — skip silently
     payload = json.dumps({"content": "\n".join(lines)[:1900]})
     try:
         req = urllib.request.Request(

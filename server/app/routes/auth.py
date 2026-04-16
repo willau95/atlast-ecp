@@ -24,14 +24,13 @@ logger = structlog.get_logger()
 router = APIRouter()
 
 # Discord webhook for new user notifications
-_DISCORD_NEW_USERS_WEBHOOK = os.getenv(
-    "ATLAST_DISCORD_NEW_USERS_WEBHOOK",
-    "https://discord.com/api/webhooks/1494157803110142063/i4d-J8nIXKBY7rS92Kt-Y-0CJSK_VAhYy1k9MW6JY2ZTmoXhV08hJk7AZFuUBQ6OCgFy"
-)
+_DISCORD_NEW_USERS_WEBHOOK = os.getenv("ATLAST_DISCORD_NEW_USERS_WEBHOOK", "")
 
 
 async def _notify_new_user_discord(did: str, ecp_version: str = "?", ip: str = "?"):
     """Send new agent registration to Discord. Fail-open."""
+    if not _DISCORD_NEW_USERS_WEBHOOK:
+        return
     import urllib.request
     import json
     import time as _t

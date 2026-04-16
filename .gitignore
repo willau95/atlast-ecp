@@ -69,3 +69,5 @@ docs/STRESS-TEST-V3-REPORT.md
 docs/STRESS-TEST-V3-ISSUES.md
 docs/STRESS-TEST-V3-FINAL-REPORT.md
 whitepaper/*.pdf
+*.coverage
+qa-test/

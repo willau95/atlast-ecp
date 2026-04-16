@@ -93,7 +93,10 @@ def _fire_incident_webhook(incident: dict):
 def _fire_discord_incident(incident: dict):
     """Also notify Discord #bug-reports if configured."""
     try:
-        webhook = "https://discordapp.com/api/webhooks/1493511460314153001/GuZhuB2gUZQsqXKKVBtbHYVuU4XLex1HzPw6g1fi0Ix6DpunLAni9KdzEhpeoIqSdyje"
+        import os as _os
+        webhook = _os.environ.get("ATLAST_DISCORD_WEBHOOK", "")
+        if not webhook:
+            return
         emoji = "🔴" if incident["status"] == "created" else "🟢" if incident["status"] == "resolved" else "🟡"
         msg = "%s **Incident %s**: %s\nAgent: %s | Error rate: %.0f%% | Records: %d" % (
             emoji, incident["status"].upper(), incident.get("reason", ""),

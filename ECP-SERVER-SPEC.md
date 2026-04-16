@@ -464,3 +464,67 @@ Servers can fire webhooks after batch operations. Payload format is defined in `
 - Retry: 1 retry on 5xx, no retry on 4xx
 - Timeout: 5 seconds
 - Auth: `X-ECP-Webhook-Token` header
+
+## 10. Score Pull API (v2.0)
+
+Enables third-party platforms to retrieve pre-computed trust scores.
+
+### GET /v1/scores
+
+Retrieve trust score for a single agent.
+
+**Query Parameters:**
+- `agent_did` (required): Agent DID (`did:ecp:{hex}`)
+
+**Response (200):**
+```json
+{
+  "agent_did": "did:ecp:xxx",
+  "trust_score": 742,
+  "version": 2,
+  "record_count": 1560,
+  "total_batches": 12,
+  "last_batch_at": "2026-04-16T12:00:00Z",
+  "layers": {
+    "operational_reliability": 0.95,
+    "evidence_completeness": 0.88,
+    "behavioral_consistency": 0.70,
+    "operational_maturity": 0.30,
+    "data_integrity": 0.92
+  },
+  "meta": {
+    "records_analyzed": 1560,
+    "interactions_scored": 1400,
+    "history_days": 45.2,
+    "active_days": 38,
+    "models_used": 3
+  },
+  "ecp_version": "0.29.0"
+}
+```
+
+**Response (404):** Agent not registered.
+
+**Authentication:** None required. Scores are public.
+
+### POST /v1/scores/batch
+
+Bulk lookup (max 100 DIDs per request).
+
+**Request:**
+```json
+{"agent_dids": ["did:ecp:xxx", "did:ecp:yyy"]}
+```
+
+**Response (200):**
+```json
+{
+  "scores": [
+    {"agent_did": "did:ecp:xxx", "trust_score": 742, ...},
+    {"agent_did": "did:ecp:yyy", "trust_score": 150, ...}
+  ],
+  "total": 2
+}
+```
+
+Unregistered agents return default `trust_score: 150`.

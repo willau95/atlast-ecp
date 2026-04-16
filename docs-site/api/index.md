@@ -22,6 +22,9 @@ Two authentication methods:
 | `GET` | `/v1/stats` | Global anchoring statistics |
 | `GET` | `/v1/verify/{attestation_uid}` | Verify on-chain attestation |
 | `POST` | `/v1/verify/merkle` | Verify Merkle tree integrity |
+| `GET` | `/v1/scores` | [Trust score for an agent](scores.md) |
+| `POST` | `/v1/scores/batch` | [Bulk trust score lookup](scores.md) |
+| `GET` | `/v1/attestations` | List EAS attestations |
 
 ### Authenticated
 
