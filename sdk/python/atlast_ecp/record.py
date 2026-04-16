@@ -401,17 +401,26 @@ def _load_last_chain_hash() -> str:
         records_dir = ECP_DIR / "records"
         if not records_dir.exists():
             return "genesis"
-        # Find the latest jsonl file
+        # Find the latest jsonl file (including .gz)
         jsonl_files = sorted(records_dir.glob("*.jsonl"))
-        if not jsonl_files:
+        gz_files = sorted(records_dir.glob("*.jsonl.gz"))
+        all_files = jsonl_files + gz_files
+        if not all_files:
             return "genesis"
         # Read last line of last file
-        last_file = jsonl_files[-1]
+        last_file = sorted(all_files, key=lambda f: f.name)[-1]
         last_line = ""
-        with open(last_file) as f:
-            for line in f:
-                if line.strip():
-                    last_line = line.strip()
+        if str(last_file).endswith(".gz"):
+            import gzip
+            with gzip.open(last_file, "rt", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        last_line = line.strip()
+        else:
+            with open(last_file) as f:
+                for line in f:
+                    if line.strip():
+                        last_line = line.strip()
         if not last_line:
             return "genesis"
         import json

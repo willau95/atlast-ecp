@@ -1264,9 +1264,28 @@ def main():
         data = json.load(sys.stdin) if not sys.stdin.isatty() else {}
     except Exception:
         data = {}
+    _log(f"Hook data keys: {list(data.keys())}")
 
-    # Find transcript
-    transcript_path = _find_transcript()
+    # Find transcript — prefer session_id/transcript_path from hook data
+    transcript_path = None
+    # Try explicit transcript path from hook data
+    if data.get("transcript_path"):
+        tp = Path(data["transcript_path"])
+        if tp.exists():
+            transcript_path = tp
+            _log(f"Transcript from hook data: {tp}")
+    # Try session_id to find specific transcript
+    if not transcript_path and data.get("session_id"):
+        claude_dir = Path.home() / ".claude" / "projects"
+        if claude_dir.exists():
+            for f in claude_dir.rglob(f"{data['session_id']}.jsonl"):
+                if f.exists() and f.stat().st_size > 50:
+                    transcript_path = f
+                    _log(f"Transcript from session_id: {f}")
+                    break
+    # Fallback: find most recent (original behavior)
+    if not transcript_path:
+        transcript_path = _find_transcript()
     if not transcript_path:
         _log("ERROR: no transcript found")
         return
@@ -1536,7 +1555,7 @@ def main():
                             thread_id=session_id,
                         )
                         sa_recorded[sa_key] = sa_size
-                        _log("SUCCESS: recorded subagent %s (%d tools)" % (sa_key, len(sa_tools)))
+                        _log("SUCCESS: recorded subagent %s (%d tools)" % (sa_key, len(sa_tool_calls)))
                     except Exception as e:
                         _log("ERROR recording subagent: %s" % e)
 

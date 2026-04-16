@@ -256,7 +256,8 @@ def _reconstruct_sse_content(chunks: bytes, provider: str) -> dict:
       - tool_calls: list[dict] — extracted tool call names and inputs
       - is_error: bool — whether the response is a provider error
     """
-    result = {"content": "", "stop_reason": None, "tool_calls": [], "is_error": False}
+    result = {"content": "", "stop_reason": None, "tool_calls": [], "is_error": False,
+              "tokens_in": None, "tokens_out": None}
     try:
         text = chunks.decode("utf-8", errors="replace")
         content_parts = []
@@ -281,6 +282,12 @@ def _reconstruct_sse_content(chunks: bytes, provider: str) -> dict:
                     if isinstance(error_msg, dict):
                         content_parts.append(json.dumps(data, ensure_ascii=False))
                     continue
+
+                # Extract usage from any SSE chunk (OpenAI sends in final chunk)
+                usage = data.get("usage", {})
+                if usage:
+                    result["tokens_in"] = result["tokens_in"] or usage.get("prompt_tokens") or usage.get("input_tokens")
+                    result["tokens_out"] = result["tokens_out"] or usage.get("completion_tokens") or usage.get("output_tokens")
 
                 if provider in ("openai", "minimax"):
                     for choice in data.get("choices", []):
@@ -326,11 +333,21 @@ def _reconstruct_sse_content(chunks: bytes, provider: str) -> dict:
                         if current_tool_block is not None:
                             tool_calls_anthropic.append(current_tool_block)
                             current_tool_block = None
-                    # Message delta (stop reason)
+                    # Message delta (stop reason + usage)
                     elif msg_type == "message_delta":
                         sr = data.get("delta", {}).get("stop_reason")
                         if sr:
                             result["stop_reason"] = sr
+                        # Anthropic sends output token count in message_delta.usage
+                        u = data.get("usage", {})
+                        if u.get("output_tokens"):
+                            result["tokens_out"] = u["output_tokens"]
+                    # Message start (has input token count)
+                    elif msg_type == "message_start":
+                        msg = data.get("message", {})
+                        u = msg.get("usage", {})
+                        if u.get("input_tokens"):
+                            result["tokens_in"] = u["input_tokens"]
 
             except json.JSONDecodeError:
                 continue
@@ -1050,12 +1067,17 @@ class ATLASTProxy:
         latency_ms = int((time.time() - t_start) * 1000)
         full_response = b"".join(chunks)
         sse_result = _reconstruct_sse_content(full_response, provider)
+        # Extract tokens from SSE (OpenAI final chunk, Anthropic message_start/delta)
+        sse_tokens_in = sse_result.get("tokens_in")
+        sse_tokens_out = sse_result.get("tokens_out")
         _record_ecp(req_body, sse_result["content"], request.path, provider,
                      self._agent_for_request(model, req_body), model, latency_ms,
+                     tokens_in=sse_tokens_in, tokens_out=sse_tokens_out,
                      stop_reason=sse_result.get("stop_reason"),
                      tool_calls=sse_result.get("tool_calls"),
                      is_streaming=True,
-                     is_provider_error=sse_result.get("is_error", False))
+                     is_provider_error=sse_result.get("is_error", False),
+                     http_status=resp.status)
         self.record_count += 1
 
         try:

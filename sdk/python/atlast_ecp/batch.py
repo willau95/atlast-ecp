@@ -584,5 +584,17 @@ def _load_batch_state() -> dict:
 
 
 def _save_batch_state(state: dict):
+    """Atomic write: write to temp file then rename (prevents corruption on crash)."""
     ECP_DIR.mkdir(parents=True, exist_ok=True)
-    BATCH_STATE_FILE.write_text(json.dumps(state, indent=2))
+    import tempfile
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=str(ECP_DIR), suffix=".tmp")
+    try:
+        with _os.fdopen(tmp_fd, "w") as f:
+            json.dump(state, f, indent=2)
+        _os.replace(tmp_path, str(BATCH_STATE_FILE))  # Atomic on POSIX
+    except Exception:
+        try:
+            _os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
