@@ -278,6 +278,7 @@ def _wrap_anthropic(client, session_id=None):
 
         client.messages.stream = recorded_stream
 
+    client._ecp_wrapped = True
     return client
 
 
@@ -331,6 +332,7 @@ def _wrap_openai(client, session_id=None):
         return response
 
     client.chat.completions.create = recorded_create
+    client._ecp_wrapped = True
     return client
 
 
@@ -385,6 +387,7 @@ def _wrap_gemini(client, session_id=None):
         return response
 
     client.generate_content = recorded_generate
+    client._ecp_wrapped = True
     return client
 
 
@@ -469,6 +472,9 @@ def wrap(client, session_id: Optional[str] = None):
 
     Returns: wrapped client (same type, same interface, recording added)
     """
+    # Prevent double-wrapping
+    if getattr(client, '_ecp_wrapped', False) is True:
+        return client
     try:
         class_name = type(client).__name__
         module_name = type(client).__module__

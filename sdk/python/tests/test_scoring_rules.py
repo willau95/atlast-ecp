@@ -252,7 +252,7 @@ class TestCalculateScores:
         scores = calculate_scores([])
         assert scores["total_records"] == 0
         assert scores["interactions"] == 0
-        assert scores["reliability"] == 1.0
+        assert scores["reliability"] == 0.5  # Unknown, not perfect
 
     def test_all_excluded(self):
         """All records excluded → default scores."""
@@ -263,7 +263,7 @@ class TestCalculateScores:
         scores = calculate_scores(records)
         assert scores["total_records"] == 2
         assert scores["interactions"] == 0
-        assert scores["reliability"] == 1.0
+        assert scores["reliability"] == 0.5  # Unknown, not perfect
 
     def test_hedge_and_incomplete_rates(self):
         """Hedged and incomplete flags are tracked."""

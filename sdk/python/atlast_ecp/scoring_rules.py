@@ -331,7 +331,7 @@ def calculate_scores(
             "total_records": total,
             "interactions": 0,
             "excluded": excluded_counts,
-            "reliability": 1.0,
+            "reliability": 0.5,  # Unknown, not perfect
             "avg_latency_ms": 0,
             "hedge_rate": 0.0,
             "incomplete_rate": 0.0,
@@ -523,15 +523,21 @@ def compute_trust_score_v2(records: list[dict], chain_integrity: float = 1.0) ->
 
     for r in records:
         ts = r.get("ts") or 0
-        is_agent_error = bool(r.get("error")) and not bool(r.get("is_infra"))
-        # Classify flags
-        flags = r.get("flags") or ""
+        # Classify flags (support both SQLite columns and raw record formats)
+        flags = r.get("flags") or r.get("meta", {}).get("flags") or ""
         if isinstance(flags, str):
             try:
                 import json as _j
                 flags = _j.loads(flags)
             except Exception:
                 flags = []
+        if not isinstance(flags, list):
+            flags = []
+        # Detect agent error from multiple sources
+        is_agent_error = (
+            (bool(r.get("error")) and not bool(r.get("is_infra"))) or
+            ("error" in flags and "infra_error" not in flags and "system_error" not in flags)
+        )
         if not isinstance(flags, list):
             flags = []
 
@@ -769,7 +775,7 @@ def _v2_empty_result():
             "operational_maturity": {"score": 0.0, "weight": 0.10, "weighted": 0.000, "description": "No data yet"},
             "data_integrity": {"score": 1.0, "weight": 0.10, "weighted": 0.100, "description": "No data yet"},
         },
-        "raw_scores": {"total_records": 0, "interactions": 0, "excluded": {}, "reliability": 1.0,
+        "raw_scores": {"total_records": 0, "interactions": 0, "excluded": {}, "reliability": 0.5,
                         "avg_latency_ms": 0, "hedge_rate": 0.0, "incomplete_rate": 0.0, "error_rate": 0.0, "high_latency_rate": 0.0},
         "llm_profile": {},
         "meta": {"records_analyzed": 0, "interactions_scored": 0, "history_days": 0, "active_days": 0, "models_used": 0},

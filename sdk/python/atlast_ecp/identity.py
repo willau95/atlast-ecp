@@ -49,21 +49,35 @@ def _secure_write(filepath: Path, data: str) -> None:
 
 
 def get_or_create_identity(agent_name: "str | None" = None, ecp_dir: "str | None" = None) -> dict:
-    """Load existing identity or generate a new one."""
+    """Load existing identity or generate a new one. Thread/process safe."""
     edir = Path(ecp_dir) if ecp_dir else _resolve_ecp_dir()
     ifile = edir / "identity.json"
+    lock_file = edir / ".identity.lock"
     edir.mkdir(parents=True, exist_ok=True)
     if ifile.exists():
         try:
             import json as _json
             identity = _json.loads(ifile.read_text())
-            # Auto-migrate: if crypto is now available but identity was
-            # generated with fallback (pub = sha256(priv) instead of Ed25519)
             identity = _maybe_migrate_identity(identity, ifile)
             return identity
         except Exception:
             pass
-    return _create_identity(edir)
+    # Create new identity with lock to prevent race condition
+    try:
+        import fcntl
+        with open(lock_file, "w") as lf:
+            fcntl.flock(lf, fcntl.LOCK_EX)
+            # Double-check after acquiring lock
+            if ifile.exists():
+                try:
+                    import json as _json2
+                    return _json2.loads(ifile.read_text())
+                except Exception:
+                    pass
+            return _create_identity(edir)
+    except ImportError:
+        # fcntl not available on Windows — fall back to no locking
+        return _create_identity(edir)
 
 
 def _maybe_migrate_identity(identity: dict, ifile: Path) -> dict:

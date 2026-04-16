@@ -340,7 +340,7 @@ def _check_chain_integrity(records: list[dict]) -> bool:
         return True  # All minimal records — no chain to verify
 
     # Build id→record lookup
-    {r["id"]: r for r in chained}
+    id_map = {r["id"]: r for r in chained}
 
     # Find genesis records (can be multiple for multiple agents/sessions)
     genesis = [r for r in chained if r.get("chain", {}).get("prev") == "genesis"]

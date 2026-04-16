@@ -173,9 +173,17 @@ def _resolve_upstream(request_headers: dict, provider: str) -> str:
                 allowed_domains.add(urlparse(val).netloc)
         parsed = urlparse(explicit)
         hostname = parsed.hostname or ""
-        is_local = hostname in ("localhost", "127.0.0.1", "::1")
-        # Block cloud metadata and link-local (SSRF prevention)
-        if hostname and (hostname.startswith("169.254.") or hostname == "0.0.0.0"):
+        is_local = hostname in ("localhost", "127.0.0.1")
+        # Block dangerous addresses (SSRF prevention)
+        if hostname and (
+            hostname.startswith("169.254.") or  # Link-local / cloud metadata
+            hostname == "0.0.0.0" or            # Wildcard bind
+            hostname == "::1" or hostname.startswith("::ffff:") or  # IPv6 loopback
+            hostname.startswith("10.") or       # RFC1918
+            hostname.startswith("172.") or      # RFC1918 (simplified)
+            hostname.startswith("192.168.") or  # RFC1918
+            hostname.startswith("fc") or hostname.startswith("fd")  # IPv6 ULA
+        ):
             is_local = False
         if is_local or parsed.netloc in allowed_domains:
             return explicit.rstrip("/")
@@ -394,6 +402,7 @@ _session_lock = threading.Lock()
 _conversation_buffers: dict[str, dict] = {}  # session_id → buffer
 _conv_lock = threading.Lock()
 _CONV_TIMEOUT_S = 300  # Flush orphaned buffers after 5 minutes
+_CONV_MAX_BUFFERS = 100  # Cap to prevent unbounded memory growth
 
 
 def _flush_conversation(session_id: str):
@@ -498,13 +507,19 @@ def _flush_conversation(session_id: str):
 
 
 def _cleanup_stale_buffers():
-    """Flush conversation buffers older than timeout."""
+    """Flush conversation buffers older than timeout. Caps total buffer count."""
     now = time.time()
     stale = []
     with _conv_lock:
         for sid, buf in _conversation_buffers.items():
             if now - buf.get("last_update", 0) > _CONV_TIMEOUT_S:
                 stale.append(sid)
+        # Hard cap: if too many buffers, flush oldest
+        if len(_conversation_buffers) > _CONV_MAX_BUFFERS:
+            by_age = sorted(_conversation_buffers.items(), key=lambda x: x[1].get("last_update", 0))
+            for sid, _ in by_age[:len(_conversation_buffers) - _CONV_MAX_BUFFERS]:
+                if sid not in stale:
+                    stale.append(sid)
     for sid in stale:
         _flush_conversation(sid)
 
@@ -941,8 +956,10 @@ class ATLASTProxy:
         target_url = upstream + request.path_qs
 
         try:
+            import aiohttp
+            timeout = aiohttp.ClientTimeout(total=300, connect=10, sock_read=120)
             connector = TCPConnector(ssl=True)
-            async with ClientSession(connector=connector) as session:
+            async with ClientSession(connector=connector, timeout=timeout) as session:
                 async with session.request(
                     request.method,
                     target_url,

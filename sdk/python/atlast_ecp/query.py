@@ -97,7 +97,8 @@ def rebuild_index(verbose: bool = False) -> int:
     all_files = sorted(file_set)
     for f in all_files:
         if str(f).endswith(".gz"):
-            lines = _gzip.open(f, "rt", encoding="utf-8").read().splitlines()
+            with _gzip.open(f, "rt", encoding="utf-8") as _gf:
+                lines = _gf.read().splitlines()
         else:
             lines = f.read_text(encoding="utf-8").splitlines()
         for line in lines:
