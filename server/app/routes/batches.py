@@ -77,6 +77,11 @@ class BatchUploadRequest(BaseModel):
     record_hashes: list[dict] | None = None
     flag_counts: dict | None = None
     chain_integrity: float | None = None
+    # Trust Score v2 — pre-computed by SDK, stored by server
+    trust_score: int | None = None
+    score_version: int | None = None
+    score_layers: dict | None = None
+    score_meta: dict | None = None
 
 
 class BatchUploadResponse(BaseModel):
@@ -221,6 +226,26 @@ async def upload_batch(
             session.add(batch)
             await session.commit()
             logger.info("batch_stored", batch_id=batch_id, records=req.record_count)
+
+            # Update agent's trust score + stats
+            try:
+                from sqlalchemy import select
+                result = await session.execute(select(Agent).where(Agent.did == req.agent_did))
+                agent = result.scalar_one_or_none()
+                if agent:
+                    if req.trust_score is not None:
+                        agent.trust_score = req.trust_score
+                        agent.score_version = req.score_version
+                        agent.score_layers = req.score_layers
+                        agent.score_meta = req.score_meta
+                    agent.total_records = (agent.total_records or 0) + req.record_count
+                    agent.total_batches = (agent.total_batches or 0) + 1
+                    agent.last_batch_at = datetime.now(timezone.utc)
+                    agent.last_seen = datetime.now(timezone.utc)
+                    await session.commit()
+            except Exception as e:
+                logger.warning("agent_score_update_failed", error=str(e))
+
             from .metrics import batch_upload_total, batch_upload_size
             batch_upload_total.labels(status="success").inc()
             batch_upload_size.observe(req.record_count)

@@ -45,6 +45,14 @@ class Agent(Base):
     ecp_version = Column(String(16), default="0.1")
     created_at = Column(TIMESTAMP(timezone=True), default=_utcnow)
     last_seen = Column(TIMESTAMP(timezone=True), nullable=True)
+    # Trust Score v2 (updated on each batch upload)
+    trust_score = Column(Integer, nullable=True)
+    score_version = Column(Integer, nullable=True)
+    score_layers = Column(JSON, nullable=True)
+    score_meta = Column(JSON, nullable=True)
+    total_records = Column(Integer, default=0)
+    total_batches = Column(Integer, default=0)
+    last_batch_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
 
 class APIKey(Base):

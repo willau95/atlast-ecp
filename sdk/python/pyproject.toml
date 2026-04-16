@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atlast-ecp"
-version = "0.28.2"
+version = "0.29.0"
 description = "ATLAST Evidence Chain Protocol — trust infrastructure for AI Agents"
 readme = "README.md"
 license = { text = "MIT" }

@@ -125,6 +125,14 @@ async def _run_migrations():
         "ALTER TABLE batches ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0",
         "ALTER TABLE batches ADD COLUMN IF NOT EXISTS last_retry_at TIMESTAMPTZ",
         "ALTER TABLE batches ADD COLUMN IF NOT EXISTS error_message TEXT",
+        # v1.2.0: Agent trust score storage (for score pull API)
+        "ALTER TABLE agents ADD COLUMN IF NOT EXISTS trust_score INTEGER",
+        "ALTER TABLE agents ADD COLUMN IF NOT EXISTS score_version INTEGER",
+        "ALTER TABLE agents ADD COLUMN IF NOT EXISTS score_layers JSON",
+        "ALTER TABLE agents ADD COLUMN IF NOT EXISTS score_meta JSON",
+        "ALTER TABLE agents ADD COLUMN IF NOT EXISTS total_records INTEGER DEFAULT 0",
+        "ALTER TABLE agents ADD COLUMN IF NOT EXISTS total_batches INTEGER DEFAULT 0",
+        "ALTER TABLE agents ADD COLUMN IF NOT EXISTS last_batch_at TIMESTAMPTZ",
     ]
     async with _engine.begin() as conn:
         for sql in migrations:

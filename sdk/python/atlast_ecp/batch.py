@@ -282,6 +282,10 @@ def upload_merkle_root(
     flag_counts: Optional[dict] = None,
     agent_api_key: Optional[str] = None,
     chain_integrity: Optional[float] = None,
+    trust_score: Optional[int] = None,
+    score_version: Optional[int] = None,
+    score_layers: Optional[dict] = None,
+    score_meta: Optional[dict] = None,
     max_retries: int = 3,
 ) -> Optional[str]:
     """
@@ -318,6 +322,11 @@ def upload_merkle_root(
         body["flag_counts"] = flag_counts
     if chain_integrity is not None:
         body["chain_integrity"] = chain_integrity
+    if trust_score is not None:
+        body["trust_score"] = trust_score
+        body["score_version"] = score_version
+        body["score_layers"] = score_layers
+        body["score_meta"] = score_meta
 
     payload = json.dumps(body).encode("utf-8")
 
@@ -453,6 +462,21 @@ def run_batch(flush: bool = False):
             trust_signals = compute_trust_signals(records)
             chain_integrity = trust_signals.get("chain_integrity", 1.0)
 
+            # Compute trust score v2 to include in batch upload
+            trust_score_data = {}
+            try:
+                from .scoring_rules import classify_records, compute_trust_score_v2
+                classified = classify_records(records)
+                score_result = compute_trust_score_v2(classified, chain_integrity=chain_integrity)
+                trust_score_data = {
+                    "trust_score": score_result.get("trust_score"),
+                    "score_version": score_result.get("version", 2),
+                    "score_layers": {k: v.get("score") for k, v in score_result.get("layers", {}).items()},
+                    "score_meta": score_result.get("meta", {}),
+                }
+            except Exception:
+                pass  # Fail-open: upload batch without score
+
             # Upload to ATLAST API
             agent_api_key = state.get("agent_api_key") or _get_config_api_key()
             attestation_uid = upload_merkle_root(
@@ -466,6 +490,7 @@ def run_batch(flush: bool = False):
                 flag_counts=flag_counts or None,
                 agent_api_key=agent_api_key,
                 chain_integrity=chain_integrity,
+                **trust_score_data,
             )
 
             batch_result = {

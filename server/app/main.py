@@ -243,6 +243,9 @@ app.include_router(agents_router)
 app.include_router(super_batches_router)
 app.include_router(scoring_router)
 
+from .routes.scores import router as scores_router
+app.include_router(scores_router)
+
 # Init stats tracking
 from .routes.verify import init_stats
 init_stats()
