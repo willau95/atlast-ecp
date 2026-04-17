@@ -1421,8 +1421,57 @@ def main():
             try: bf.unlink(missing_ok=True)
             except: pass
 
-    # Build output: tool call metadata on first line (JSON), then agent's actual response
-    output = last_assistant_msg or "(no response)"
+    # Build output: complete readable narrative (text + tool calls interleaved)
+    # This is what the user saw in their terminal — a full story of what the agent did
+    narrative_parts = []
+    if last_user_idx >= 0:
+        for i in range(last_user_idx + 1, len(entries)):
+            e = entries[i]
+            etype = e.get("type", "")
+            if etype == "user":
+                c = e.get("message", {}).get("content", "")
+                if isinstance(c, str) and len(c.strip()) > 0:
+                    break
+                elif isinstance(c, list) and any(b.get("text","").strip() for b in c if isinstance(b,dict)):
+                    break
+            if etype == "assistant":
+                content = e.get("message", {}).get("content", [])
+                if isinstance(content, list):
+                    for block in content:
+                        if not isinstance(block, dict):
+                            continue
+                        if block.get("type") == "text" and block.get("text"):
+                            narrative_parts.append(block["text"])
+                        elif block.get("type") == "tool_use":
+                            name = block.get("name", "?")
+                            inp = block.get("input", {})
+                            # Readable summary of tool input
+                            if name in ("Bash", "bash"):
+                                preview = inp.get("command", "")[:150]
+                            elif name in ("Read", "read"):
+                                preview = inp.get("file_path", "")
+                            elif name in ("Edit", "edit"):
+                                preview = inp.get("file_path", "")
+                            elif name in ("Write", "write"):
+                                preview = inp.get("file_path", "")
+                            elif name in ("Grep", "grep"):
+                                preview = inp.get("pattern", "")
+                            elif name in ("Glob", "glob"):
+                                preview = inp.get("pattern", "")
+                            else:
+                                preview = json.dumps(inp)[:100]
+                            narrative_parts.append(f"[{name}] {preview}")
+            elif etype == "tool_result":
+                result = e.get("content", "")
+                if isinstance(result, list):
+                    result = " ".join(b.get("text","") for b in result if isinstance(b,dict))
+                result = str(result)[:300]
+                if result:
+                    narrative_parts.append(f"→ {result}")
+
+    output = "\n\n".join(narrative_parts) if narrative_parts else "(no response)"
+
+    # Also create structured metadata for dashboard tool call display
     if turn_tool_calls:
         meta = json.dumps({
             "_aggregated": True,
