@@ -11,7 +11,7 @@ import json
 import threading
 import webbrowser
 from datetime import datetime, timezone, timedelta
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
@@ -19,7 +19,62 @@ ASSETS_DIR = Path(__file__).parent / "dashboard_assets"
 DEFAULT_PORT = 3827
 
 
+_TRUST_SCORE_CACHE: dict = {"ts": 0.0, "map": {}}
+_TRUST_SCORE_TTL_S = 60.0
+
+
+def _get_cached_trust_scores() -> dict:
+    """Return {agent_name: trust_score} with a 60-second TTL cache.
+
+    The underlying computation (classify + compute_trust_score_1000 per agent
+    over the full batch) costs ~1 s on 7 k records and doesn't change per
+    request. The dashboard polls /api/agents frequently; without the cache
+    every refresh re-ran the full O(N·M) pass.
+    """
+    import time as _t
+    now = _t.time()
+    if now - _TRUST_SCORE_CACHE["ts"] < _TRUST_SCORE_TTL_S and _TRUST_SCORE_CACHE["map"]:
+        return _TRUST_SCORE_CACHE["map"]
+    try:
+        from .scoring_rules import classify_records, compute_trust_score_1000
+        from .signals import compute_trust_signals
+        from .batch import collect_batch
+        all_records, _ = collect_batch(since_ts=0)
+        by_agent: dict = {}
+        for r in all_records:
+            key = r.get("agent") or r.get("agent_name")
+            if not key:
+                continue
+            by_agent.setdefault(key, []).append(r)
+        out: dict = {}
+        for key, recs in by_agent.items():
+            try:
+                classified = classify_records(recs)
+                trust_signals = compute_trust_signals(recs)
+                ci = trust_signals.get("chain_integrity", 1.0)
+                score_data = compute_trust_score_1000(classified, chain_integrity=ci)
+                out[key] = score_data.get("trust_score")
+            except Exception:
+                out[key] = None
+        _TRUST_SCORE_CACHE["map"] = out
+        _TRUST_SCORE_CACHE["ts"] = now
+        return out
+    except Exception:
+        return _TRUST_SCORE_CACHE["map"] or {}
+
+
 class DashboardHandler(BaseHTTPRequestHandler):
+    # Python's stdlib HTTP server does a reverse-DNS lookup on the client IP
+    # for every request (via address_string() → getfqdn). That's a hidden
+    # 500 ms–2 s stall per request on macOS. Return the numeric address and
+    # silence the default access log (which also calls getfqdn).
+    def address_string(self):
+        return self.client_address[0]
+
+    def log_message(self, format, *args):
+        # Silent by default; dashboards don't need an access log on stderr.
+        return
+
     """HTTP handler for the local dashboard."""
 
     def log_message(self, format, *args):
@@ -56,14 +111,24 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         data = filepath.read_bytes()
-        # Inject enhancement script into index.html
         if filename == "index.html":
             data = self._inject_enhancements(data)
+
+        accept_enc = (self.headers.get("Accept-Encoding") or "").lower()
+        use_gzip = "gzip" in accept_enc and len(data) >= 1024
+        if use_gzip:
+            import gzip as _gz
+            data = _gz.compress(data, compresslevel=5)
+
         self.send_response(200)
         self.send_header("Content-Type", f"{content_type}; charset=utf-8")
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
+        if use_gzip:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
+        self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
 
@@ -74,15 +139,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def _handle_api(self, path: str, params: dict):
         try:
-            # Auto-flush stale Claude Code buffers + rebuild index before serving
             try:
                 from .flush import flush_stale_buffers
                 flush_stale_buffers()
-            except Exception:
-                pass
-            try:
-                from .query import rebuild_index
-                rebuild_index()
             except Exception:
                 pass
             result = self._dispatch_api(path, params)
@@ -343,23 +402,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             show_sub = params.get("show_subagents", [""])[0] == "1"
             if not show_sub:
                 agents = [a for a in agents if not a.get("is_subagent")]
-            # Compute per-agent Trust Score
+            # Compute per-agent Trust Score — cached for 60 s. Without the
+            # cache this block used to load every record from disk and run
+            # a per-agent O(N·M) filter, adding 500-2000 ms per request.
             try:
-                from .scoring_rules import classify_records, compute_trust_score_1000
-                from .signals import compute_trust_signals
-                from .batch import collect_batch
-                all_records, _ = collect_batch(since_ts=0)
+                trust_map = _get_cached_trust_scores()
                 for a in agents:
-                    agent_name = a.get("agent", "")
-                    agent_records = [r for r in all_records if r.get("agent") == agent_name or r.get("agent_name") == agent_name]
-                    if agent_records:
-                        classified = classify_records(agent_records)
-                        trust_signals = compute_trust_signals(agent_records)
-                        ci = trust_signals.get("chain_integrity", 1.0)
-                        score_data = compute_trust_score_1000(classified, chain_integrity=ci)
-                        a["trust_score"] = score_data.get("trust_score")
-                    else:
-                        a["trust_score"] = None
+                    a["trust_score"] = trust_map.get(a.get("agent", ""))
             except Exception:
                 for a in agents:
                     a["trust_score"] = None
@@ -824,9 +873,24 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def _json_response(self, status: int, data: dict):
         body = json.dumps(data, default=str, ensure_ascii=False).encode("utf-8")
+        self._send_body(status, body, "application/json; charset=utf-8")
+
+    def _send_body(self, status: int, body: bytes, content_type: str):
+        """Send a response body, gzipping when the client accepts it and the
+        payload is large enough to benefit (skip tiny bodies — gzip overhead
+        costs more than it saves)."""
+        accept_enc = (self.headers.get("Accept-Encoding") or "").lower()
+        use_gzip = "gzip" in accept_enc and len(body) >= 1024
+        if use_gzip:
+            import gzip as _gz
+            body = _gz.compress(body, compresslevel=5)
         self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Type", content_type)
         self.send_header("Access-Control-Allow-Origin", "*")
+        if use_gzip:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
@@ -1119,7 +1183,9 @@ body.guide-dismissed { padding-top: 0 !important; }
 
 def start_dashboard(port: int = DEFAULT_PORT, open_browser: bool = True, host: str = "127.0.0.1"):
     """Start the local dashboard server."""
-    server = HTTPServer((host, port), DashboardHandler)
+    server = ThreadingHTTPServer((host, port), DashboardHandler)
+    # Make worker threads daemonic so Ctrl-C stops them with the main thread
+    server.daemon_threads = True
     url = f"http://{host}:{port}"
 
     print("\n  📊 ATLAST ECP Dashboard")

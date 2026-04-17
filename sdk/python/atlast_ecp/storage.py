@@ -6,6 +6,7 @@ Content NEVER leaves the device. Only hashes are transmitted.
 import gzip
 import json
 import threading
+import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -224,25 +225,133 @@ def upsert_record(record_dict: dict) -> str:
         index[rid] = {"file": str(record_file), "date": today}
         INDEX_FILE.write_text(json.dumps(index, indent=2))
 
-        # Invalidate SQLite search index so the next query rebuilds with the
-        # updated data. Cheaper than doing a per-row upsert here and avoids
-        # duplicating the enrichment logic that lives in query.rebuild_index.
+        # Per-row upsert into the SQLite search index so dashboards see the
+        # change immediately without a 3 s full rebuild. The record_dict plus
+        # the freshly-saved vault give us everything we need; query.rebuild_index
+        # reads the same fields from disk, we just skip the I/O pass.
         try:
-            import sqlite3
-            from .query import INDEX_DB
-            if INDEX_DB.exists():
-                conn = sqlite3.connect(str(INDEX_DB))
+            _upsert_search_row(record_dict)
+        except Exception:
+            pass  # Fail-Open — the next TTL-expiry rebuild will catch up
+
+    return rid
+
+
+def _upsert_search_row(record_dict: dict) -> None:
+    """Insert-or-replace a single row in the SQLite search index.
+
+    Mirrors the column layout in query.rebuild_index(). If the index DB
+    doesn't exist yet, we leave it alone — the first rebuild will create
+    it and pick this record up.
+    """
+    import sqlite3
+    from datetime import timezone as _tz
+    from .query import INDEX_DB
+    if not INDEX_DB.exists():
+        return
+    rid = record_dict.get("id", "")
+    if not rid:
+        return
+
+    step = record_dict.get("step", {}) or {}
+    meta = record_dict.get("meta", {}) or {}
+    chain = record_dict.get("chain", {}) or {}
+    flags = step.get("flags") or meta.get("flags", []) or []
+    if isinstance(flags, list):
+        flags_str = json.dumps(flags)
+    else:
+        flags_str = str(flags)
+
+    ts = record_dict.get("ts", 0) or 0
+    date_str = datetime.fromtimestamp(ts / 1000, tz=_tz.utc).strftime("%Y-%m-%d") if ts else ""
+
+    # Preview text from the freshly-saved vault (if present)
+    vault_file = VAULT_DIR / f"{rid}.json"
+    input_preview = ""
+    output_preview = ""
+    if vault_file.exists():
+        try:
+            vdata = json.loads(vault_file.read_text())
+            input_preview = (vdata.get("input") or "")[:500]
+            raw_output = vdata.get("output") or ""
+            if raw_output.startswith('{"final_response"'):
                 try:
-                    conn.execute(
-                        "INSERT OR REPLACE INTO index_state(key, value) VALUES('last_rebuild', 0)"
-                    )
-                    conn.commit()
-                finally:
-                    conn.close()
+                    parsed = json.loads(raw_output)
+                    final_resp = parsed.get("final_response", "")
+                    tool_calls = parsed.get("tool_calls_used", [])
+                    steps = parsed.get("steps", 1)
+                    meta_line = json.dumps({
+                        "_aggregated": True,
+                        "steps": steps,
+                        "tool_calls": len(tool_calls),
+                        "tool_names": [tc.get("name", "") for tc in tool_calls[:20]],
+                    })
+                    output_preview = meta_line + "\n" + (final_resp or "")[:4500]
+                except (json.JSONDecodeError, TypeError):
+                    output_preview = raw_output[:5000]
+            else:
+                output_preview = raw_output[:5000]
         except Exception:
             pass
 
-    return rid
+    has_error = 1 if ("error" in (flags if isinstance(flags, list) else [])
+                      or step.get("error")) else 0
+    metadata = record_dict.get("metadata", {}) or {}
+    is_infra = 1 if metadata.get("is_infra_error") else 0
+    error_type = metadata.get("error_type", "") or ""
+
+    confidence = step.get("confidence") or meta.get("confidence")
+    if isinstance(confidence, dict):
+        confidence = confidence.get("score")
+
+    record_file_row = None
+    try:
+        idx = _load_index()
+        if rid in idx:
+            record_file_row = idx[rid].get("file", "")
+    except Exception:
+        pass
+
+    row = (
+        rid,
+        record_dict.get("agent", ""),
+        ts,
+        date_str,
+        step.get("type") or meta.get("type") or record_dict.get("action", ""),
+        step.get("action") or meta.get("action") or record_dict.get("action", ""),
+        step.get("model") or meta.get("model", "") or "",
+        step.get("latency_ms") or meta.get("latency_ms", 0) or 0,
+        confidence,
+        step.get("session_id") or meta.get("session_id") or record_dict.get("session_id", ""),
+        step.get("delegation_id") or meta.get("delegation_id") or record_dict.get("delegation_id", ""),
+        step.get("delegation_depth") or meta.get("delegation_depth") or record_dict.get("delegation_depth"),
+        chain.get("prev", "") or "",
+        chain.get("hash", "") or "",
+        flags_str,
+        input_preview,
+        output_preview,
+        has_error,
+        is_infra,
+        error_type,
+        meta.get("tokens_in") or 0,
+        meta.get("tokens_out") or 0,
+        int(time.time() * 1000),
+        meta.get("thread_id") or record_dict.get("thread_id", ""),
+    )
+
+    conn = sqlite3.connect(str(INDEX_DB))
+    try:
+        conn.execute("""
+            INSERT OR REPLACE INTO records
+            (id, agent, ts, date, step_type, action, model, latency_ms,
+             confidence, session_id, delegation_id, delegation_depth,
+             chain_prev, chain_hash, flags, input_preview, output_preview,
+             error, is_infra, error_type, tokens_in, tokens_out, indexed_at, thread_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, row)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def save_vault(record_id: str, input_content: str, output_content: str) -> None:

@@ -299,6 +299,16 @@ def list_agents(as_json: bool = False) -> list[dict]:
 
     did_map = _build_did_name_map()
 
+    # Pre-compute agent → first-non-empty action in one query instead of
+    # issuing a separate SELECT per agent inside the loop (N+1 was the
+    # main reason /api/agents took ~1.6 s on 7 k records).
+    action_db = _get_db()
+    action_rows = action_db.execute(
+        "SELECT agent, action FROM records WHERE action != '' GROUP BY agent"
+    ).fetchall()
+    action_db.close()
+    agent_to_action: dict[str, str] = {r[0]: r[1] for r in action_rows}
+
     agents = []
     for row in rows:
         # v0.17: exclude heartbeats, system_errors, tool_intermediates from interaction count
@@ -331,24 +341,14 @@ def list_agents(as_json: bool = False) -> list[dict]:
             # Has a friendly name from OpenClaw identity dir
             framework = "openclaw"
         else:
-            # Check action field — "session" = Claude Code hooks, "llm_call" = proxy
-            try:
-                _db2 = _get_db()
-                action_row = _db2.execute(
-                    "SELECT action FROM records WHERE agent = ? AND action != '' LIMIT 1", (did,)
-                ).fetchone()
-                _db2.close()
-                if action_row:
-                    action = action_row[0]
-                    if action in ("session", "conversation", "subagent"):
-                        framework = "claude-code"
-                    elif action == "llm_call":
-                        framework = "proxy"
-                    else:
-                        framework = "sdk"
-                else:
-                    framework = "unknown"
-            except Exception:
+            action = agent_to_action.get(did, "")
+            if action in ("session", "conversation", "subagent"):
+                framework = "claude-code"
+            elif action == "llm_call":
+                framework = "proxy"
+            elif action:
+                framework = "sdk"
+            else:
                 framework = "unknown"
 
         agents.append({
