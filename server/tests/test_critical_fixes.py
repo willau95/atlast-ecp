@@ -80,6 +80,35 @@ async def test_c2_batch_upload_rejects_no_auth_production():
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("env_value", ["prod", "PRODUCTION", "Production", "staging", "", "garbage", "production "])
+async def test_c3_environment_fail_closed_on_non_dev_values(env_value):
+    """Any ENVIRONMENT value NOT in the dev whitelist (typos, staging, blank,
+    unknown) must require auth on /v1/batches — fail-closed against
+    misconfiguration, not just the exact string "production"."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+
+    with patch("app.routes.batches.settings") as mock_settings:
+        mock_settings.ENVIRONMENT = env_value
+        mock_settings.LLACHAT_API_URL = ""
+        mock_settings.LLACHAT_INTERNAL_TOKEN = ""
+
+        resp = client.post("/v1/batches", json={
+            "merkle_root": "sha256:abc",
+            "agent_did": "did:ecp:fake",
+            "record_count": 5,
+            "batch_ts": 1000,
+            "sig": "ed25519:fake",
+        })
+        assert resp.status_code == 401, (
+            f"ENVIRONMENT={env_value!r} should be fail-closed (401) "
+            f"but got {resp.status_code}"
+        )
+
+
+@pytest.mark.anyio
 async def test_c2_batch_upload_rejects_wrong_did():
     """API key for agent A should not be able to upload as agent B."""
     from fastapi.testclient import TestClient

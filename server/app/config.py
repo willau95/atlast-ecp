@@ -2,6 +2,13 @@
 import os
 
 
+# Development environment whitelist. Any ENVIRONMENT value NOT in this set is
+# treated as production for security decisions — fail-closed against typos
+# like "prod", "PRODUCTION", staging misconfigurations, or a missing env var.
+# Callers do: `settings.ENVIRONMENT.strip().lower() in _DEV_ENVIRONMENTS`.
+_DEV_ENVIRONMENTS = frozenset({"development", "dev", "test", "testing", "local"})
+
+
 class Settings:
     # EAS
     EAS_PRIVATE_KEY: str = os.getenv("EAS_PRIVATE_KEY", "")
@@ -44,7 +51,9 @@ settings = Settings()
 # Production safety checks (warn, don't crash — avoid breaking existing deployments)
 import logging as _logging
 _startup_logger = _logging.getLogger("atlast.startup")
-if settings.ENVIRONMENT == "production":
+if (settings.ENVIRONMENT or "").strip().lower() not in _DEV_ENVIRONMENTS:
+    # fail-closed: any non-whitelisted ENVIRONMENT (production, staging, typo,
+    # missing) runs under production-grade startup checks.
     if not settings.EAS_PRIVATE_KEY and settings.EAS_STUB_MODE != "true":
         _startup_logger.warning(
             "EAS_PRIVATE_KEY not set — on-chain anchoring will fail. "

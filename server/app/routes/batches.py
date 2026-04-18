@@ -121,14 +121,18 @@ async def upload_batch(
                 raise HTTPException(status_code=503, detail="Database not available, cannot verify auth")
             raise
     else:
-        # No API key — reject in production (fail-closed)
-        if settings.ENVIRONMENT == "production":
+        # No API key — fail-closed against any non-dev ENVIRONMENT value.
+        # A typo ("prod", "PRODUCTION"), staging, or missing env var must all
+        # require auth. Only the explicit dev whitelist allows fallthrough.
+        from ..config import _DEV_ENVIRONMENTS
+        env_norm = (settings.ENVIRONMENT or "").strip().lower()
+        if env_norm not in _DEV_ENVIRONMENTS:
             raise HTTPException(
                 status_code=401,
                 detail="API key required. Register at POST /v1/agents/register first.",
             )
-        # Non-production: accept without auth for local development
-        logger.warning("batch_upload_no_api_key_dev", did=req.agent_did)
+        # Dev whitelist: accept without auth for local development
+        logger.warning("batch_upload_no_api_key_dev", did=req.agent_did, env=env_norm)
 
     # Server-side signature verification (if agent has registered public_key)
     if api_key and req.sig and req.sig.startswith("ed25519:"):
