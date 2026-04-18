@@ -142,13 +142,22 @@ async def register_agent(req: RegisterRequest, request: Request):
     Existing DID: ownership_sig + ownership_ts required to prove key ownership.
     This prevents DID hijacking (anyone registering keys for DIDs they don't own).
     """
-    # Validate DID format
-    if not req.did or not req.did.startswith("did:ecp:"):
-        raise HTTPException(status_code=422, detail="Invalid DID format. Expected: did:ecp:{hex}")
+    # Validate DID format strictly: `did:ecp:` + 32-64 hex chars.
+    # Previous check (startswith only) accepted "did:ecp:" (empty),
+    # "did:ecp:x" (non-hex), "did:ecp:00…" (collision/replay), etc.
+    import re as _re
+    if not req.did or not _re.match(r"^did:ecp:[0-9a-fA-F]{32,64}$", req.did):
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid DID format. Expected: did:ecp:{32-64 hex chars}",
+        )
 
     # Validate public_key format (Ed25519 = 32 bytes = 64 hex chars)
-    if not req.public_key or len(req.public_key) < 32:
-        raise HTTPException(status_code=422, detail="public_key required (Ed25519 hex)")
+    if not req.public_key or not _re.match(r"^[0-9a-fA-F]{64}$", req.public_key):
+        raise HTTPException(
+            status_code=422,
+            detail="public_key must be 64 hex chars (Ed25519 public key raw bytes)",
+        )
 
     session = await get_session()
     if session is None:

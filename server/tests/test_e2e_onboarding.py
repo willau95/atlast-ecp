@@ -80,8 +80,8 @@ def build_merkle_root(hashes: list[str]) -> str:
 
 @pytest.fixture
 def unique_did():
-    """Generate a unique DID for each test run."""
-    return f"did:ecp:test_{secrets.token_hex(8)}"
+    """Generate a unique DID for each test run (32 hex chars = valid format)."""
+    return f"did:ecp:{secrets.token_hex(16)}"
 
 
 @pytest.fixture
@@ -106,7 +106,7 @@ async def test_full_onboarding_journey(unique_did, record_hashes):
         # ── Step 1: Register agent ──
         reg_resp = await client.post("/v1/agents/register", json={
             "did": unique_did,
-            "public_key": f"ed25519:{secrets.token_hex(32)}",
+            "public_key": secrets.token_hex(32),  # 64 hex chars, no prefix (matches SDK)
             "ecp_version": "0.9.0",
         })
         assert reg_resp.status_code == 200, f"Register failed: {reg_resp.text}"
@@ -200,7 +200,7 @@ async def test_upload_batch_wrong_key_rejected():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post("/v1/batches", json={
-            "agent_did": "did:ecp:nonexistent",
+            "agent_did": "did:ecp:" + "1" * 32,  # valid format, no matching agent
             "merkle_root": "sha256:fake",
             "record_count": 1,
             "record_hashes": ["sha256:fake"],

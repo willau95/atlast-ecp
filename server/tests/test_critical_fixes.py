@@ -255,6 +255,37 @@ async def test_c2_batch_upload_rejects_wrong_did():
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("did,ok", [
+    ("did:ecp:" + "a" * 32,  True),   # 32 hex OK
+    ("did:ecp:" + "a" * 40,  True),   # 40 hex OK
+    ("did:ecp:" + "a" * 64,  True),   # 64 hex OK
+    ("did:ecp:" + "A" * 32,  True),   # uppercase hex OK
+    ("did:ecp:",             False),  # empty suffix
+    ("did:ecp:x",            False),  # 1 char, not enough
+    ("did:ecp:" + "a" * 31,  False),  # 31 chars, below min
+    ("did:ecp:" + "g" * 32,  False),  # g is not hex
+    ("did:ecp:test_abc123",  False),  # non-hex characters
+    ("did:ecp:" + "a" * 65,  False),  # 65 chars, above max
+    ("ecp:abc",              False),  # wrong scheme
+    ("",                     False),  # empty
+])
+async def test_m3_did_format_strict_regex(did, ok):
+    """Register endpoint must strictly validate did:ecp:{32-64 hex chars}."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    resp = client.post("/v1/agents/register", json={
+        "did": did,
+        "public_key": "a" * 64,
+    })
+    # Invalid DID → 422. Valid DID may return 429 (rate limit) or 503 (no DB in test), but NOT 422.
+    if ok:
+        assert resp.status_code != 422, f"Valid DID {did!r} was rejected: {resp.text}"
+    else:
+        assert resp.status_code == 422, f"Invalid DID {did!r} was accepted: {resp.status_code}"
+
+
+@pytest.mark.anyio
 async def test_c2_register_validates_did_format():
     """Register should reject invalid DID format."""
     from fastapi.testclient import TestClient

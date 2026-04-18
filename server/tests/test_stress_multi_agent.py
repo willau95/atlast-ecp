@@ -84,7 +84,7 @@ async def register_agent(client, did):
     """Register an agent and return API key."""
     r = await client.post("/v1/agents/register", json={
         "did": did,
-        "public_key": f"ed25519:{secrets.token_hex(32)}",
+        "public_key": secrets.token_hex(32),  # 64 hex chars, no prefix (matches SDK identity.py format)
         "ecp_version": "0.9.0",
     })
     assert r.status_code == 200
@@ -115,7 +115,7 @@ async def test_st_a_concurrent_multi_agent_upload():
         # Register 10 agents
         agents = {}
         for i in range(10):
-            did = f"did:ecp:stress_a_{i}_{secrets.token_hex(4)}"
+            did = f"did:ecp:{secrets.token_hex(16)}"  # 32 hex chars (valid format)
             key = await register_agent(client, did)
             agents[did] = key
 
@@ -143,7 +143,7 @@ async def test_st_b_super_batch_trigger(setup_test_db):
         # Register and upload 10 batches
         batch_ids = []
         for i in range(10):
-            did = f"did:ecp:stress_b_{i}_{secrets.token_hex(4)}"
+            did = f"did:ecp:{secrets.token_hex(16)}"
             key = await register_agent(client, did)
             bid, _, _ = await upload_batch(client, did, key, record_count=10)
             batch_ids.append(bid)
@@ -173,7 +173,7 @@ async def test_st_c_merkle_proof_verification(setup_test_db):
         # Create 7 batches (odd number to test duplicate-last merkle behavior)
         roots = []
         for i in range(7):
-            did = f"did:ecp:stress_c_{i}_{secrets.token_hex(4)}"
+            did = f"did:ecp:{secrets.token_hex(16)}"
             key = await register_agent(client, did)
             _, root, _ = await upload_batch(client, did, key, record_count=5)
             roots.append(root)
@@ -203,7 +203,7 @@ async def test_st_d_webhook_fires_for_all(setup_test_db):
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Upload 6 batches
         for i in range(6):
-            did = f"did:ecp:stress_d_{i}_{secrets.token_hex(4)}"
+            did = f"did:ecp:{secrets.token_hex(16)}"
             key = await register_agent(client, did)
             await upload_batch(client, did, key, record_count=5)
 
@@ -238,7 +238,7 @@ async def test_st_e_three_rounds_consistency(setup_test_db):
         for round_num in range(3):
             # Upload 6 batches per round
             for i in range(6):
-                did = f"did:ecp:stress_e_r{round_num}_{i}_{secrets.token_hex(4)}"
+                did = f"did:ecp:{secrets.token_hex(16)}"
                 key = await register_agent(client, did)
                 await upload_batch(client, did, key, record_count=5)
             total_batches += 6

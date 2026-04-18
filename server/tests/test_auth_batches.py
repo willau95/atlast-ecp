@@ -29,7 +29,7 @@ class TestAgentRegistration:
     def test_register_returns_503_without_db(self, client):
         """Without DB, register returns 503."""
         resp = client.post("/v1/agents/register", json={
-            "did": "did:ecp:test123",
+            "did": "did:ecp:" + "a" * 32,  # valid DID format
             "public_key": "a" * 64,
         })
         assert resp.status_code == 503
@@ -49,7 +49,7 @@ class TestBatchUpload:
         """Without DB, batch is accepted but storage fails gracefully."""
         resp = client.post("/v1/batches", json={
             "merkle_root": "sha256:abc123",
-            "agent_did": "did:ecp:test",
+            "agent_did": "did:ecp:" + "b" * 32,
             "record_count": 5,
             "avg_latency_ms": 100,
             "batch_ts": 1234567890000,
@@ -69,7 +69,7 @@ class TestBatchUpload:
         """Batch with optional enrichment fields."""
         resp = client.post("/v1/batches", json={
             "merkle_root": "sha256:def456",
-            "agent_did": "did:ecp:test2",
+            "agent_did": "did:ecp:" + "c" * 32,
             "record_count": 3,
             "avg_latency_ms": 200,
             "batch_ts": 1234567890000,
