@@ -37,8 +37,20 @@ class Settings:
     # Cron
     ANCHOR_INTERVAL_MINUTES: int = int(os.getenv("ANCHOR_INTERVAL_MINUTES", "60"))
 
-    # Super-batch
-    SUPER_BATCH_MIN_SIZE: int = int(os.getenv("SUPER_BATCH_MIN_SIZE", "5"))
+    # Anchor policy (defense against gas-waste via tiny batches)
+    #
+    # Anchor fires only when EITHER:
+    #   (a) len(pending) >= MIN_ANCHOR_BATCHES AND total_records >= MIN_ANCHOR_RECORDS
+    #   (b) oldest_pending_age_hours >= MAX_ANCHOR_WAIT_HOURS (anti-starvation for legit small users)
+    # Once firing, batches are merged into a single super-batch when
+    # len >= SUPER_BATCH_MIN_SIZE (one on-chain tx amortized across all).
+    # Previous defaults (SUPER_BATCH_MIN_SIZE=5, no records/wait gate) allowed
+    # an attacker to flood 5 single-record batches to force an immediate,
+    # expensive on-chain tx per 5 records.
+    MIN_ANCHOR_BATCHES: int = int(os.getenv("MIN_ANCHOR_BATCHES", "10"))
+    MIN_ANCHOR_RECORDS: int = int(os.getenv("MIN_ANCHOR_RECORDS", "100"))
+    MAX_ANCHOR_WAIT_HOURS: int = int(os.getenv("MAX_ANCHOR_WAIT_HOURS", "168"))  # 7 days
+    SUPER_BATCH_MIN_SIZE: int = int(os.getenv("SUPER_BATCH_MIN_SIZE", "10"))
 
     # Monitoring
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")

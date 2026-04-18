@@ -268,6 +268,45 @@ async def _anchor_pending():
             if not batches:
                 return {"processed": 0, "anchored": 0, "errors": 0, "note": "all_exhausted"}
 
+            # Step 4.5: Anchor threshold gate (anti gas-waste).
+            # Defer unless we have enough batches + records OR a batch has
+            # waited long enough that we must anchor it even at low volume.
+            total_records = sum(int(b.get("record_count") or 0) for b in batches)
+            now_ms = int(_time.time() * 1000)
+            oldest_age_hours = 0.0
+            for b in batches:
+                bts = int(b.get("batch_ts") or 0)
+                if bts:
+                    age_h = (now_ms - bts) / (1000.0 * 3600.0)
+                    if age_h > oldest_age_hours:
+                        oldest_age_hours = age_h
+
+            volume_ok = (
+                len(batches) >= settings.MIN_ANCHOR_BATCHES
+                and total_records >= settings.MIN_ANCHOR_RECORDS
+            )
+            starvation = oldest_age_hours >= settings.MAX_ANCHOR_WAIT_HOURS
+
+            if not (volume_ok or starvation):
+                logger.info(
+                    "anchor_deferred_below_threshold",
+                    pending=len(batches),
+                    total_records=total_records,
+                    oldest_age_hours=round(oldest_age_hours, 2),
+                    min_batches=settings.MIN_ANCHOR_BATCHES,
+                    min_records=settings.MIN_ANCHOR_RECORDS,
+                    max_wait_h=settings.MAX_ANCHOR_WAIT_HOURS,
+                )
+                return {
+                    "processed": 0,
+                    "anchored": 0,
+                    "errors": 0,
+                    "deferred": len(batches),
+                    "pending_records": total_records,
+                    "oldest_age_hours": round(oldest_age_hours, 2),
+                    "reason": "below_anchor_threshold",
+                }
+
             # Step 5: Anchor
             if len(batches) >= settings.SUPER_BATCH_MIN_SIZE:
                 result = await _anchor_super_batch(batches, _anchor_start)
