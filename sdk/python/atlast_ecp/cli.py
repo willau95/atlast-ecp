@@ -2993,6 +2993,138 @@ def cmd_doctor(args: list[str]):
     except Exception:
         pass
 
+    # 2c. Detect atlast-ecp installed under MULTIPLE Python environments.
+    # macOS users easily end up with Apple Python + Homebrew Python +
+    # several venvs, each with its own site-packages. `pip install` only
+    # touches one of them — stale copies in the others silently ship to
+    # launchd / hooks / shell commands, producing "why is my dashboard
+    # running v0.17 when I just upgraded?" confusion that's invisible
+    # unless you know where to look.
+    try:
+        import subprocess as _sp
+        import glob as _glob
+        from pathlib import Path as _Path
+        candidate_pythons: list[str] = []
+        home = str(_Path.home())
+        search_globs = [
+            "/usr/bin/python3",
+            "/Library/Developer/CommandLineTools/usr/bin/python3",
+            "/opt/homebrew/bin/python3",
+            "/opt/homebrew/bin/python3.1?",
+            "/opt/homebrew/opt/python@3.1?/bin/python3.1?",
+            "/usr/local/bin/python3",
+            "/usr/local/bin/python3.1?",
+            f"{home}/*/bin/python3*",                      # shallow venvs in $HOME
+            f"{home}/.ecp/agents/*/.venv/bin/python3*",
+        ]
+        seen: set = set()
+        for pattern in search_globs:
+            for match in _glob.glob(pattern):
+                real = os.path.realpath(match)
+                if real in seen or not os.path.isfile(match) or not os.access(match, os.X_OK):
+                    continue
+                seen.add(real)
+                candidate_pythons.append(match)
+
+        installs: list[dict] = []
+        for py in candidate_pythons:
+            try:
+                r = _sp.run(
+                    [py, "-c",
+                     "import atlast_ecp, sys; print(atlast_ecp.__version__); print(atlast_ecp.__file__)"],
+                    capture_output=True, text=True, timeout=6,
+                )
+                if r.returncode == 0:
+                    lines = r.stdout.strip().splitlines()
+                    if len(lines) >= 2:
+                        installs.append({"py": py, "version": lines[0], "path": lines[1]})
+            except Exception:
+                continue
+
+        if installs:
+            versions = {i["version"] for i in installs}
+            if len(installs) == 1:
+                print(f"  ✅ Installed once: {installs[0]['py']} → atlast-ecp {installs[0]['version']}")
+            elif len(versions) == 1:
+                print(f"  ✅ Installed in {len(installs)} Python(s), all at v{installs[0]['version']}")
+            else:
+                print(f"  ❌ MULTI-PYTHON CONTAMINATION: atlast-ecp installed in {len(installs)} environments "
+                      f"with {len(versions)} different versions:")
+                for i in installs:
+                    print(f"       {i['py']}  →  v{i['version']}")
+                issues.append(
+                    "Multiple atlast-ecp installs detected. Pick the canonical Python "
+                    "(usually /Library/Developer/CommandLineTools/usr/bin/python3 on macOS) "
+                    "and uninstall the rest: for each OTHER python above, run "
+                    "`<that python> -m pip uninstall -y atlast-ecp` "
+                    "(add --break-system-packages on Homebrew). "
+                    "Then re-run `atlast init` so launchd/hook scripts point at the canonical one."
+                )
+                if "--fix" in args:
+                    # Keep the newest version; uninstall everywhere else.
+                    from packaging.version import Version as _V  # lazy import; stdlib fallback below
+                    try:
+                        def _k(i): return _V(i["version"])
+                    except Exception:
+                        def _k(i): return i["version"]
+                    keep = max(installs, key=_k)
+                    print(f"     → --fix: keeping {keep['py']} at v{keep['version']}, uninstalling others...")
+                    for i in installs:
+                        if i["py"] == keep["py"]:
+                            continue
+                        cmd = [i["py"], "-m", "pip", "uninstall", "-y", "atlast-ecp"]
+                        # Try with and without --break-system-packages depending on PEP 668 env
+                        try:
+                            _sp.run(cmd + ["--break-system-packages"],
+                                    capture_output=True, text=True, timeout=60)
+                        except Exception:
+                            try:
+                                _sp.run(cmd, capture_output=True, text=True, timeout=60)
+                            except Exception:
+                                pass
+                    fixed.append(f"Uninstalled stale atlast-ecp copies from {len(installs) - 1} other Python(s)")
+
+        # Also audit launchd plists (macOS): if any ai.atlast.ecp.* plist
+        # references a Python where atlast-ecp isn't importable, the
+        # service will silently fail to start after an upgrade.
+        if sys.platform == "darwin":
+            la_dir = _Path.home() / "Library" / "LaunchAgents"
+            if la_dir.exists():
+                bad_plists: list[str] = []
+                for pl in la_dir.glob("ai.atlast.ecp.*.plist"):
+                    try:
+                        content = pl.read_text()
+                    except Exception:
+                        continue
+                    # Crude extract of the first <string> that looks like a python path
+                    import re as _re
+                    m = _re.search(r"<string>(/\S*?python\S*?)</string>", content)
+                    if not m:
+                        continue
+                    py_path = m.group(1)
+                    if not os.path.exists(py_path):
+                        bad_plists.append(f"{pl.name} → {py_path} (path missing)")
+                        continue
+                    try:
+                        r = _sp.run(
+                            [py_path, "-c", "import atlast_ecp"],
+                            capture_output=True, timeout=5,
+                        )
+                        if r.returncode != 0:
+                            bad_plists.append(f"{pl.name} → {py_path} (atlast-ecp not importable)")
+                    except Exception:
+                        bad_plists.append(f"{pl.name} → {py_path} (check failed)")
+                if bad_plists:
+                    print(f"  ❌ {len(bad_plists)} LaunchAgent plist(s) point at Python without atlast-ecp:")
+                    for bp in bad_plists:
+                        print(f"       {bp}")
+                    issues.append(
+                        "LaunchAgent(s) point at a Python where atlast-ecp is missing — "
+                        "re-run `atlast init` to rewrite them at the canonical Python."
+                    )
+    except Exception:
+        pass  # Never break doctor on the multi-install check.
+
     # 3. ECP directory
     from .storage import ECP_DIR
     if ECP_DIR.exists():
