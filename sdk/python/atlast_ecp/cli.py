@@ -998,16 +998,20 @@ def _auto_setup_claude_code() -> bool:
         except (json.JSONDecodeError, IOError):
             settings = {}
 
-    # Check if BOTH hooks are installed (PostToolUse + Stop)
+    # Detect prior hook layout. Older installs registered both a
+    # PostToolUse buffer hook and a Stop hook; the current architecture
+    # uses only Stop (transcript_scanner reads the full session JSONL).
+    # We always fall through to the rewrite step below so that:
+    #   - stale PostToolUse entries get removed,
+    #   - a re-run of `atlast init` refreshes the hook script to the
+    #     latest template even when Stop is already present.
     hooks = settings.get("hooks", {})
-    existing_hooks = json.dumps(hooks)
     has_post = "atlast" in json.dumps(hooks.get("PostToolUse", [])).lower()
     has_stop = "atlast" in json.dumps(hooks.get("Stop", [])).lower()
-    if has_post and has_stop:
-        print("  Claude Code: ✅ hooks already installed (PostToolUse + Stop)")
-        return True
-    if has_post and not has_stop:
-        print("  Claude Code: ⚠️  PostToolUse exists but Stop hook missing — upgrading...")
+    if has_post:
+        print("  Claude Code: cleaning up legacy PostToolUse hook (now handled by Stop).")
+    if has_stop:
+        print("  Claude Code: refreshing Stop hook template to this SDK version.")
 
     # Find the ecp_hooks.py file
     hooks_src = None
