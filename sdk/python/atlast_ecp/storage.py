@@ -92,6 +92,14 @@ def save_record(record_dict: dict, local_summary: Optional[str] = None) -> str:
         summary_file = LOCAL_DIR / f"{record_dict['id']}.txt"
         summary_file.write_text(local_summary, encoding="utf-8")
 
+    # Event-driven batch trigger: check if the 1000-record threshold crossed.
+    # Throttled + fire-and-forget, so the writing process never blocks.
+    try:
+        from .batch import maybe_trigger_batch_on_write
+        maybe_trigger_batch_on_write()
+    except Exception:
+        pass
+
     return record_dict["id"]
 
 
@@ -233,6 +241,15 @@ def upsert_record(record_dict: dict) -> str:
             _upsert_search_row(record_dict)
         except Exception:
             pass  # Fail-Open — the next TTL-expiry rebuild will catch up
+
+    # Event-driven batch trigger — same as save_record. A scanner/proxy write
+    # that pushes the pending count over 1000 fires a batch in a daemon
+    # thread before the writer's process exits.
+    try:
+        from .batch import maybe_trigger_batch_on_write
+        maybe_trigger_batch_on_write()
+    except Exception:
+        pass
 
     return rid
 

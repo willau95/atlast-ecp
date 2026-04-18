@@ -597,6 +597,62 @@ def trigger_batch_upload(flush: bool = False):
     threading.Thread(target=run_batch, kwargs={"flush": flush}, daemon=True).start()
 
 
+# ─── Event-driven threshold trigger ─────────────────────────────────────────
+#
+# Called after every record write (save_record / upsert_record). Event-driven
+# so the "1000 records → auto-batch" guarantee works without any background
+# daemon or cron — cross-platform, zero infra. Whichever process wrote the
+# record fires the batch itself in a daemon thread before it exits.
+#
+# Throttled to one check per process per minute to avoid redundant SQL when
+# a burst of records lands in quick succession.
+
+_last_threshold_check = 0.0
+_THRESHOLD_CHECK_COOLDOWN_S = 60.0
+
+
+def maybe_trigger_batch_on_write() -> None:
+    """Check the pending-records count; fire a batch if threshold is met.
+
+    Safe to call on every record write — the SQL is a single COUNT and the
+    upload runs in a daemon thread so the caller never blocks.
+    """
+    global _last_threshold_check
+    now = time.time()
+    if now - _last_threshold_check < _THRESHOLD_CHECK_COOLDOWN_S:
+        return
+    _last_threshold_check = now
+
+    try:
+        state = _load_batch_state()
+        since_ts = state.get("last_batch_ts", 0) or 0
+
+        # Use the SQLite search index for O(1) count — no disk JSONL scan.
+        import sqlite3
+        from .query import INDEX_DB
+        if not INDEX_DB.exists():
+            return
+        conn = sqlite3.connect(str(INDEX_DB))
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM records WHERE ts > ?", (since_ts,)
+            ).fetchone()
+        finally:
+            conn.close()
+        pending = (row[0] if row else 0) or 0
+
+        if pending >= BATCH_THRESHOLD:
+            # Fire-and-forget: the caller's process may exit before this
+            # finishes, but run_batch() persists batch state + enqueues
+            # for retry before calling the network, so nothing is lost.
+            threading.Thread(
+                target=run_batch, kwargs={"flush": False}, daemon=True
+            ).start()
+    except Exception:
+        # Fail-Open — a threshold check failure must never break recording.
+        pass
+
+
 # ─── State Management ─────────────────────────────────────────────────────────
 
 def _load_batch_state() -> dict:
