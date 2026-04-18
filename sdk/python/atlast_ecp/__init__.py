@@ -36,7 +36,10 @@ try:
     from importlib.metadata import version as _get_version
     __version__ = _get_version("atlast-ecp")
 except Exception:
-    __version__ = "0.21.2"
+    # Running from source without pip install metadata — honest fallback.
+    # Never hardcode a numeric version here: it drifts from pyproject.toml
+    # and lies to telemetry. "unknown" is better than wrong.
+    __version__ = "unknown"
 __all__ = [
     # Core
     "wrap",
