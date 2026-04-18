@@ -426,12 +426,55 @@ def deterministic_record_id(session_id: str, turn_start_ts: str, user_text: str)
 
 
 def derive_agent_name(transcript_path: Path) -> str:
+    """Agent name for the scanned session.
+
+    Preferred source: the `cwd` field that Claude Code writes inside each
+    transcript entry (absolute path of the project at the time the session
+    ran). Using it avoids the parsing bug where usernames containing
+    hyphens (e.g. `mad-imac1`) get shredded by the dir-name split.
+
+    Fallback: parse the ~/.claude/projects/-Users-<user>-<anchor>-<name>
+    dir name using a known anchor (Desktop, Documents, ...). Last-resort
+    fallback is "claude-code".
+    """
+    # Try to read cwd from the first few transcript entries.
+    try:
+        with transcript_path.open("r", encoding="utf-8") as f:
+            for _ in range(20):
+                line = f.readline()
+                if not line:
+                    break
+                try:
+                    entry = json.loads(line)
+                except Exception:
+                    continue
+                cwd = entry.get("cwd")
+                if cwd:
+                    name = Path(cwd).name
+                    # "cwd": "/Users/<user>" → Path.name is the username;
+                    # prefer this for sessions run directly from $HOME so
+                    # we don't collide with the fallback's parts[-1] bug.
+                    return name or "claude-code"
+    except Exception:
+        pass
+
+    # Fallback: parse the project-dir name.
     try:
         project_dir = transcript_path.parent.name
-        parts = [p for p in project_dir.split("-") if p and p != "Users"]
+        # Strip the leading "-Users-<user>" prefix token-by-token so
+        # hyphenated usernames don't get mangled. Walk past "Users" and
+        # everything up to the first known anchor.
+        parts = project_dir.split("-")
+        # Drop empty leading segments + "Users"
+        while parts and (not parts[0] or parts[0] == "Users"):
+            parts.pop(0)
+        anchors = {"Desktop", "Documents", "Projects", "repos", "code", "src", "home"}
         for i, p in enumerate(parts):
-            if p in ("Desktop", "Documents", "Projects", "repos", "code", "src", "home"):
-                return "-".join(parts[i + 1:]) or "claude-code"
+            if p in anchors:
+                remainder = "-".join(parts[i + 1:])
+                return remainder or "claude-code"
+        # No anchor found → return last meaningful segment, but guard
+        # against returning a username when the path is literally /Users/user.
         return parts[-1] if parts else "claude-code"
     except Exception:
         return "claude-code"
