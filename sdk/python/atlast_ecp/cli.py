@@ -1229,10 +1229,33 @@ if __name__ == "__main__":
         except Exception:
             stop_template = None
     if stop_template:
+        # Stamp the installed SDK version into the template so the hook's
+        # self-upgrade check sees a matching value and doesn't re-exec on
+        # every fire. Future pip upgrades change the package __version__;
+        # the hook script compares against this baked constant.
+        try:
+            from . import __version__ as _sdk_ver
+        except Exception:
+            _sdk_ver = "0.0.0"
+        stop_template = stop_template.replace(
+            'HOOK_BAKED_SDK_VERSION = "0.0.0"',
+            f'HOOK_BAKED_SDK_VERSION = "{_sdk_ver}"',
+            1,
+        )
         stop_hook_file.write_text(stop_template)
     else:
         # Last-resort stub: if template is missing, install a no-op so we don't crash
         stop_hook_file.write_text("# atlast stop hook template missing — upgrade atlast-ecp\n")
+
+    # Clean up the legacy PostToolUse hook script from prior installs. The
+    # transcript-scanner architecture doesn't need it, and leaving it on
+    # disk invites it being re-wired manually.
+    legacy_post_hook = plugins_dir / "atlast_ecp_hook.py"
+    if legacy_post_hook.exists():
+        try:
+            legacy_post_hook.unlink()
+        except Exception:
+            pass
     _legacy_stop_template = '''"""ATLAST ECP — Claude Code Stop hook (legacy, replaced by template file).
 Fires after EVERY Claude Code response (including pure chat).
 Reads the session transcript and records the latest conversation turn.
@@ -1687,20 +1710,29 @@ if __name__ == "__main__":
 
     hooks = settings.setdefault("hooks", {})
 
-    # PostToolUse — buffer tool calls
-    post_hooks = hooks.setdefault("PostToolUse", [])
-    if not any("atlast" in json.dumps(h).lower() for h in post_hooks):
-        post_hooks.append({
-            "matcher": "*",
-            "hooks": [{
-                "type": "command",
-                "command": hook_command
-            }]
-        })
+    # Single source of truth: the Stop hook delegates to transcript_scanner,
+    # which reads the full session JSONL and upserts byte-for-byte records
+    # with deterministic ids. The legacy PostToolUse buffer/flush hook is
+    # redundant — keeping it enabled produced duplicate records (two agent
+    # names per turn, two ids per turn). Remove any atlast PostToolUse hook
+    # entries from prior installs here so upgrading old setups cleans up
+    # without manual intervention.
+    post_hooks = hooks.get("PostToolUse", [])
+    if post_hooks:
+        cleaned_post = [h for h in post_hooks if "atlast" not in json.dumps(h).lower()]
+        if cleaned_post:
+            hooks["PostToolUse"] = cleaned_post
+        else:
+            hooks.pop("PostToolUse", None)
 
-    # Stop — fires after EVERY response, records the full conversation turn
+    # Stop — fires after every response; the hook template self-upgrades
+    # (re-pastes the latest template from the installed package whenever
+    # the SDK version advances past the one baked into the script).
     stop_hooks = hooks.setdefault("Stop", [])
-    if not any("atlast" in json.dumps(h).lower() for h in stop_hooks):
+    atlast_stop_present = any(
+        "atlast" in json.dumps(h).lower() for h in stop_hooks
+    )
+    if not atlast_stop_present:
         stop_hooks.append({
             "matcher": "",
             "hooks": [{
@@ -1708,6 +1740,15 @@ if __name__ == "__main__":
                 "command": stop_hook_command
             }]
         })
+    else:
+        # Ensure the existing atlast Stop entry points at the current
+        # hook script path (covers upgrades that moved paths).
+        for h in stop_hooks:
+            h_json = json.dumps(h).lower()
+            if "atlast" in h_json:
+                for inner in h.get("hooks", []):
+                    if "atlast" in (inner.get("command") or "").lower():
+                        inner["command"] = stop_hook_command
 
     settings_file.parent.mkdir(parents=True, exist_ok=True)
     settings_file.write_text(json.dumps(settings, indent=2))
@@ -1719,7 +1760,7 @@ if __name__ == "__main__":
             capture_output=True, text=True, timeout=10,
         )
         if verify.returncode == 0 and "OK" in verify.stdout:
-            print("  Claude Code: ✅ hooks installed + verified (PostToolUse + Stop)")
+            print("  Claude Code: ✅ Stop hook installed (transcript-scanner architecture)")
         else:
             print(f"  Claude Code: ⚠️  hooks installed but verification failed: {verify.stderr.strip()[:100]}")
             print(f"     Hook Python: {python_bin}")
@@ -1827,6 +1868,135 @@ def _auto_register(identity: dict):
             save_config({"agent_did": did, "endpoint": server_url})
         else:
             raise
+
+
+def cmd_cleanup(args: list[str]):
+    """atlast cleanup — remove duplicate records from old hook generations.
+
+    Previous hook versions (PostToolUse buffer+flush, legacy Stop hook) wrote
+    records with randomly-generated ids and different agent-name schemes.
+    When you `atlast sync` after upgrading, the transcript scanner adds new
+    `recT_*` records with deterministic ids and the correct agent name.
+    The old `rec_*` records are now stale duplicates — this command deletes
+    them.
+
+    Flags:
+      --dry-run   show what would be removed, don't delete
+      --confirm   skip the interactive prompt
+    """
+    dry_run = "--dry-run" in args
+    auto = "--confirm" in args
+
+    import sqlite3, json, os
+    from pathlib import Path
+    from collections import defaultdict
+    from .storage import ECP_DIR
+    from .query import INDEX_DB, rebuild_index
+
+    if not INDEX_DB.exists():
+        rebuild_index()
+
+    # Group records by (session_id, input_preview). If a group has both an
+    # old `rec_*` and a new `recT_*`, the old ones are duplicates of a
+    # scanner-produced turn and can go.
+    conn = sqlite3.connect(str(INDEX_DB))
+    rows = conn.execute(
+        "SELECT id, agent, session_id, input_preview, ts FROM records"
+    ).fetchall()
+    conn.close()
+
+    groups: dict = defaultdict(list)
+    for rid, agent, sess, inp, ts in rows:
+        key = (sess or "", (inp or "")[:120])
+        groups[key].append({"id": rid, "agent": agent, "ts": ts})
+
+    to_delete: list[dict] = []
+    for key, members in groups.items():
+        if len(members) < 2:
+            continue
+        has_new = any(m["id"].startswith("recT_") for m in members)
+        if not has_new:
+            # All legacy — keep them; no scanner record yet
+            continue
+        # Delete the non-deterministic duplicates; keep recT_*.
+        for m in members:
+            if not m["id"].startswith("recT_"):
+                to_delete.append(m)
+
+    if not to_delete:
+        print("No duplicate records to clean up.")
+        return
+
+    print(f"Found {len(to_delete)} duplicate legacy record(s).")
+    if dry_run:
+        for m in to_delete[:20]:
+            print(f"  would delete {m['id']} (agent={m['agent']})")
+        if len(to_delete) > 20:
+            print(f"  ... and {len(to_delete) - 20} more")
+        return
+
+    if not auto:
+        ans = input(f"Delete {len(to_delete)} legacy records + their vault files? [y/N] ").strip().lower()
+        if ans not in ("y", "yes"):
+            print("Aborted.")
+            return
+
+    # Delete from SQLite search index + vault dir + JSONL files.
+    conn = sqlite3.connect(str(INDEX_DB))
+    delete_ids = [m["id"] for m in to_delete]
+    # sqlite param limit — batch
+    deleted_sql = 0
+    for i in range(0, len(delete_ids), 500):
+        batch = delete_ids[i:i + 500]
+        placeholders = ",".join("?" for _ in batch)
+        conn.execute(f"DELETE FROM records WHERE id IN ({placeholders})", batch)
+        deleted_sql += len(batch)
+    conn.commit()
+    conn.close()
+
+    vault_dir = ECP_DIR / "vault"
+    deleted_vault = 0
+    for rid in delete_ids:
+        vf = vault_dir / f"{rid}.json"
+        if vf.exists():
+            try:
+                vf.unlink()
+                deleted_vault += 1
+            except Exception:
+                pass
+
+    # Strip lines from daily JSONL files that belong to deleted ids.
+    records_dir = ECP_DIR / "records"
+    deleted_jsonl = 0
+    if records_dir.exists():
+        delete_set = set(delete_ids)
+        for jf in records_dir.glob("*.jsonl"):
+            try:
+                lines = jf.read_text(encoding="utf-8").splitlines()
+            except Exception:
+                continue
+            kept = []
+            dropped = 0
+            for line in lines:
+                if not line.strip():
+                    continue
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    kept.append(line)
+                    continue
+                if rec.get("id") in delete_set:
+                    dropped += 1
+                    continue
+                kept.append(line)
+            if dropped:
+                jf.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
+                deleted_jsonl += dropped
+
+    print(
+        f"Cleaned up: {deleted_sql} index rows, {deleted_vault} vault files, "
+        f"{deleted_jsonl} JSONL lines."
+    )
 
 
 def cmd_sync(args: list[str]):
@@ -3147,6 +3317,7 @@ def main():
         "backup-key": cmd_backup_key,
         "backup": cmd_backup,
         "sync": cmd_sync,
+        "cleanup": cmd_cleanup,
     }
 
     if cmd in ("--help", "-h", "help"):

@@ -50,17 +50,54 @@ def _parse_iso(ts: str | None) -> datetime | None:
         return None
 
 
+_CLAUDE_INTERNAL_PREFIXES = (
+    "<local-command-",       # CLI command stdout/stderr wrappers
+    "<command-name>",         # slash-command markers
+    "<command-message>",
+    "<command-args>",
+    "<system-reminder>",      # platform-injected reminders
+    "<user-prompt-submit-hook>",
+    "<ide_",                  # IDE-injected blocks
+    "<function_",
+    "[Request interrupted",   # Ctrl-C interrupt markers
+)
+
+
+def _is_internal_pseudo_msg(text: str) -> bool:
+    """Claude Code embeds a lot of non-user content as user-type entries:
+    slash command wrappers, stdout carriers, system reminders, interrupt
+    markers. These look like user messages but aren't — counting them as
+    turn boundaries produces garbage records like
+    `input = "<local-command-stdout>Set model to ..."`.
+    """
+    if not text:
+        return True
+    s = text.lstrip()
+    return s.startswith(_CLAUDE_INTERNAL_PREFIXES)
+
+
 def _is_real_user_msg(entry: dict) -> bool:
-    """True if this transcript entry represents a human-authored message
-    (not a tool_result carrier)."""
+    """True if this transcript entry is a genuine human-authored message.
+
+    Excludes:
+      - tool_result carriers (content blocks with no text)
+      - Claude Code internal pseudo-messages (slash commands, stdout
+        wrappers, system reminders, interrupt notices)
+    """
     c = entry.get("message", {}).get("content", "")
     if isinstance(c, str):
-        return bool(c.strip())
+        return bool(c.strip()) and not _is_internal_pseudo_msg(c)
     if isinstance(c, list):
-        return any(
-            isinstance(b, dict) and b.get("type") == "text" and b.get("text", "").strip()
+        texts = [
+            b.get("text", "")
             for b in c
-        )
+            if isinstance(b, dict) and b.get("type") == "text" and b.get("text", "").strip()
+        ]
+        if not texts:
+            return False
+        # If every text block in this entry starts with a Claude Code
+        # internal marker, treat it as a pseudo-message — not a real turn.
+        return not all(_is_internal_pseudo_msg(t) for t in texts)
     return False
 
 
