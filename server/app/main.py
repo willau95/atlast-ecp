@@ -153,12 +153,22 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
-# CORS — production-safe origins
+# CORS — production-safe origins.
+# Explicit header whitelist (was ["*"]): wildcard allow_headers permits any
+# custom header from cross-origin callers. Tighten to the exact set used by
+# our SDK + browser dashboard. Add here when a new custom header is introduced.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-API-Key",        # SDK authentication
+        "X-Agent-Key",      # Legacy SDK authentication
+        "X-Internal-Token", # Cron / metrics
+        "X-Requested-With", # Common XHR marker
+    ],
 )
 
 
