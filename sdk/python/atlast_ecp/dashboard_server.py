@@ -22,6 +22,41 @@ DEFAULT_PORT = 3827
 _TRUST_SCORE_CACHE: dict = {"ts": 0.0, "map": {}}
 _TRUST_SCORE_TTL_S = 60.0
 
+# Server-supplied install commands, cached briefly so every /api/version
+# hit doesn't round-trip. Single source of truth lives at
+# {ATLAST_API_URL}/install-info — we update it once on the server and
+# every deployed dashboard picks it up on the next cache expiry.
+_INSTALL_INFO_CACHE: dict = {"ts": 0.0, "info": None}
+_INSTALL_INFO_TTL_S = 300.0
+_DEFAULT_UPGRADE_CMD = "pip3 install --user --upgrade atlast-ecp"
+
+
+def _fetch_upgrade_command_from_server() -> str:
+    """Return the canonical upgrade command, fetched from the API server.
+
+    Falls back to a safe default (`--user` form) when the server is
+    unreachable — offline users never see a broken command.
+    """
+    import time as _t
+    now = _t.time()
+    if _INSTALL_INFO_CACHE["info"] and now - _INSTALL_INFO_CACHE["ts"] < _INSTALL_INFO_TTL_S:
+        cached = _INSTALL_INFO_CACHE["info"].get("upgrade_command")
+        if cached:
+            return cached
+
+    try:
+        from .config import get_api_url
+        import urllib.request as _ur
+        url = f"{get_api_url().rstrip('/')}/install-info"
+        with _ur.urlopen(url, timeout=3) as resp:
+            info = json.loads(resp.read())
+        cmd = (info or {}).get("upgrade_command") or _DEFAULT_UPGRADE_CMD
+        _INSTALL_INFO_CACHE["info"] = info
+        _INSTALL_INFO_CACHE["ts"] = now
+        return cmd
+    except Exception:
+        return _DEFAULT_UPGRADE_CMD
+
 
 def _get_cached_trust_scores() -> dict:
     """Return {agent_name: trust_score} with a 60-second TTL cache.
@@ -529,7 +564,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "current": current,
                 "latest": latest,
                 "update_available": update_available,
-                "update_command": "pip3 install --user --upgrade atlast-ecp",
+                # Install/upgrade commands come from the server so a future
+                # change (e.g. recommending a different flag) reaches all
+                # deployed dashboards without requiring users to upgrade
+                # just to see the new command. Local string is a fallback
+                # for offline mode.
+                "update_command": _fetch_upgrade_command_from_server(),
             }
 
         elif path == "/api/stats":

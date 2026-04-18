@@ -219,6 +219,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 from .routes.health import router as health_router
 from .routes.discovery import router as discovery_router
+from .routes.install_info import router as install_info_router
 from .routes.anchor import router as anchor_router
 from .routes.cron import router as cron_router
 from .routes.verify import router as verify_router
@@ -232,6 +233,7 @@ from .routes.scoring import router as scoring_router
 
 app.include_router(health_router)
 app.include_router(discovery_router)
+app.include_router(install_info_router)
 app.include_router(anchor_router)
 app.include_router(cron_router)
 app.include_router(verify_router)
