@@ -529,7 +529,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "current": current,
                 "latest": latest,
                 "update_available": update_available,
-                "update_command": "pip3 install --upgrade atlast-ecp",
+                "update_command": "pip3 install --user --upgrade atlast-ecp",
             }
 
         elif path == "/api/stats":
