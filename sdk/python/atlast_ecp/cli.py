@@ -1875,14 +1875,21 @@ def _auto_register(identity: dict):
 
 
 def cmd_cleanup(args: list[str]):
-    """atlast cleanup — remove duplicate records from old hook generations.
+    """atlast cleanup — remove duplicates + Claude Code pseudo-messages.
 
-    Previous hook versions (PostToolUse buffer+flush, legacy Stop hook) wrote
-    records with randomly-generated ids and different agent-name schemes.
-    When you `atlast sync` after upgrading, the transcript scanner adds new
-    `recT_*` records with deterministic ids and the correct agent name.
-    The old `rec_*` records are now stale duplicates — this command deletes
-    them.
+    Deletes two classes of records:
+
+    (A) Legacy duplicates — an old-format `rec_*` record whose input text
+        matches a newer deterministic `recT_*` record from the transcript
+        scanner. Old hook generations wrote records with an empty
+        session_id and a generic agent name like "claude-code"; the
+        scanner writes them under the real project-derived name. Same
+        conversation, two records, two agent names in the dashboard.
+
+    (B) Pseudo-message records — a `recT_*` whose input starts with a
+        Claude Code internal marker (<local-command-stdout>, <command-name>,
+        <system-reminder>, ...). These were created by early scanner
+        versions before the internal-marker filter landed.
 
     Flags:
       --dry-run   show what would be removed, don't delete
@@ -1896,51 +1903,80 @@ def cmd_cleanup(args: list[str]):
     from collections import defaultdict
     from .storage import ECP_DIR
     from .query import INDEX_DB, rebuild_index
+    from .transcript_scanner import _is_internal_pseudo_msg
 
     if not INDEX_DB.exists():
         rebuild_index()
 
-    # Group records by (session_id, input_preview). If a group has both an
-    # old `rec_*` and a new `recT_*`, the old ones are duplicates of a
-    # scanner-produced turn and can go.
     conn = sqlite3.connect(str(INDEX_DB))
     rows = conn.execute(
         "SELECT id, agent, session_id, input_preview, ts FROM records"
     ).fetchall()
     conn.close()
 
-    groups: dict = defaultdict(list)
+    # Build lookup of (input_preview-prefix -> list of records). We key on
+    # the user text alone: old records have empty session_id so a per-session
+    # group can't match them, but the actual typed input almost always
+    # uniquely identifies a turn.
+    by_input: dict = defaultdict(list)
     for rid, agent, sess, inp, ts in rows:
-        key = (sess or "", (inp or "")[:120])
-        groups[key].append({"id": rid, "agent": agent, "ts": ts})
+        if not inp:
+            continue
+        key = inp.strip()[:120]
+        by_input[key].append({"id": rid, "agent": agent, "ts": ts, "input": inp})
 
     to_delete: list[dict] = []
-    for key, members in groups.items():
+    reason: dict = {}
+
+    # (A) legacy duplicates
+    for key, members in by_input.items():
         if len(members) < 2:
             continue
         has_new = any(m["id"].startswith("recT_") for m in members)
         if not has_new:
-            # All legacy — keep them; no scanner record yet
             continue
-        # Delete the non-deterministic duplicates; keep recT_*.
         for m in members:
             if not m["id"].startswith("recT_"):
                 to_delete.append(m)
+                reason[m["id"]] = f"legacy duplicate of recT_* (input: {key[:40]!r})"
+
+    # (B) scanner-created pseudo-message records
+    for rid, agent, sess, inp, ts in rows:
+        if not rid.startswith("recT_"):
+            continue
+        if _is_internal_pseudo_msg(inp or ""):
+            to_delete.append({"id": rid, "agent": agent, "ts": ts, "input": inp})
+            reason[rid] = "Claude Code pseudo-message (scanner pre-0.32.6 artefact)"
+
+    # Dedup the delete list itself (a record might match both rules)
+    seen = set()
+    uniq_delete = []
+    for m in to_delete:
+        if m["id"] in seen:
+            continue
+        seen.add(m["id"])
+        uniq_delete.append(m)
+    to_delete = uniq_delete
 
     if not to_delete:
-        print("No duplicate records to clean up.")
+        print("No duplicate or pseudo-message records to clean up.")
         return
 
-    print(f"Found {len(to_delete)} duplicate legacy record(s).")
+    legacy_count = sum(1 for m in to_delete if not m["id"].startswith("recT_"))
+    pseudo_count = len(to_delete) - legacy_count
+    print(
+        f"Found {len(to_delete)} record(s) to remove — "
+        f"{legacy_count} legacy duplicate(s), {pseudo_count} pseudo-message(s)."
+    )
     if dry_run:
         for m in to_delete[:20]:
-            print(f"  would delete {m['id']} (agent={m['agent']})")
+            print(f"  would delete {m['id']:24} [{m['agent'][:30]}]  {reason.get(m['id'],'')}")
         if len(to_delete) > 20:
             print(f"  ... and {len(to_delete) - 20} more")
         return
 
     if not auto:
-        ans = input(f"Delete {len(to_delete)} legacy records + their vault files? [y/N] ").strip().lower()
+        ans = input(f"Delete {len(to_delete)} records + their vault files? [y/N] ").strip().lower()
         if ans not in ("y", "yes"):
             print("Aborted.")
             return
