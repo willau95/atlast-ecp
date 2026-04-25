@@ -1219,8 +1219,13 @@ def _find_free_port() -> int:
         return s.getsockname()[1]
 
 
-def run_with_proxy(command_args: list[str]):
-    """Run a command with ATLAST Proxy auto-injected. Called by 'atlast run'."""
+def run_with_proxy(command_args: list[str], *, return_exit: bool = False):
+    """Run a command with ATLAST Proxy auto-injected. Called by 'atlast run'.
+
+    By default sys.exit()s with the child's exit code (legacy behavior).
+    Pass return_exit=True to instead return the exit code, so the caller can
+    do post-session work (e.g. cmd_claude listing new wire ids).
+    """
     if not HAS_AIOHTTP:
         print("Error: aiohttp required. Install with: pip install atlast-ecp[proxy]")
         sys.exit(1)
@@ -1287,4 +1292,6 @@ def run_with_proxy(command_args: list[str]):
     print("   Storage: ~/.ecp/records/")
     print("   View: atlast log")
 
+    if return_exit:
+        return exit_code
     sys.exit(exit_code)

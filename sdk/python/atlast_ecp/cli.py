@@ -3556,6 +3556,79 @@ def _dashboard_check_launchagent():
         print("     Run `atlast init` to install the LaunchAgent (idempotent, preserves identity).\n")
 
 
+def cmd_claude(args: list[str]):
+    """atlast claude [claude args...] — run Claude Code with full wire-level recording.
+
+    Equivalent to `atlast run claude [args...]`, with three Claude-specific
+    niceties:
+      1. Auto-resolves the `claude` binary (PATH, ~/.local/bin, /usr/local/bin)
+         so it works even when the user installed via a non-standard path.
+      2. Captures EVERY Anthropic /v1/messages roundtrip (including streaming
+         SSE bytes) under ~/.ecp/vault/wire/. claude-trace can't do this on
+         Claude Code 2.x because Claude is a native Mach-O binary now;
+         our reverse-proxy approach is binary-agnostic.
+      3. Prints the wire-vault location after the session so the user can
+         immediately inspect with `atlast wire <id>`.
+
+    Examples:
+      atlast claude -p "Write a haiku about evidence"
+      atlast claude --resume   # interactive
+      atlast claude --add-dir ./repo -p "..."
+    """
+    import shutil
+    # Resolve claude binary
+    claude_path = shutil.which("claude")
+    if not claude_path:
+        for candidate in [
+            os.path.expanduser("~/.local/bin/claude"),
+            "/usr/local/bin/claude",
+            "/opt/homebrew/bin/claude",
+        ]:
+            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                claude_path = candidate
+                break
+    if not claude_path:
+        print("❌ Could not find `claude` binary on PATH or in common locations.")
+        print("   Install it from https://www.anthropic.com/claude-code, then retry.")
+        sys.exit(1)
+
+    print(f"🔗 ATLAST Claude wrapper")
+    print(f"   Claude binary: {claude_path}")
+    print(f"   Wire evidence will be written to: ~/.ecp/vault/wire/")
+    print(f"   View afterwards: atlast wire --list\n")
+
+    # Track wire IDs that exist before the session, so we can report which are NEW
+    from .wire import list_wire_ids as _list_wire_ids
+    pre_session = set(_list_wire_ids())
+
+    try:
+        from .proxy import run_with_proxy
+    except ImportError:
+        print("❌ Error: aiohttp required for `atlast claude`.")
+        print("   Install with: pip install --user atlast-ecp[proxy]")
+        sys.exit(1)
+
+    # run_with_proxy injects ANTHROPIC_BASE_URL + OPENAI_BASE_URL and spawns the child.
+    exit_code = run_with_proxy([claude_path] + list(args), return_exit=True)
+
+    # Post-session: report new wire roundtrips
+    post_session = set(_list_wire_ids())
+    new_ids = sorted(post_session - pre_session)
+    if new_ids:
+        print(f"\n📜 Captured {len(new_ids)} new wire roundtrip(s) this session:")
+        for wid in new_ids[:10]:
+            print(f"   {wid}")
+        if len(new_ids) > 10:
+            print(f"   ... and {len(new_ids) - 10} more")
+        print(f"\n   Inspect: atlast wire <id>            (or --raw for full bytes)")
+        print(f"   Verify:  atlast wire <id> --verify    (sha256 integrity)")
+    else:
+        print("\n   (No wire evidence captured. If you only ran a non-API command, "
+              "or if ATLAST_WIRE_DISABLE is set, this is expected.)")
+
+    sys.exit(exit_code)
+
+
 def cmd_wire(args: list[str]):
     """atlast wire <wire_id|record_id> [--raw] [--verify] [--list] — inspect Vault v4 wire-level evidence.
 
@@ -3820,6 +3893,7 @@ def main():
         "sync": cmd_sync,
         "cleanup": cmd_cleanup,
         "wire": cmd_wire,
+        "claude": cmd_claude,
     }
 
     if cmd in ("--help", "-h", "help"):
