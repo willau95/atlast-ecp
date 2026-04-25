@@ -477,6 +477,12 @@ def _flush_conversation(session_id: str):
             "steps": len(steps),
         }, ensure_ascii=False)
 
+    # Vault v4: collect wire_ids across all roundtrips in this conversation.
+    # `wire_summaries` keeps the compact metadata; `wire_ids` is the bare list
+    # for fast UI lookup. Full meta + raw bytes live under ~/.ecp/vault/wire/<id>/.
+    wire_summaries = [s.get("wire") for s in steps if s.get("wire")]
+    wire_ids = [w.get("wire_id") for w in wire_summaries if w and w.get("wire_id")]
+
     vault_extra = {
         "vault_version": 2,
         "system_prompt": first.get("system_prompt"),
@@ -485,6 +491,9 @@ def _flush_conversation(session_id: str):
         "conversation_steps": steps_detail,
         "total_api_calls": len(steps),
         "tool_calls_count": len(all_tool_calls),
+        # Vault v4 — pointers to per-roundtrip wire-level evidence.
+        "wire_ids": wire_ids,
+        "wire_summaries": wire_summaries,
     }
 
     try:
@@ -694,8 +703,15 @@ def _record_ecp(req_body: bytes, resp_content: str, path: str, provider: str,
                 stop_reason: Optional[str] = None,
                 tool_calls: Optional[list] = None,
                 is_streaming: bool = False,
-                is_provider_error: bool = False):
-    """Fire-and-forget ECP recording in background thread."""
+                is_provider_error: bool = False,
+                wire_summary: Optional[dict] = None):
+    """Fire-and-forget ECP recording in background thread.
+
+    `wire_summary` (Vault v4): compact dict from wire.save_wire() — embedded
+    in step_data so _flush_conversation can attach the list of wire_ids to
+    the final record's meta.wire_ids. None if wire capture is disabled or
+    failed (fail-open).
+    """
     # Classify infra errors (not the agent's fault) — legacy, kept for backward compat
     INFRA_STATUSES = {429: "rate_limit", 500: "server_error", 502: "bad_gateway",
                       503: "service_unavailable", 504: "gateway_timeout"}
@@ -782,6 +798,10 @@ def _record_ecp(req_body: bytes, resp_content: str, path: str, provider: str,
                 "full_request_hash": extracted.get("full_request_hash"),
                 "stop_reason": stop_reason,
                 "http_status": http_status,
+                # Vault v4: pointer to wire-level evidence for this roundtrip.
+                # Embedded so the buffer-aggregator can collect wire_ids across
+                # the steps of a multi-turn record (one record may span N API calls).
+                "wire": wire_summary,
             }
 
             # ── Conversation aggregation ──
@@ -1002,6 +1022,28 @@ class ATLASTProxy:
             if k.lower() not in skip:
                 resp_headers[k] = v
 
+        # ── Vault v4: capture raw wire bytes (fail-open) ──
+        # We call save_wire BEFORE _record_ecp so the wire_summary can ride along
+        # in step_data and end up in the final record's meta.wire_ids list.
+        wire_summary = None
+        try:
+            from .wire import save_wire as _save_wire
+            wire_summary = _save_wire(
+                request_url=str(request.url),
+                request_method=request.method,
+                request_headers=dict(request.headers),
+                request_body_bytes=req_body,
+                response_status=resp.status,
+                response_headers=dict(resp_headers),
+                response_body_bytes=resp_body,
+                response_content_type=resp_headers.get("Content-Type") or resp_headers.get("content-type") or "",
+                started_at=t_start,
+                finished_at=time.time(),
+                provider=provider,
+            )
+        except Exception:
+            wire_summary = None  # Fail-open
+
         # Record ECP (including infra errors like 429/500/503)
         tokens_in, tokens_out = _extract_tokens_from_response(resp_body, provider)
         resp_text = resp_body.decode("utf-8", errors="replace")
@@ -1048,7 +1090,8 @@ class ATLASTProxy:
                      stop_reason=sync_stop_reason,
                      tool_calls=sync_tool_calls if sync_tool_calls else None,
                      is_streaming=False,
-                     is_provider_error=sync_is_error)
+                     is_provider_error=sync_is_error,
+                     wire_summary=wire_summary)
         self.record_count += 1
 
         return web.Response(
@@ -1087,6 +1130,30 @@ class ATLASTProxy:
         # Extract tokens from SSE (OpenAI final chunk, Anthropic message_start/delta)
         sse_tokens_in = sse_result.get("tokens_in")
         sse_tokens_out = sse_result.get("tokens_out")
+
+        # ── Vault v4: capture raw SSE bytes byte-for-byte ──
+        # claude-trace stores response.clone().text() of the SSE stream verbatim,
+        # which is the strongest possible evidence ("no parsing errors, no
+        # protocol assumptions baked in"). We do the same here.
+        wire_summary = None
+        try:
+            from .wire import save_wire as _save_wire
+            wire_summary = _save_wire(
+                request_url=str(request.url),
+                request_method=request.method,
+                request_headers=dict(request.headers),
+                request_body_bytes=req_body,
+                response_status=resp.status,
+                response_headers=dict(resp_headers),
+                response_body_bytes=full_response,
+                response_content_type=resp_headers.get("Content-Type") or resp_headers.get("content-type") or "text/event-stream",
+                started_at=t_start,
+                finished_at=time.time(),
+                provider=provider,
+            )
+        except Exception:
+            wire_summary = None  # Fail-open
+
         _record_ecp(req_body, sse_result["content"], request.path, provider,
                      self._agent_for_request(model, req_body), model, latency_ms,
                      tokens_in=sse_tokens_in, tokens_out=sse_tokens_out,
@@ -1094,7 +1161,8 @@ class ATLASTProxy:
                      tool_calls=sse_result.get("tool_calls"),
                      is_streaming=True,
                      is_provider_error=sse_result.get("is_error", False),
-                     http_status=resp.status)
+                     http_status=resp.status,
+                     wire_summary=wire_summary)
         self.record_count += 1
 
         try:
