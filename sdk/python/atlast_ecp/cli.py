@@ -2647,9 +2647,37 @@ def cmd_inspect(args: list[str]):
 
 
 def cmd_export(args: list[str]):
-    """atlast export [--format json] — export ECP records"""
+    """atlast export [--format json] [--limit N] — export records.
+       atlast export <record_id> --html [-o file.html] — single-file HTML evidence."""
     import json as _json
     from .storage import load_records
+
+    # Single-record HTML export (Vault v4)
+    if "--html" in args:
+        positional = [a for a in args if not a.startswith("-")]
+        if not positional:
+            print("Usage: atlast export <record_id> --html [-o out.html]")
+            sys.exit(1)
+        record_id = positional[0]
+        out_path = None
+        if "-o" in args:
+            i = args.index("-o")
+            if i + 1 < len(args):
+                from pathlib import Path as _P
+                out_path = _P(args[i + 1])
+        try:
+            from .html_export import export_record_html
+            written = export_record_html(record_id, output_path=out_path)
+        except ValueError as e:
+            print(f"❌ {e}")
+            sys.exit(2)
+        size = written.stat().st_size
+        print(f"✅ Exported {record_id} → {written}")
+        print(f"   Size: {size:,} bytes")
+        print(f"   Open in any browser. Self-contained, works offline, no server needed.")
+        print(f"   Verify embedded data: open the HTML, the sha256 footer matches the data block.")
+        return
+
     limit = 100
     for i, a in enumerate(args):
         if a == "--limit" and i + 1 < len(args):

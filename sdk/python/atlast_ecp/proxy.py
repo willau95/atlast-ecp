@@ -1001,6 +1001,12 @@ def _record_ecp(req_body: bytes, resp_content: str, path: str, provider: str,
                     "session_id": session_id,
                     "http_status": http_status,
                     "stop_reason": stop_reason,
+                    # Vault v4: wire-evidence pointer for single-turn calls.
+                    # Multi-turn / tool-use buffered records get this in
+                    # _flush_conversation; this branch handles the simpler case
+                    # where the buffer is bypassed (one request → one record).
+                    "wire_ids": [wire_summary["wire_id"]] if wire_summary and wire_summary.get("wire_id") else [],
+                    "wire_summaries": [wire_summary] if wire_summary else [],
                 }
 
                 from .core import record_minimal_v2
