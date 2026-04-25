@@ -404,6 +404,113 @@ _conv_lock = threading.Lock()
 _CONV_TIMEOUT_S = 300  # Flush orphaned buffers after 5 minutes
 _CONV_MAX_BUFFERS = 100  # Cap to prevent unbounded memory growth
 
+# ─── Vault v4: Agent Provenance ─────────────────────────────────────────────
+# A "provenance" record is emitted once per session, the first time we see a
+# (system_prompt + tools) pair. It captures the agent's identity-defining
+# context — what the model was instructed to be and what tools it was given —
+# so downstream records can be linked back to the agent definition that
+# produced them. cchistory's per-version markdown was the inspiration; we
+# treat it as a normal ECP record with action="agent.provenance" so it
+# participates in the chain + signing + anchor pipeline like any other record.
+_session_provenance_emitted: set = set()
+_provenance_lock = threading.Lock()
+
+
+def _detect_runtime_version() -> dict:
+    """Best-effort: detect Claude Code version + Python + OS, for provenance."""
+    info = {"claude_code_version": None, "python": sys.version.split()[0], "platform": sys.platform}
+    try:
+        import shutil as _sh
+        cb = _sh.which("claude")
+        if cb:
+            try:
+                r = subprocess.run([cb, "--version"], capture_output=True, text=True, timeout=3)
+                if r.returncode == 0:
+                    info["claude_code_version"] = r.stdout.strip().split()[0]
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return info
+
+
+def _emit_provenance_if_needed(session_id: str, *, system_prompt: Optional[str],
+                               tools_obj: Optional[list], model: Optional[str],
+                               agent: str, wire_summary: Optional[dict]) -> None:
+    """If this is the first time we've seen this session's (system, tools)
+    pair, emit a one-shot agent.provenance record. Idempotent — second call
+    for the same session is a no-op. Fail-open."""
+    if not session_id or session_id == "unknown":
+        return
+    with _provenance_lock:
+        if session_id in _session_provenance_emitted:
+            return
+        _session_provenance_emitted.add(session_id)
+        # Prevent unbounded growth
+        if len(_session_provenance_emitted) > 5000:
+            # Drop the oldest half — Python sets aren't ordered but this stays
+            # bounded under memory pressure; perfect FIFO not needed.
+            keep = list(_session_provenance_emitted)[-2500:]
+            _session_provenance_emitted.clear()
+            _session_provenance_emitted.update(keep)
+
+    try:
+        import hashlib as _hl
+        runtime = _detect_runtime_version()
+
+        sys_sha = None
+        if system_prompt:
+            sys_sha = "sha256:" + _hl.sha256(
+                (system_prompt if isinstance(system_prompt, str) else json.dumps(system_prompt, sort_keys=True))
+                .encode("utf-8")
+            ).hexdigest()
+        tools_sha = None
+        tool_count = 0
+        tool_names: list = []
+        if isinstance(tools_obj, list) and tools_obj:
+            tool_count = len(tools_obj)
+            tool_names = [t.get("name") for t in tools_obj if isinstance(t, dict) and t.get("name")]
+            tools_sha = "sha256:" + _hl.sha256(
+                json.dumps(tools_obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
+            ).hexdigest()
+
+        # Build a human-readable provenance summary as input/output.
+        # input = "agent.provenance.declared", output = the structured fingerprint.
+        prov_payload = {
+            "session_id": session_id,
+            "model": model,
+            "system_prompt_sha256": sys_sha,
+            "tool_definitions_sha256": tools_sha,
+            "tool_count": tool_count,
+            "tool_names": tool_names[:50],
+            "runtime": runtime,
+            "wire_id": (wire_summary or {}).get("wire_id"),
+        }
+
+        from .core import record_minimal_v2 as _rec
+        _rec(
+            input_content="agent.provenance.declared",
+            output_content=json.dumps(prov_payload, ensure_ascii=False),
+            agent=agent,
+            action="agent.provenance",
+            model=model,
+            latency_ms=0,
+            session_id=session_id,
+            flags=["provenance"],
+            vault_extra={
+                "vault_version": 2,
+                "session_id": session_id,
+                "system_prompt": system_prompt,
+                "tool_definitions": tools_obj,
+                "runtime": runtime,
+                "wire_ids": [(wire_summary or {}).get("wire_id")] if wire_summary and wire_summary.get("wire_id") else [],
+                "wire_summaries": [wire_summary] if wire_summary else [],
+            },
+        )
+    except Exception:
+        # Fail-open: a missing provenance record never breaks the user
+        pass
+
 
 def _flush_conversation(session_id: str):
     """Flush a conversation buffer into a single aggregated ECP record."""
@@ -764,6 +871,29 @@ def _record_ecp(req_body: bytes, resp_content: str, path: str, provider: str,
 
             session_id = extracted.get("session_id") or "unknown"
             is_continuation = extracted.get("is_tool_continuation", False)
+
+            # Vault v4: emit a one-shot agent.provenance record at the FIRST
+            # API call of each session, capturing the (system_prompt, tools)
+            # fingerprint so every later record can be linked back to the
+            # agent definition that produced it. Idempotent per session.
+            try:
+                tools_for_prov = None
+                try:
+                    rb = json.loads(req_body) if req_body else None
+                    if isinstance(rb, dict):
+                        tools_for_prov = rb.get("tools")
+                except Exception:
+                    tools_for_prov = None
+                _emit_provenance_if_needed(
+                    session_id,
+                    system_prompt=extracted.get("system_prompt"),
+                    tools_obj=tools_for_prov,
+                    model=meta_model,
+                    agent=agent,
+                    wire_summary=wire_summary,
+                )
+            except Exception:
+                pass  # Fail-open
 
             # Extract clean text from response JSON
             clean_output = resp_content
